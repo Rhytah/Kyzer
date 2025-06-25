@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kyzer LMS - Course Player</title>
+    <style>
+        /* ===== KYZER LMS DESIGN SYSTEM ===== */
+        
+        :root {
+            /* Primary Colors */
+            --primary-dark: #1F2937;
+            --primary-default: #374151;
+            --primary-light: #F3F4F6;
+            
+            /* Text Colors */
+            --text-dark: #111827;
+            --text-medium: #374151;
+            --text-light: #6B7280;
+            --text-muted: #9CA3AF;
+            
+            /* Background Colors */
+            --bg-white: #FFFFFF;
+            --bg-light: #F9FAFB;
+            --bg-medium: #F3F4F6;
+            --bg-dark: #E5E7EB;
+            
+            /* Semantic Colors */
+            --success-default: #059669;
+            --success-light: #ECFDF5;
+            --warning-default: #D97706;
+            --warning-light: #FFFBEB;
+            --error-default: #DC2626;
+            --error-light: #FEF2F2;
+            
+            /* Player Colors */
+            --player-bg: #000000;
+            --player-controls: rgba(255, 255, 255, 0.9);
+            --player-progress: var(--primary-default);
+            
+            /* Shadows */
+            --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-large: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Reset & Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.5;
+            color: var(--text-dark);
+            background-color: var(--bg-light);
+            overflow: hidden;
+        }
+        
+        /* Typography */
+        .h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.025em; color: var(--text-dark); }
+        .h2 { font-size: 20px; font-weight: 600; color: var(--text-dark); }
+        .h3 { font-size: 18px; font-weight: 600; color: var(--text-dark); }
+        .h4 { font-size: 16px; font-weight: 600; color: var(--text-dark); }
+        .body-default { font-size: 14px; font-weight: 400; color: var(--text-dark); }
+        .body-medium { font-size: 14px; font-weight: 500; color: var(--text-dark); }
+        .caption-small { font-size: 12px; font-weight: 400; color: var(--text-light); }
+        .caption-tiny { font-size: 10px; font-weight: 400; letter-spacing: 0.05em; color: var(--text-muted); }
+        
+        /* Layout */
+        .player-container {
+            display: flex;
+            height: 100vh;
+            background-color: var(--bg-light);
+        }
+        
+        /* Course Navigation Sidebar */
+        .course-sidebar {
+            width: 320px;
+            background-color: var(--bg-white);
+            border-right: 1px solid var(--bg-medium);
+            display: flex;
+            flex-direction: column;
+            max-height: 100vh;
+        }
+        
+        .course-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--bg-medium);
+            background-color: var(--bg-white);
+        }
+        
+        .course-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        .course-progress {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .progress-bar {
+            flex: 1;
+            height: 6px;
+            background-color: var(--bg-dark);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: var(--success-default);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            font-size: 12px;
+            color: var(--text-light);
+            white-space: nowrap;
+        }
+        
+        .back-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary-default);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--bg-medium);
+            margin-bottom: 16px;
+        }
+        
+        .back-button:hover {
+            color: var(--primary-dark);
+        }
+        
+        /* Chapter Navigation */
+        .chapter-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 20px 20px;
+        }
+        
+        .chapter {
+            margin-bottom: 24px;
+        }
+        
+        .chapter-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--bg-medium);
+        }
+        
+        .lesson-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            margin-bottom: 4px;
+        }
+        
+        .lesson-item:hover {
+            background-color: var(--bg-light);
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+        
+        .lesson-item.active {
+            background-color: var(--primary-light);
+            color: var(--primary-default);
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+        
+        .lesson-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        
+        .lesson-icon.completed {
+            background-color: var(--success-default);
+            color: white;
+        }
+        
+        .lesson-icon.current {
+            background-color: var(--primary-default);
+            color: white;
+        }
+        
+        .lesson-icon.pending {
+            background-color: var(--bg-medium);
+            color: var(--text-muted);
+        }
+        
+        .lesson-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .lesson-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-dark);
+            margin-bottom: 2px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+        
+        .lesson-duration {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+        
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-light);
+        }
+        
+        /* Player Header */
+        .player-header {
+            background-color: var(--bg-white);
+            border-bottom: 1px solid var(--bg-medium);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .lesson-header-info h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 4px;
+        }
+        
+        .lesson-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--text-light);
+        }
+        
+        .player-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        /* Video Player */
+        .video-container {
+            position: relative;
+            background-color: var(--player-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+            flex: 1;
+        }
+        
+        .video-placeholder {
+            text-align: center;
+            color: white;
+            padding: 40px;
+        }
+        
+        .video-placeholder h2 {
+            font-size: 24px;
+            margin-bottom: 16px;
+            color: white;
+        }
+        
+        .video-placeholder p {
+            font-size: 16px;
+            opacity: 0.8;
+            margin-bottom: 24px;
+        }
+        
+        .play-button {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: var(--primary-default);
+            border: none;
+            color: white;
+            font-size: 32px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .play-button:hover {
+            background-color: var(--primary-dark);
+            transform: scale(1.1);
+        }
+        
+        /* Video Controls */
+        .video-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .video-container:hover .video-controls {
+            opacity: 1;
+        }
+        
+        .controls-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+        
+        .control-button {
+            background: none;
+            border: none;
+            color: var(--player-controls);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .control-button:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .time-display {
+            color: var(--player-controls);
+            font-size: 14px;
+            margin: 0 12px;
+        }
+        
+        .video-progress {
+            flex: 1;
+            height: 4px;
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .video-progress-fill {
+            height: 100%;
+            background-color: var(--primary-default);
+            border-radius: 2px;
+            width: 35%;
+            transition: width 0.1s ease;
+        }
+        
+        /* Bottom Panel */
+        .bottom-panel {
+            background-color: var(--bg-white);
+            border-top: 1px solid var(--bg-medium);
+            display: flex;
+        }
+        
+        /* Tabs */
+        .tab-nav {
+            display: flex;
+            border-bottom: 1px solid var(--bg-medium);
+            background-color: var(--bg-white);
+        }
+        
+        .tab-button {
+            padding: 16px 24px;
+            background: none;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-light);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .tab-button.active {
+            color: var(--primary-default);
+            border-bottom-color: var(--primary-default);
+        }
+        
+        .tab-button:hover {
+            color: var(--text-dark);
+            background-color: var(--bg-light);
+        }
+        
+        .tab-content {
+            padding: 24px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        /* Notes Section */
+        .notes-section {
+            display: none;
+        }
+        
+        .notes-section.active {
+            display: block;
+        }
+        
+        .note-editor {
+            border: 1px solid var(--bg-dark);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            background-color: var(--bg-white);
+        }
+        
+        .note-input {
+            width: 100%;
+            min-height: 80px;
+            border: none;
+            outline: none;
+            resize: vertical;
+            font-size: 14px;
+            font-family: inherit;
+            color: var(--text-dark);
+        }
+        
+        .note-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--bg-medium);
+        }
+        
+        .timestamp {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .saved-notes {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .note-item {
+            background-color: var(--bg-light);
+            border-radius: 8px;
+            padding: 16px;
+            border-left: 3px solid var(--primary-default);
+        }
+        
+        .note-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .note-time {
+            font-size: 12px;
+            color: var(--primary-default);
+            font-weight: 500;
+        }
+        
+        .note-date {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .note-text {
+            font-size: 14px;
+            color: var(--text-dark);
+            line-height: 1.5;
+        }
+        
+        /* Resources Section */
+        .resources-section {
+            display: none;
+        }
+        
+        .resources-section.active {
+            display: block;
+        }
+        
+        .resource-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background-color: var(--bg-light);
+            border-radius: 8px;
+            margin-bottom: 12px;
+            transition: all 0.2s ease;
+        }
+        
+        .resource-item:hover {
+            background-color: var(--bg-medium);
+        }
+        
+        .resource-icon {
+            width: 40px;
+            height: 40px;
+            background-color: var(--primary-light);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-default);
+            font-size: 18px;
+        }
+        
+        .resource-info {
+            flex: 1;
+        }
+        
+        .resource-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-dark);
+            margin-bottom: 4px;
+        }
+        
+        .resource-meta {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+        
+        .download-button {
+            padding: 8px 16px;
+            background-color: var(--primary-default);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .download-button:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+        
+        /* Quiz Section */
+        .quiz-section {
+            display: none;
+        }
+        
+        .quiz-section.active {
+            display: block;
+        }
+        
+        .quiz-question {
+            background-color: var(--bg-light);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .question-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 16px;
+        }
+        
+        .question-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background-color: var(--bg-white);
+            border: 2px solid var(--bg-dark);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .option:hover {
+            border-color: var(--primary-light);
+            background-color: var(--primary-light);
+        }
+        
+        .option.selected {
+            border-color: var(--primary-default);
+            background-color: var(--primary-light);
+        }
+        
+        .option input[type="radio"] {
+            margin: 0;
+        }
+        
+        .option label {
+            font-size: 14px;
+            color: var(--text-dark);
+            cursor: pointer;
+            flex: 1;
+        }
+        
+        .quiz-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .quiz-progress {
+            font-size: 14px;
+            color: var(--text-light);
+        }
+        
+        /* Navigation Controls */
+        .lesson-navigation {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            gap: 12px;
+            z-index: 100;
+        }
+        
+        .nav-button {
+            padding: 12px 20px;
+            background-color: var(--bg-white);
+            border: 1px solid var(--bg-dark);
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-medium);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .nav-button:hover {
+            background-color: var(--bg-light);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-large);
+        }
+        
+        .nav-button.primary {
+            background-color: var(--primary-default);
+            color: white;
+            border-color: var(--primary-default);
+        }
+        
+        .nav-button.primary:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        /* Button Components */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-default);
+            color: var(--bg-white);
+            border-color: var(--primary-default);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background-color: var(--bg-white);
+            color: var(--primary-default);
+            border-color: var(--bg-dark);
+        }
+        
+        .btn-secondary:hover {
+            background-color: var(--bg-light);
+        }
+        
+        .btn-small { padding: 6px 12px; font-size: 12px; }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .course-sidebar {
+                width: 280px;
+            }
+            
+            .player-header {
+                padding: 12px 16px;
+            }
+            
+            .tab-content {
+                padding: 16px;
+            }
+            
+            .lesson-navigation {
+                bottom: 16px;
+                right: 16px;
+                left: 16px;
+                justify-content: space-between;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .course-sidebar {
+                display: none;
+            }
+            
+            .player-container {
+                flex-direction: column;
+            }
+            
+            .main-content {
+                width: 100%;
+            }
+        }
+        
+        /* Utility Classes */
+        .hidden { display: none; }
+        .mb-4 { margin-bottom: 16px; }
+        .mb-6 { margin-bottom: 24px; }
+        .text-center { text-align: center; }
+        .flex { display: flex; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+    </style>
+</head>
+<body>
+    <nav style="background:#11182742; padding:12px 24px; margin-bottom:24px; border-bottom:1px solid #eee;">
+  <a href="dashboard.html" style="margin-right:16px;">Learning Dashboard</a>
+  <a href="userdashboard.html" style="margin-right:16px;">Admin Dashboard</a>
+  <a href="coursedelivery.html" style="margin-right:16px;">Course Delivery</a>
+  <a href="componentLibrary.html" style="margin-right:16px;">Component Library</a>
+  <a href="login.html" style="margin-right:16px;">Login</a>
+   
+   <a href="breakpointsdesign.html" style="margin-right:16px;">Responsiveess considerations</a>
+ <a href="design.html" style="margin-right:16px;">App design</a>
+ <!-- Add more links as needed for other mockup files -->
+</nav>
+
+    <div class="player-container">
+        <!-- Course Navigation Sidebar -->
+        <div class="course-sidebar">
+            <div class="course-header">
+                <a href="componentLibrary.html" class="back-button">
+                    <span>←</span>
+                    <span>Back to Course</span>
+                </a>
+                <h2 class="course-title">Advanced React Development</h2>
+                <div class="course-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 65%"></div>
+                    </div>
+                    <span class="progress-text">65%</span>
+                </div>
+            </div>
+            
+            <div class="chapter-nav">
+                <!-- Chapter 1 -->
+                <div class="chapter">
+                    <h3 class="chapter-title">Chapter 1: Getting Started</h3>
+                    <div class="lesson-item" onclick="selectLesson(this)">
+                        <div class="lesson-icon completed">✓</div>
+                        <div class="lesson-info">
+                            <div class="lesson-title">Course Introduction</div>
+                            <div class="lesson-duration">5 min</div>
+                        </div>
+                    </div>
+                    <div class="lesson-item" onclick="selectLesson(this)">
+                        <div class="lesson-icon completed">✓</div>
+                        <div class="lesson-info">
+                            <div class="lesson-title">Setting Up Your Environment</div>
+                            <div class="lesson-duration">12 min</div>
+                        </div>
+                    </div>
+                    <div class="lesson-item active" onclick="selectLesson(this)">
+                        <div class="lesson-icon current">▶</div>
+                        <div class="lesson-info">
+                            <div class="lesson-title">React Fundamentals Review</div>
+                            <div class="lesson-duration">18 min</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Chapter 2 -->
+                <div class="chapter">
+                    <h3 class="chapter-title">Chapter 2: Advanced Hooks</h3>
+                    <div class="lesson-item" onclick="selectLesson(this)">
+                        <div class="lesson-icon pending">4</div>
+                        <div class="lesson-info">
+                            <div class="lesson-title">useEffect Deep Dive</div>
+                            <div class="lesson-duration">22 min</div>
+                        </div>
+                    </div>
+                    <div class="lesson-item" onclick="selectLesson(this)">
+                        <div class="lesson-icon pending">5</div>
+                        <div class="lesson-info">
+                            <div class="lesson-title">Custom Hooks</div>
+                            <div class="lesson-duration">15 min</div>
+                        </div>
+                    </div>
+                    <div class="lesson-item" onclick="selectLesson(this)">
+                        <div class="lesson-icon pending">📝</div>
+                        <div class="lesson-info">
+                            <div class="lesson-title">Chapter 2 Quiz</div>
+                            <div class="lesson-duration">5 min</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Chapter 3 -->
+                <div class="chapter">
+                    <h3 class="chapter-title">Chapter 3: State Management</h3>
+                    <div class="lesson-item" onclick="selectLesson(this)">
+                        <div class="lesson-icon pending">7</div>
+                        <div class="lesson-info">
+                            <div class="lesson-title">Context API Patterns</div>
+                            <div class="lesson-duration">25 min</div>
+                        </div>
+                    </div>
+                    <div class="lesson-item" onclick="selectLesson(this)">
+                        <div class="lesson-icon pending">8</div>
+                        <div class="lesson-info">
+                            <div class="lesson-title">Redux Toolkit</div>
+                            <div class="lesson-duration">30 min</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Player Header -->
+            <div class="player-header">
+                <div class="lesson-header-info">
+                    <h1>React Fundamentals Review</h1>
+                    <div class="lesson-meta">
+                        <span>📹 Video</span>
+                        <span>⏱️ 18 minutes</span>
+                        <span>👥 Advanced Level</span>
+                        <span>📚 Chapter 1, Lesson 3</span>
+                    </div>
+                </div>
+                <div class="player-actions">
+                    <button class="btn btn-secondary btn-small">
+                        <span>🔖</span>
+                        <span>Bookmark</span>
+                    </button>
+                    <button class="btn btn-secondary btn-small">
+                        <span>⚙️</span>
+                        <span>Settings</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Video Player -->
+            <div class="video-container" id="videoContainer">
+                <div class="video-placeholder">
+                    <h2>React Fundamentals Review</h2>
+                    <p>Master the core concepts before diving into advanced patterns</p>
+                    <button class="play-button" onclick="playVideo()">▶</button>
+                </div>
+                
+                <div class="video-controls" id="videoControls">
+                    <div class="controls-row">
+                        <button class="control-button" onclick="togglePlay()">⏸️</button>
+                        <button class="control-button">⏮️</button>
+                        <button class="control-button">⏭️</button>
+                        <span class="time-display">6:32 / 18:24</span>
+                        <div class="video-progress" onclick="seekVideo(event)">
+                            <div class="video-progress-fill"></div>
+                        </div>
+                        <button class="control-button">🔊</button>
+                        <button class="control-button">⚙️</button>
+                        <button class="control-button" onclick="toggleFullscreen()">⛶</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bottom Panel with Tabs -->
+            <div class="bottom-panel">
+                <div style="flex: 1;">
+                    <div class="tab-nav">
+                        <button class="tab-button active" onclick="switchTab('overview')">Overview</button>
+                        <button class="tab-button" onclick="switchTab('notes')">Notes</button>
+                        <button class="tab-button" onclick="switchTab('resources')">Resources</button>
+                        <button class="tab-button" onclick="switchTab('quiz')">Quiz</button>
+                    </div>
+                    
+                    <!-- Overview Tab -->
+                    <div id="overview-tab" class="tab-content">
+                        <h3 class="h4 mb-4">Lesson Overview</h3>
+                        <p class="body-default mb-6" style="color: var(--text-light); line-height: 1.6;">
+                            In this lesson, we'll review the fundamental concepts of React that you'll need to understand before diving into advanced patterns. We'll cover components, props, state, and the component lifecycle.
+                        </p>
+                        
+                        <h4 class="body-medium mb-4" style="color: var(--text-dark);">What you'll learn:</h4>
+                        <ul style="margin-left: 20px; color: var(--text-light); line-height: 1.8;">
+                            <li>Component composition patterns</li>
+                            <li>Props vs state management</li>
+                            <li>Event handling best practices</li>
+                            <li>Component lifecycle methods</li>
+                            <li>Modern React patterns</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Notes Tab -->
+                    <div id="notes-tab" class="tab-content notes-section">
+                        <div class="note-editor">
+                            <textarea class="note-input" placeholder="Take notes while you learn... Your notes will be automatically saved."></textarea>
+                            <div class="note-actions">
+                                <div class="timestamp">Current time: 6:32</div>
+                                <button class="btn btn-primary btn-small">Save Note</button>
+                            </div>
+                        </div>
+                        
+                        <div class="saved-notes">
+                            <div class="note-item">
+                                <div class="note-header">
+                                    <span class="note-time">3:45</span>
+                                    <span class="note-date">Today, 2:30 PM</span>
+                                </div>
+                                <div class="note-text">
+                                    Important: Remember that props are read-only and should never be modified directly in the component.
+                                </div>
+                            </div>
+                            
+                            <div class="note-item">
+                                <div class="note-header">
+                                    <span class="note-time">1:20</span>
+                                    <span class="note-date">Today, 2:25 PM</span>
+                                </div>
+                                <div class="note-text">
+                                    Component naming convention: Always use PascalCase for React components.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Resources Tab -->
+                    <div id="resources-tab" class="tab-content resources-section">
+                        <div class="resource-item">
+                            <div class="resource-icon">📄</div>
+                            <div class="resource-info">
+                                <div class="resource-name">React Fundamentals Cheat Sheet</div>
+                                <div class="resource-meta">PDF • 2.3 MB • Quick reference guide</div>
+                            </div>
+                            <button class="download-button">Download</button>
+                        </div>
+                        
+                        <div class="resource-item">
+                            <div class="resource-icon">💻</div>
+                            <div class="resource-info">
+                                <div class="resource-name">Source Code Examples</div>
+                                <div class="resource-meta">ZIP • 1.8 MB • Complete lesson examples</div>
+                            </div>
+                            <button class="download-button">Download</button>
+                        </div>
+                        
+                        <div class="resource-item">
+                            <div class="resource-icon">🔗</div>
+                            <div class="resource-info">
+                                <div class="resource-name">React Official Documentation</div>
+                                <div class="resource-meta">External Link • Official React docs</div>
+                            </div>
+                            <button class="download-button">Visit</button>
+                        </div>
+                        
+                        <div class="resource-item">
+                            <div class="resource-icon">📊</div>
+                            <div class="resource-info">
+                                <div class="resource-name">Component Lifecycle Diagram</div>
+                                <div class="resource-meta">PNG • 890 KB • Visual reference</div>
+                            </div>
+                            <button class="download-button">Download</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Quiz Tab -->
+                    <div id="quiz-tab" class="tab-content quiz-section">
+                        <div class="quiz-question">
+                            <h3 class="question-title">Question 1 of 3</h3>
+                            <p class="body-default mb-6">Which of the following is the correct way to pass data from a parent component to a child component in React?</p>
+                            
+                            <div class="question-options">
+                                <div class="option" onclick="selectOption(this)">
+                                    <input type="radio" name="q1" id="q1a">
+                                    <label for="q1a">Using state</label>
+                                </div>
+                                <div class="option" onclick="selectOption(this)">
+                                    <input type="radio" name="q1" id="q1b">
+                                    <label for="q1b">Using props</label>
+                                </div>
+                                <div class="option" onclick="selectOption(this)">
+                                    <input type="radio" name="q1" id="q1c">
+                                    <label for="q1c">Using context</label>
+                                </div>
+                                <div class="option" onclick="selectOption(this)">
+                                    <input type="radio" name="q1" id="q1d">
+                                    <label for="q1d">Using refs</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="quiz-actions">
+                            <div class="quiz-progress">Question 1 of 3</div>
+                            <button class="btn btn-primary">Next Question</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Lesson Navigation -->
+    <div class="lesson-navigation">
+        <button class="nav-button" onclick="window.location.href='dashboard.html'">
+            <span>←</span>
+            <span>Previous Lesson</span>
+        </button>
+        <button class="nav-button primary" onclick="window.location.href='userdashboard.html'">
+            <span>Next Lesson</span>
+            <span>→</span>
+        </button>
+    </div>
+
+    <script>
+        let isPlaying = false;
+        let currentTime = 392; // 6:32 in seconds
+        let duration = 1104; // 18:24 in seconds
+
+        function selectLesson(element) {
+            // Remove active class from all lessons
+            document.querySelectorAll('.lesson-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            // Add active class to selected lesson
+            element.classList.add('active');
+        }
+
+        function playVideo() {
+            document.querySelector('.video-placeholder').style.display = 'none';
+            document.querySelector('.video-controls').style.opacity = '1';
+            isPlaying = true;
+            
+            // Simulate video playing
+            document.querySelector('.video-container').style.background = 'linear-gradient(45deg, #1a1a1a, #2a2a2a)';
+            document.querySelector('.video-container').innerHTML += '<div style="color: white; text-align: center; font-size: 24px; margin: 20px;">🎬 Video Playing...</div>';
+        }
+
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            document.querySelector('.control-button').innerHTML = isPlaying ? '⏸️' : '▶️';
+        }
+
+        function toggleFullscreen() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                document.querySelector('.video-container').requestFullscreen();
+            }
+        }
+
+        function seekVideo(event) {
+            const progressBar = event.currentTarget;
+            const rect = progressBar.getBoundingClientRect();
+            const percentage = (event.clientX - rect.left) / rect.width;
+            const newTime = duration * percentage;
+            currentTime = newTime;
+            
+            // Update progress bar
+            document.querySelector('.video-progress-fill').style.width = (percentage * 100) + '%';
+            
+            // Update time display
+            const minutes = Math.floor(newTime / 60);
+            const seconds = Math.floor(newTime % 60);
+            const totalMinutes = Math.floor(duration / 60);
+            const totalSeconds = Math.floor(duration % 60);
+            document.querySelector('.time-display').textContent = 
+                `${minutes}:${seconds.toString().padStart(2, '0')} / ${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}`;
+        }
+
+        function switchTab(tabName) {
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Hide all tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + '-tab').style.display = 'block';
+            
+            // Add active class to clicked tab button
+            event.target.classList.add('active');
+        }
+
+        function selectOption(element) {
+            // Remove selected class from all options
+            element.parentElement.querySelectorAll('.option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            // Add selected class to clicked option
+            element.classList.add('selected');
+            // Check the radio button
+            element.querySelector('input[type="radio"]').checked = true;
+        }
+
+        // Initialize the interface
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set initial progress
+            const progressPercentage = (currentTime / duration) * 100;
+            document.querySelector('.video-progress-fill').style.width = progressPercentage + '%';
+            
+            // Update time display
+            const minutes = Math.floor(currentTime / 60);
+            const seconds = Math.floor(currentTime % 60);
+            const totalMinutes = Math.floor(duration / 60);
+            const totalSeconds = Math.floor(duration % 60);
+            document.querySelector('.time-display').textContent = 
+                `${minutes}:${seconds.toString().padStart(2, '0')} / ${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}`;
+
+            // Add hover effects to lesson items
+            document.querySelectorAll('.lesson-item').forEach(item => {
+                item.addEventListener('mouseenter', function() {
+                    if (!this.classList.contains('active')) {
+                        this.style.backgroundColor = 'var(--bg-light)';
+                    }
+                });
+                item.addEventListener('mouseleave', function() {
+                    if (!this.classList.contains('active')) {
+                        this.style.backgroundColor = '';
+                    }
+                });
+            });
+
+            // Auto-save notes functionality
+            const noteInput = document.querySelector('.note-input');
+            let saveTimeout;
+            noteInput.addEventListener('input', function() {
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(() => {
+                    // Simulate auto-save
+                    console.log('Notes auto-saved');
+                }, 2000);
+            });
+
+            // Simulate video progress
+            setInterval(() => {
+                if (isPlaying && currentTime < duration) {
+                    currentTime += 1;
+                    const progressPercentage = (currentTime / duration) * 100;
+                    document.querySelector('.video-progress-fill').style.width = progressPercentage + '%';
+                    
+                    // Update time display
+                    const minutes = Math.floor(currentTime / 60);
+                    const seconds = Math.floor(currentTime % 60);
+                    const totalMinutes = Math.floor(duration / 60);
+                    const totalSeconds = Math.floor(duration % 60);
+                    document.querySelector('.time-display').textContent = 
+                        `${minutes}:${seconds.toString().padStart(2, '0')} / ${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}`;
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

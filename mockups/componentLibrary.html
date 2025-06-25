@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kyzer LMS - HTML Component Library</title>
+    <style>
+        /* ===== KYZER LMS DESIGN SYSTEM ===== */
+        
+        /* CSS Custom Properties - Brand Colors */
+        :root {
+            /* Primary Colors */
+            --primary-dark: #1F2937;
+            --primary-default: #374151;
+            --primary-light: #F3F4F6;
+            
+            /* Text Colors */
+            --text-dark: #111827;
+            --text-medium: #374151;
+            --text-light: #6B7280;
+            --text-muted: #9CA3AF;
+            
+            /* Background Colors */
+            --bg-white: #FFFFFF;
+            --bg-light: #F9FAFB;
+            --bg-medium: #F3F4F6;
+            --bg-dark: #E5E7EB;
+            
+            /* Semantic Colors */
+            --success-default: #059669;
+            --success-light: #ECFDF5;
+            --warning-default: #D97706;
+            --warning-light: #FFFBEB;
+            --error-default: #DC2626;
+            --error-light: #FEF2F2;
+            
+            /* Shadows */
+            --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-large: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Reset & Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.5;
+            color: var(--text-dark);
+            background-color: var(--bg-light);
+        }
+        
+        /* Typography */
+        .h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.025em; color: var(--text-dark); }
+        .h2 { font-size: 20px; font-weight: 600; color: var(--text-dark); }
+        .h3 { font-size: 18px; font-weight: 600; color: var(--text-dark); }
+        .body-default { font-size: 14px; font-weight: 400; color: var(--text-dark); }
+        .body-medium { font-size: 14px; font-weight: 500; color: var(--text-dark); }
+        .caption-small { font-size: 12px; font-weight: 400; color: var(--text-light); }
+        .caption-tiny { font-size: 10px; font-weight: 400; letter-spacing: 0.05em; color: var(--text-muted); }
+        
+        /* ===== BUTTON COMPONENTS ===== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-default);
+            color: var(--bg-white);
+            border-color: var(--primary-default);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            border-color: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background-color: var(--bg-white);
+            color: var(--primary-default);
+            border-color: var(--primary-default);
+        }
+        
+        .btn-secondary:hover {
+            background-color: var(--primary-light);
+        }
+        
+        .btn-ghost {
+            background-color: transparent;
+            color: var(--text-light);
+            border-color: transparent;
+        }
+        
+        .btn-ghost:hover {
+            background-color: var(--bg-light);
+        }
+        
+        .btn-small { padding: 6px 16px; font-size: 12px; }
+        .btn-large { padding: 16px 32px; font-size: 16px; }
+        
+        /* ===== FORM COMPONENTS ===== */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-dark);
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--bg-dark);
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--text-dark);
+            background-color: var(--bg-white);
+            transition: all 0.2s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-default);
+            box-shadow: 0 0 0 3px rgba(55, 65, 81, 0.1);
+        }
+        
+        .form-input.error {
+            border-color: var(--error-default);
+        }
+        
+        .form-input.success {
+            border-color: var(--success-default);
+        }
+        
+        .form-error {
+            margin-top: 4px;
+            font-size: 12px;
+            color: var(--error-default);
+        }
+        
+        /* ===== CARD COMPONENTS ===== */
+        .card {
+            background-color: var(--bg-white);
+            border: 1px solid var(--bg-dark);
+            border-radius: 12px;
+            box-shadow: var(--shadow-small);
+            transition: all 0.2s ease;
+        }
+        
+        .card:hover {
+            box-shadow: var(--shadow-large);
+            transform: translateY(-2px);
+        }
+        
+        .card-body {
+            padding: 24px;
+        }
+        
+        /* ===== COURSE CARD ===== */
+        .course-card {
+            max-width: 320px;
+            overflow: hidden;
+        }
+        
+        .course-card-image {
+            height: 160px;
+            background: linear-gradient(135deg, var(--bg-medium) 0%, var(--bg-dark) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-default);
+        }
+        
+        .course-card-content {
+            padding: 24px;
+        }
+        
+        .course-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background-color: var(--primary-light);
+            color: var(--primary-default);
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+        
+        .course-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 8px;
+        }
+        
+        .course-instructor {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-bottom: 16px;
+        }
+        
+        .progress-section {
+            margin-bottom: 16px;
+        }
+        
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        
+        .progress-label {
+            color: var(--text-light);
+        }
+        
+        .progress-value {
+            color: var(--text-medium);
+            font-weight: 500;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background-color: var(--bg-dark);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: var(--success-default);
+            transition: width 0.3s ease;
+        }
+        
+        .course-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+        
+        .course-duration {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-light);
+        }
+        
+        /* ===== STAT CARD ===== */
+        .stat-card {
+            padding: 24px;
+            min-width: 240px;
+        }
+        
+        .stat-card-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        
+        .stat-info {
+            flex: 1;
+        }
+        
+        .stat-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-light);
+            margin-bottom: 4px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 4px;
+        }
+        
+        .stat-change {
+            font-size: 12px;
+            color: var(--success-default);
+        }
+        
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            background-color: var(--primary-light);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-default);
+        }
+        
+        /* ===== LAYOUT COMPONENTS ===== */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        
+        .grid {
+            display: grid;
+            gap: 24px;
+        }
+        
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+        
+        .flex {
+            display: flex;
+        }
+        
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .flex-center {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: 260px;
+            height: 100vh;
+            background-color: var(--bg-white);
+            border-right: 1px solid var(--bg-medium);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--bg-medium);
+        }
+        
+        .sidebar-logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary-default);
+        }
+        
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            margin-bottom: 4px;
+            border-radius: 8px;
+            color: var(--text-medium);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-item:hover {
+            background-color: var(--bg-light);
+        }
+        
+        .nav-item.active {
+            background-color: var(--bg-medium);
+            color: var(--primary-default);
+            border-right: 3px solid var(--primary-default);
+        }
+        
+        /* ===== HEADER ===== */
+        .header {
+            height: 64px;
+            background-color: var(--bg-white);
+            border-bottom: 1px solid var(--bg-medium);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+        }
+        
+        .search-container {
+            position: relative;
+            max-width: 400px;
+            flex: 1;
+            margin-right: 24px;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 8px 16px 8px 40px;
+            border: 1px solid var(--bg-dark);
+            border-radius: 8px;
+            background-color: var(--bg-light);
+            font-size: 14px;
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .notification-btn {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            background-color: var(--bg-light);
+            border: none;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--primary-default);
+        }
+        
+        .notification-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 8px;
+            height: 8px;
+            background-color: var(--error-default);
+            border-radius: 50%;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background-color: var(--primary-default);
+            color: var(--bg-white);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .grid-3 { grid-template-columns: repeat(2, 1fr); }
+            .grid-2 { grid-template-columns: 1fr; }
+            
+            .sidebar {
+                display: none;
+            }
+            
+            .container {
+                padding: 0 16px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .grid-4,
+            .grid-3,
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+            
+            .course-card {
+                max-width: 100%;
+            }
+        }
+        
+        /* ===== UTILITY CLASSES ===== */
+        .mb-4 { margin-bottom: 16px; }
+        .mb-6 { margin-bottom: 24px; }
+        .mb-8 { margin-bottom: 32px; }
+        .mt-4 { margin-top: 16px; }
+        .mt-6 { margin-top: 24px; }
+        .mt-8 { margin-top: 32px; }
+        .p-4 { padding: 16px; }
+        .p-6 { padding: 24px; }
+        .p-8 { padding: 32px; }
+        
+        .text-center { text-align: center; }
+        .text-left { text-align: left; }
+        .text-right { text-align: right; }
+        
+        .w-full { width: 100%; }
+        .h-full { height: 100%; }
+        
+        .hidden { display: none; }
+        
+        /* Demo Styles */
+        .demo-section {
+            margin-bottom: 48px;
+            padding: 32px;
+            background-color: var(--bg-white);
+            border-radius: 12px;
+            border: 1px solid var(--bg-dark);
+        }
+        
+        .demo-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--bg-medium);
+        }
+        
+        .demo-grid {
+            display: grid;
+            gap: 24px;
+        }
+    </style>
+</head>
+<body><nav style="background:#11182742; padding:12px 24px; margin-bottom:24px; border-bottom:1px solid #eee;">
+  <a href="dashboard.html" style="margin-right:16px;">Learning Dashboard</a>
+  <a href="userdashboard.html" style="margin-right:16px;">Admin Dashboard</a>
+  <a href="coursedelivery.html" style="margin-right:16px;">Course Delivery</a>
+  <a href="componentLibrary.html" style="margin-right:16px;">Component Library</a>
+  <a href="login.html" style="margin-right:16px;">Login</a>
+ 
+   <a href="breakpointsdesign.html" style="margin-right:16px;">Responsiveess considerations</a>
+ <a href="design.html" style="margin-right:16px;">App design</a>
+  <!-- Add more links as needed for other mockup files -->
+</nav>
+
+
+    <div class="container mt-8">
+        <header class="mb-8">
+            <h1 class="h1 mb-4">Kyzer LMS - HTML Component Library</h1>
+            <p class="body-default" style="color: var(--text-light)">
+                Production-ready HTML/CSS components using the Kyzer Solutions brand palette
+            </p>
+        </header>
+
+        <!-- BUTTONS SECTION -->
+        <section class="demo-section">
+            <h2 class="demo-title">Buttons</h2>
+            <div class="demo-grid">
+                <div>
+                    <h3 class="h3 mb-4">Button Variants</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
+                        <button class="btn btn-primary">Primary Button</button>
+                        <button class="btn btn-secondary">Secondary Button</button>
+                        <button class="btn btn-ghost">Ghost Button</button>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="h3 mb-4">Button Sizes</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
+                        <button class="btn btn-primary btn-small">Small</button>
+                        <button class="btn btn-primary">Default</button>
+                        <button class="btn btn-primary btn-large">Large</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FORM ELEMENTS SECTION -->
+        <section class="demo-section">
+            <h2 class="demo-title">Form Elements</h2>
+            <div class="grid grid-2">
+                <div>
+                    <div class="form-group">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" class="form-input" placeholder="john@example.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-input" placeholder="••••••••">
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="form-group">
+                        <label class="form-label">Course Title</label>
+                        <input type="text" class="form-input" placeholder="Enter course title">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Error Example</label>
+                        <input type="text" class="form-input error" placeholder="Error state" value="Invalid input">
+                        <div class="form-error">This field is required</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- STAT CARDS SECTION -->
+        <section class="demo-section">
+            <h2 class="demo-title">Statistics Cards</h2>
+            <div class="grid grid-4">
+                <div class="card stat-card">
+                    <div class="stat-card-content">
+                        <div class="stat-info">
+                            <div class="stat-title">Courses Completed</div>
+                            <div class="stat-value">12</div>
+                            <div class="stat-change">+2 this month</div>
+                        </div>
+                        <div class="stat-icon">
+                            ✓
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card stat-card">
+                    <div class="stat-card-content">
+                        <div class="stat-info">
+                            <div class="stat-title">In Progress</div>
+                            <div class="stat-value">3</div>
+                            <div class="stat-change">2 due this week</div>
+                        </div>
+                        <div class="stat-icon">
+                            ⏱
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card stat-card">
+                    <div class="stat-card-content">
+                        <div class="stat-info">
+                            <div class="stat-title">Certificates</div>
+                            <div class="stat-value">8</div>
+                            <div class="stat-change">+1 this month</div>
+                        </div>
+                        <div class="stat-icon">
+                            ⭐
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card stat-card">
+                    <div class="stat-card-content">
+                        <div class="stat-info">
+                            <div class="stat-title">Study Hours</div>
+                            <div class="stat-value">45h</div>
+                            <div class="stat-change">+12h this month</div>
+                        </div>
+                        <div class="stat-icon">
+                            ▶
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- COURSE CARDS SECTION -->
+        <section class="demo-section">
+            <h2 class="demo-title">Course Cards</h2>
+            <div class="grid grid-3">
+                <div class="card course-card">
+                    <div class="course-card-image">
+                        📚
+                    </div>
+                    <div class="course-card-content">
+                        <div class="course-badge">Development</div>
+                        <h3 class="course-title">Advanced React Development</h3>
+                        <p class="course-instructor">by Sarah Johnson</p>
+                        
+                        <div class="progress-section">
+                            <div class="progress-header">
+                                <span class="progress-label">Progress</span>
+                                <span class="progress-value">65%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 65%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="course-footer">
+                            <div class="course-duration">
+                                <span>⏱</span>
+                                <span>4h 30m</span>
+                            </div>
+                            <button class="btn btn-primary btn-small">Continue</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card course-card">
+                    <div class="course-card-image">
+                        🎨
+                    </div>
+                    <div class="course-card-content">
+                        <div class="course-badge">Design</div>
+                        <h3 class="course-title">UI/UX Design Principles</h3>
+                        <p class="course-instructor">by Mike Chen</p>
+                        
+                        <div class="progress-section">
+                            <div class="progress-header">
+                                <span class="progress-label">Progress</span>
+                                <span class="progress-value">30%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 30%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="course-footer">
+                            <div class="course-duration">
+                                <span>⏱</span>
+                                <span>6h 15m</span>
+                            </div>
+                            <button class="btn btn-primary btn-small">Continue</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card course-card">
+                    <div class="course-card-image">
+                        💼
+                    </div>
+                    <div class="course-card-content">
+                        <div class="course-badge">Business</div>
+                        <h3 class="course-title">Project Management</h3>
+                        <p class="course-instructor">by Lisa Rodriguez</p>
+                        
+                        <div class="progress-section">
+                            <div class="progress-header">
+                                <span class="progress-label">Progress</span>
+                                <span class="progress-value">85%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 85%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="course-footer">
+                            <div class="course-duration">
+                                <span>⏱</span>
+                                <span>3h 45m</span>
+                            </div>
+                            <button class="btn btn-primary btn-small">Continue</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- LAYOUT COMPONENTS SECTION -->
+        <section class="demo-section">
+            <h2 class="demo-title">Layout Components</h2>
+            
+            <h3 class="h3 mb-4">Navigation Sidebar</h3>
+            <div style="height: 300px; border: 1px solid var(--bg-dark); border-radius: 8px; overflow: hidden; display: flex;">
+                <div class="sidebar" style="height: 100%; position: relative;">
+                    <div class="sidebar-header">
+                        <div class="sidebar-logo">Kyzer LMS</div>
+                    </div>
+                    <nav class="sidebar-nav">
+                        <a href="#" class="nav-item active">
+                            <span>📊</span>
+                            <span>Dashboard</span>
+                        </a>
+                        <a href="#" class="nav-item">
+                            <span>📚</span>
+                            <span>My Courses</span>
+                        </a>
+                        <a href="#" class="nav-item">
+                            <span>👥</span>
+                            <span>Team</span>
+                        </a>
+                        <a href="#" class="nav-item">
+                            <span>⭐</span>
+                            <span>Certificates</span>
+                        </a>
+                        <a href="#" class="nav-item">
+                            <span>⚙️</span>
+                            <span>Settings</span>
+                        </a>
+                    </nav>
+                </div>
+                
+                <div style="flex: 1; display: flex; flex-direction: column;">
+                    <div class="header">
+                        <div class="search-container">
+                            <div class="search-icon">🔍</div>
+                            <input type="text" class="search-input" placeholder="Search courses...">
+                        </div>
+                        <div class="header-actions">
+                            <button class="notification-btn">
+                                🔔
+                                <div class="notification-badge"></div>
+                            </button>
+                            <div class="user-avatar">JD</div>
+                        </div>
+                    </div>
+                    
+                    <div style="flex: 1; padding: 24px; background-color: var(--bg-light);">
+                        <h1 class="h1 mb-4">Welcome back, John!</h1>
+                        <p style="color: var(--text-light);">Here's your learning progress overview</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RESPONSIVE GRID SECTION -->
+        <section class="demo-section">
+            <h2 class="demo-title">Responsive Grid System</h2>
+            <p class="body-default mb-6" style="color: var(--text-light);">
+                Grid automatically adjusts: 4 columns → 2 columns → 1 column on smaller screens
+            </p>
+            
+            <div class="grid grid-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="h3 mb-4">Grid Item 1</h3>
+                        <p>Responsive grid item that adapts to screen size</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="h3 mb-4">Grid Item 2</h3>
+                        <p>Responsive grid item that adapts to screen size</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="h3 mb-4">Grid Item 3</h3>
+                        <p>Responsive grid item that adapts to screen size</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h3 class="h3 mb-4">Grid Item 4</h3>
+                        <p>Responsive grid item that adapts to screen size</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- COLOR PALETTE SECTION -->
+        <section class="demo-section">
+            <h2 class="demo-title">Brand Color Palette</h2>
+            <div class="grid grid-4">
+                <div>
+                    <h3 class="h3 mb-4">Primary Colors</h3>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 40px; height: 40px; background-color: var(--primary-dark); border-radius: 8px;"></div>
+                            <div>
+                                <div class="body-medium">Primary Dark</div>
+                                <div class="caption-small">#1F2937</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 40px; height: 40px; background-color: var(--primary-default); border-radius: 8px;"></div>
+                            <div>
+                                <div class="body-medium">Primary Default</div>
+                                <div class="caption-small">#374151</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 40px; height: 40px; background-color: var(--primary-light); border-radius: 8px; border: 1px solid var(--bg-dark);"></div>
+                            <div>
+                                <div class="body-medium">Primary Light</div>
+                                <div class="caption-small">#F3F4F6</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="h3 mb-4">Text Colors</h3>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 40px; height: 40px; background-color: var(--text-dark); border-radius: 8px;"></div>
+                            <div>
+                                <div class="body-medium">Text Dark</div>
+                                <div class="caption-small">#111827</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 40px; height: 40px; background-color: var(--text-light); border-radius: 8px;"></div>
+                            <div>
+                                <div class="body-medium">Text Light</div>
+                                <div class="caption-small">#6B7280</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 40px; height: 40px; background-color: var(--text-muted); border-radius: 8px;"></div>
+                            <div>
+                                <div class="body-medium">Text Muted</div>
+                                <div class="caption-small">#9CA3AF</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="h3 mb-4">Semantic Colors</h3>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 40px; height: 40px; background-color: var(--success-default); border-radius: 8px;"></div>
+                            <div>
+                                <div class="body-medium">Success</div>
+                                <div class="caption-small">#059669</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 40px; height: 40px; background-color: var(--warning-default); border-radius: 8px;"></div>
+                            <div>
+                                <div class="body-medium">Warning</div>
+                                <div class="caption-small">#D97706</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 40px; height: 40px; background-color: var(--error-default); border-radius: 8px;"></div>
+                            <div>
+                                <div class="body-medium">Error</div>
+                                <div class="caption-small">#DC2626</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="h3 mb-4">CSS Variables</h3>
+                    <div class="caption-small" style="font-family: monospace; background-color: var(--bg-medium); padding: 16px; border-radius: 8px; line-height: 1.8;">
+                        --primary-default<br>
+                        --primary-dark<br>
+                        --primary-light<br>
+                        --text-dark<br>
+                        --text-light<br>
+                        --text-muted<br>
+                        --success-default<br>
+                        --error-default<br>
+                        --bg-white<br>
+                        --bg-light
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Simple interactivity for demo
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add click feedback to buttons
+            const buttons = document.querySelectorAll('.btn');
+            buttons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    // Add a small animation feedback
+                    this.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        this.style.transform = '';
+                    }, 150);
+                });
+            });
+
+            // Form input focus effects
+            const inputs = document.querySelectorAll('.form-input');
+            inputs.forEach(input => {
+                input.addEventListener('focus', function() {
+                    this.parentElement.style.transform = 'translateY(-1px)';
+                });
+                input.addEventListener('blur', function() {
+                    this.parentElement.style.transform = '';
+                });
+            });
+
+            // Simulate progress bar animation
+            const progressBars = document.querySelectorAll('.progress-fill');
+            progressBars.forEach(bar => {
+                const finalWidth = bar.style.width;
+                bar.style.width = '0%';
+                setTimeout(() => {
+                    bar.style.width = finalWidth;
+                }, 500);
+            });
+        });
+    </script>
+</body>
+</html>

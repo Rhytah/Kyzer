@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kyzer LMS - Complete Screen Mockups</title>
+    <style>
+        /* ===== KYZER LMS DESIGN SYSTEM ===== */
+        
+        :root {
+            /* Primary Colors */
+            --primary-dark: #1F2937;
+            --primary-default: #374151;
+            --primary-light: #F3F4F6;
+            
+            /* Text Colors */
+            --text-dark: #111827;
+            --text-medium: #374151;
+            --text-light: #6B7280;
+            --text-muted: #9CA3AF;
+            
+            /* Background Colors */
+            --bg-white: #FFFFFF;
+            --bg-light: #F9FAFB;
+            --bg-medium: #F3F4F6;
+            --bg-dark: #E5E7EB;
+            
+            /* Semantic Colors */
+            --success-default: #059669;
+            --success-light: #ECFDF5;
+            --warning-default: #D97706;
+            --warning-light: #FFFBEB;
+            --error-default: #DC2626;
+            --error-light: #FEF2F2;
+            
+            /* Shadows */
+            --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-large: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Reset & Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.5;
+            color: var(--text-dark);
+            background-color: var(--bg-light);
+        }
+        
+        /* Typography */
+        .h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.025em; color: var(--text-dark); }
+        .h2 { font-size: 20px; font-weight: 600; color: var(--text-dark); }
+        .h3 { font-size: 18px; font-weight: 600; color: var(--text-dark); }
+        .h4 { font-size: 16px; font-weight: 600; color: var(--text-dark); }
+        .body-default { font-size: 14px; font-weight: 400; color: var(--text-dark); }
+        .body-medium { font-size: 14px; font-weight: 500; color: var(--text-dark); }
+        .caption-small { font-size: 12px; font-weight: 400; color: var(--text-light); }
+        .caption-tiny { font-size: 10px; font-weight: 400; letter-spacing: 0.05em; color: var(--text-muted); }
+        
+        /* Layout Components */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            width: 260px;
+            background-color: var(--bg-white);
+            border-right: 1px solid var(--bg-medium);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--bg-medium);
+        }
+        
+        .sidebar-logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary-default);
+        }
+        
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px;
+        }
+        
+        .nav-section {
+            margin-bottom: 24px;
+        }
+        
+        .nav-section-title {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            padding: 0 16px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            margin-bottom: 4px;
+            border-radius: 8px;
+            color: var(--text-medium);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .nav-item:hover {
+            background-color: var(--bg-light);
+        }
+        
+        .nav-item.active {
+            background-color: var(--bg-medium);
+            color: var(--primary-default);
+            border-right: 3px solid var(--primary-default);
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            height: 64px;
+            background-color: var(--bg-white);
+            border-bottom: 1px solid var(--bg-medium);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .page-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-light);
+        }
+        
+        .search-container {
+            position: relative;
+            max-width: 400px;
+            flex: 1;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 8px 16px 8px 40px;
+            border: 1px solid var(--bg-dark);
+            border-radius: 8px;
+            background-color: var(--bg-light);
+            font-size: 14px;
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .notification-btn {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            background-color: var(--bg-light);
+            border: none;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--primary-default);
+        }
+        
+        .notification-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 8px;
+            height: 8px;
+            background-color: var(--error-default);
+            border-radius: 50%;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background-color: var(--primary-default);
+            color: var(--bg-white);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        
+        .content-area {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+        }
+        
+        /* Card Components */
+        .card {
+            background-color: var(--bg-white);
+            border: 1px solid var(--bg-dark);
+            border-radius: 12px;
+            box-shadow: var(--shadow-small);
+            transition: all 0.2s ease;
+        }
+        
+        .card:hover {
+            box-shadow: var(--shadow-medium);
+        }
+        
+        .card-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--bg-medium);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        
+        .card-body {
+            padding: 24px;
+        }
+        
+        /* Button Components */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-default);
+            color: var(--bg-white);
+            border-color: var(--primary-default);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background-color: var(--bg-white);
+            color: var(--primary-default);
+            border-color: var(--bg-dark);
+        }
+        
+        .btn-secondary:hover {
+            background-color: var(--bg-light);
+        }
+        
+        .btn-small { padding: 6px 12px; font-size: 12px; }
+        .btn-large { padding: 12px 24px; font-size: 16px; }
+        
+        /* Grid System */
+        .grid {
+            display: grid;
+            gap: 24px;
+        }
+        
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+        
+        /* Table Components */
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .table th {
+            text-align: left;
+            padding: 12px 16px;
+            background-color: var(--bg-medium);
+            font-weight: 600;
+            font-size: 12px;
+            color: var(--text-medium);
+            border-bottom: 1px solid var(--bg-dark);
+        }
+        
+        .table td {
+            padding: 16px;
+            border-bottom: 1px solid var(--bg-medium);
+            vertical-align: middle;
+        }
+        
+        .table tr:hover {
+            background-color: var(--bg-light);
+        }
+        
+        /* Status Components */
+        .status {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .status-active {
+            background-color: var(--success-light);
+            color: var(--success-default);
+        }
+        
+        .status-pending {
+            background-color: var(--warning-light);
+            color: var(--warning-default);
+        }
+        
+        .status-inactive {
+            background-color: var(--bg-medium);
+            color: var(--text-muted);
+        }
+        
+        /* Stats Components */
+        .stat-card {
+            padding: 24px;
+            text-align: center;
+        }
+        
+        .stat-card .stat-icon {
+            width: 48px;
+            height: 48px;
+            background-color: var(--primary-light);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            color: var(--primary-default);
+            font-size: 24px;
+        }
+        
+        .stat-card .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 4px;
+        }
+        
+        .stat-card .stat-label {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+        }
+        
+        .stat-card .stat-change {
+            font-size: 12px;
+            color: var(--success-default);
+        }
+        
+        /* Course Card */
+        .course-card {
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .course-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-large);
+        }
+        
+        .course-image {
+            height: 140px;
+            background: linear-gradient(135deg, var(--bg-medium) 0%, var(--bg-dark) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: var(--primary-default);
+        }
+        
+        .course-content {
+            padding: 20px;
+        }
+        
+        .course-category {
+            display: inline-block;
+            padding: 4px 8px;
+            background-color: var(--primary-light);
+            color: var(--primary-default);
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+        
+        .course-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        .course-instructor {
+            font-size: 13px;
+            color: var(--text-light);
+            margin-bottom: 16px;
+        }
+        
+        .course-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            font-size: 12px;
+            color: var(--text-light);
+        }
+        
+        .course-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        /* Filter Controls */
+        .filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding: 16px;
+            background-color: var(--bg-white);
+            border-radius: 8px;
+            border: 1px solid var(--bg-dark);
+        }
+        
+        .filter-select {
+            padding: 6px 12px;
+            border: 1px solid var(--bg-dark);
+            border-radius: 6px;
+            background-color: var(--bg-white);
+            font-size: 14px;
+            color: var(--text-dark);
+        }
+        
+        /* Navigation tabs */
+        .nav-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--bg-medium);
+            margin-bottom: 24px;
+        }
+        
+        .nav-tab {
+            padding: 12px 24px;
+            font-weight: 500;
+            color: var(--text-light);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-tab.active {
+            color: var(--primary-default);
+            border-bottom-color: var(--primary-default);
+        }
+        
+        .nav-tab:hover {
+            color: var(--text-dark);
+        }
+        
+        /* User profile specific */
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            background-color: var(--primary-default);
+            color: var(--bg-white);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 600;
+        }
+        
+        .profile-info h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 4px;
+        }
+        
+        .profile-info p {
+            color: var(--text-light);
+            margin-bottom: 8px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background-color: var(--bg-dark);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: var(--success-default);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            
+            .grid-4,
+            .grid-3,
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+            
+            .content-area {
+                padding: 16px;
+            }
+            
+            .profile-header {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+        
+        /* Utility Classes */
+        .mb-4 { margin-bottom: 16px; }
+        .mb-6 { margin-bottom: 24px; }
+        .mb-8 { margin-bottom: 32px; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .flex { display: flex; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .flex-center { display: flex; justify-content: center; align-items: center; }
+        .w-full { width: 100%; }
+    </style>
+</head>
+<body>
+
+    <!-- Screen Selection -->
+    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000; background: var(--bg-white); padding: 16px; border-radius: 8px; box-shadow: var(--shadow-large);">
+        <div style="margin-bottom: 12px; font-weight: 600; color: var(--text-dark);">Screen Preview:</div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+            <button class="btn btn-small" onclick="showScreen('admin')">Admin Dashboard</button>
+            <button class="btn btn-small" onclick="showScreen('user')">User Profile</button>
+            <button class="btn btn-small" onclick="showScreen('catalog')">Course Catalog</button>
+        </div>
+    </div>
+<nav style="background:#11182742; padding:12px 24px; margin-bottom:24px; border-bottom:1px solid #eee;">
+  <a href="dashboard.html" style="margin-right:16px;">Learning Dashboard</a>
+  <a href="userdashboard.html" style="margin-right:16px;">Admin Dashboard</a>
+  <a href="coursedelivery.html" style="margin-right:16px;">Course Delivery</a>
+  <a href="componentLibrary.html" style="margin-right:16px;">Component Library</a>
+   <a href="breakpointsdesign.html" style="margin-right:16px;">Responsiveess considerations</a>
+ <a href="design.html" style="margin-right:16px;">App</a>
+                        <a href="profile.html" style="margin-right:16px;">Profile</a>
+
+  <a href="login.html" style="margin-right:16px;">Login</a>
+   <!-- Add more links as needed for other mockup files -->
+</nav>
+
+    <!-- ADMIN DASHBOARD SCREEN -->
+    <div id="admin-screen" class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">Kyzer LMS</div>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Admin</div>
+                    <div class="nav-item active">
+                        <span>📊</span>
+                        <span>Dashboard</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>👥</span>
+                        <span>Users</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>📚</span>
+                        <span>Courses</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>📈</span>
+                        <span>Analytics</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">Management</div>
+                    <div class="nav-item">
+                        <span>🏢</span>
+                        <span>Companies</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>⭐</span>
+                        <span>Certificates</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>💰</span>
+                        <span>Billing</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">System</div>
+                    <div class="nav-item">
+                        <span>⚙️</span>
+                        <span>Settings</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>🛠️</span>
+                        <span>Support</span>
+                    </div>
+                </div>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-left">
+                    <div class="page-title">Admin Dashboard</div>
+                    <div class="breadcrumb">
+                        <span>Admin</span>
+                        <span>›</span>
+                        <span>Dashboard</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <div class="search-container">
+                        <div class="search-icon">🔍</div>
+                        <input type="text" class="search-input" placeholder="Search users, courses...">
+                    </div>
+                    <button class="notification-btn">
+                        🔔
+                        <div class="notification-badge"></div>
+                    </button>
+                    <div class="user-avatar">AD</div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Welcome Section -->
+                <div class="mb-8">
+                    <h1 class="h1 mb-4">Welcome back, Admin!</h1>
+                    <p style="color: var(--text-light);">Here's what's happening with your LMS platform today.</p>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="grid grid-4 mb-8">
+                    <div class="card stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-value">2,847</div>
+                        <div class="stat-label">Total Users</div>
+                        <div class="stat-change">+12% this month</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon">📚</div>
+                        <div class="stat-value">156</div>
+                        <div class="stat-label">Active Courses</div>
+                        <div class="stat-change">+3 new courses</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-value">1,234</div>
+                        <div class="stat-label">Completions</div>
+                        <div class="stat-change">+18% this week</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-value">$12,450</div>
+                        <div class="stat-label">Revenue</div>
+                        <div class="stat-change">+8% this month</div>
+                    </div>
+                </div>
+
+                <!-- Content Grid -->
+                <div class="grid grid-2">
+                    <!-- Recent Users -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Recent User Registrations</div>
+                            <button class="btn btn-secondary btn-small">View All</button>
+                        </div>
+                        <div class="card-body">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Company</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <div class="flex" style="align-items: center; gap: 12px;">
+                                                <div style="width: 32px; height: 32px; background: var(--primary-default); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px;">JS</div>
+                                                <div>
+                                                    <div class="body-medium">John Smith</div>
+                                                    <div class="caption-small">john@techcorp.com</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>TechCorp Inc.</td>
+                                        <td><span class="status status-active">Active</span></td>
+                                        <td class="caption-small">Today</td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div class="flex" style="align-items: center; gap: 12px;">
+                                                <div style="width: 32px; height: 32px; background: var(--success-default); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px;">MJ</div>
+                                                <div>
+                                                    <div class="body-medium">Maria Johnson</div>
+                                                    <div class="caption-small">maria@startup.io</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>Startup.io</td>
+                                        <td><span class="status status-pending">Pending</span></td>
+                                        <td class="caption-small">Yesterday</td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div class="flex" style="align-items: center; gap: 12px;">
+                                                <div style="width: 32px; height: 32px; background: var(--warning-default); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px;">DL</div>
+                                                <div>
+                                                    <div class="body-medium">David Lee</div>
+                                                    <div class="caption-small">david@design.co</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>Design Co.</td>
+                                        <td><span class="status status-active">Active</span></td>
+                                        <td class="caption-small">2 days ago</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Popular Courses -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Popular Courses</div>
+                            <button class="btn btn-secondary btn-small">Manage</button>
+                        </div>
+                        <div class="card-body">
+                            <div style="display: flex; flex-direction: column; gap: 16px;">
+                                <div class="flex-between" style="padding: 12px; background: var(--bg-light); border-radius: 8px;">
+                                    <div>
+                                        <div class="body-medium">Advanced React Development</div>
+                                        <div class="caption-small">847 students enrolled</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="body-medium" style="color: var(--success-default);">92%</div>
+                                        <div class="caption-small">completion</div>
+                                    </div>
+                                </div>
+                                <div class="flex-between" style="padding: 12px; background: var(--bg-light); border-radius: 8px;">
+                                    <div>
+                                        <div class="body-medium">UI/UX Design Principles</div>
+                                        <div class="caption-small">623 students enrolled</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="body-medium" style="color: var(--success-default);">87%</div>
+                                        <div class="caption-small">completion</div>
+                                    </div>
+                                </div>
+                                <div class="flex-between" style="padding: 12px; background: var(--bg-light); border-radius: 8px;">
+                                    <div>
+                                        <div class="body-medium">Project Management Basics</div>
+                                        <div class="caption-small">445 students enrolled</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="body-medium" style="color: var(--warning-default);">76%</div>
+                                        <div class="caption-small">completion</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- USER PROFILE SCREEN -->
+    <div id="user-screen" class="app-container" style="display: none;">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">Kyzer LMS</div>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Learning</div>
+                    <div class="nav-item">
+                        <span>📊</span>
+                        <span>Dashboard</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>📚</span>
+                        <span>My Courses</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>⭐</span>
+                        <span>Certificates</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">Account</div>
+                    <div class="nav-item active">
+                        <span>👤</span>
+                        <span>Profile</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>⚙️</span>
+                        <span>Settings</span>
+                    </div>
+                </div>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-left">
+                    <div class="page-title">My Profile</div>
+                    <div class="breadcrumb">
+                        <span>Account</span>
+                        <span>›</span>
+                        <span>Profile</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-primary">Edit Profile</button>
+                    <button class="notification-btn">
+                        🔔
+                        <div class="notification-badge"></div>
+                    </button>
+                    <div class="user-avatar">JD</div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Profile Header -->
+                <div class="profile-header">
+                    <div class="profile-avatar">JD</div>
+                    <div class="profile-info">
+                        <h1>John Doe</h1>
+                        <p>Senior Developer at TechCorp Inc.</p>
+                        <p style="font-size: 14px;">📧 john.doe@techcorp.com</p>
+                        <p style="font-size: 14px;">🏢 Member since March 2024</p>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="nav-tabs">
+                    <div class="nav-tab active">Overview</div>
+                    <div class="nav-tab">Learning Progress</div>
+                    <div class="nav-tab">Certificates</div>
+                    <div class="nav-tab">Activity</div>
+                </div>
+
+                <!-- Overview Content -->
+                <div class="grid grid-3 mb-8">
+                    <div class="card stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-value">12</div>
+                        <div class="stat-label">Courses Completed</div>
+                        <div class="stat-change">+2 this month</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-value">45h</div>
+                        <div class="stat-label">Hours Learned</div>
+                        <div class="stat-change">+12h this month</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon">⭐</div>
+                        <div class="stat-value">8</div>
+                        <div class="stat-label">Certificates Earned</div>
+                        <div class="stat-change">+1 this month</div>
+                    </div>
+                </div>
+
+                <!-- Content Grid -->
+                <div class="grid grid-2">
+                    <!-- Current Courses -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Courses in Progress</div>
+                            <button class="btn btn-secondary btn-small">View All</button>
+                        </div>
+                        <div class="card-body">
+                            <div style="display: flex; flex-direction: column; gap: 16px;">
+                                <div style="padding: 16px; background: var(--bg-light); border-radius: 8px;">
+                                    <div class="flex-between mb-4">
+                                        <div>
+                                            <div class="body-medium">Advanced React Development</div>
+                                            <div class="caption-small">by Sarah Johnson</div>
+                                        </div>
+                                        <span class="status status-active">In Progress</span>
+                                    </div>
+                                    <div class="flex-between mb-2">
+                                        <span class="caption-small">Progress</span>
+                                        <span class="caption-small">65%</span>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 65%"></div>
+                                    </div>
+                                    <div class="flex-between" style="margin-top: 12px;">
+                                        <span class="caption-small">⏱️ 2h 30m left</span>
+                                        <button class="btn btn-primary btn-small">Continue</button>
+                                    </div>
+                                </div>
+                                
+                                <div style="padding: 16px; background: var(--bg-light); border-radius: 8px;">
+                                    <div class="flex-between mb-4">
+                                        <div>
+                                            <div class="body-medium">UI/UX Design Principles</div>
+                                            <div class="caption-small">by Mike Chen</div>
+                                        </div>
+                                        <span class="status status-active">In Progress</span>
+                                    </div>
+                                    <div class="flex-between mb-2">
+                                        <span class="caption-small">Progress</span>
+                                        <span class="caption-small">30%</span>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 30%"></div>
+                                    </div>
+                                    <div class="flex-between" style="margin-top: 12px;">
+                                        <span class="caption-small">⏱️ 4h 20m left</span>
+                                        <button class="btn btn-primary btn-small">Continue</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Achievements -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Recent Achievements</div>
+                        </div>
+                        <div class="card-body">
+                            <div style="display: flex; flex-direction: column; gap: 16px;">
+                                <div class="flex" style="gap: 16px; align-items: center;">
+                                    <div style="width: 48px; height: 48px; background: var(--success-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px;">🏆</div>
+                                    <div>
+                                        <div class="body-medium">JavaScript Fundamentals Certificate</div>
+                                        <div class="caption-small">Completed 2 days ago</div>
+                                    </div>
+                                </div>
+                                <div class="flex" style="gap: 16px; align-items: center;">
+                                    <div style="width: 48px; height: 48px; background: var(--warning-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px;">🎯</div>
+                                    <div>
+                                        <div class="body-medium">10 Courses Completed</div>
+                                        <div class="caption-small">Milestone reached 1 week ago</div>
+                                    </div>
+                                </div>
+                                <div class="flex" style="gap: 16px; align-items: center;">
+                                    <div style="width: 48px; height: 48px; background: var(--primary-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px;">⚡</div>
+                                    <div>
+                                        <div class="body-medium">Quick Learner Badge</div>
+                                        <div class="caption-small">Completed course in record time</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COURSE CATALOG SCREEN -->
+    <div id="catalog-screen" class="app-container" style="display: none;">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">Kyzer LMS</div>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Learning</div>
+                    <div class="nav-item">
+                        <span>📊</span>
+                        <span>Dashboard</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>📚</span>
+                        <span>My Courses</span>
+                    </div>
+                    <div class="nav-item active">
+                        <span>🔍</span>
+                        <span>Course Catalog</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>⭐</span>
+                        <span>Certificates</span>
+                    </div>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-title">Categories</div>
+                    <div class="nav-item">
+                        <span>💻</span>
+                        <span>Development</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>🎨</span>
+                        <span>Design</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>💼</span>
+                        <span>Business</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>📊</span>
+                        <span>Marketing</span>
+                    </div>
+                </div>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-left">
+                    <div class="page-title">Course Catalog</div>
+                    <div class="breadcrumb">
+                        <span>Learning</span>
+                        <span>›</span>
+                        <span>Course Catalog</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <div class="search-container">
+                        <div class="search-icon">🔍</div>
+                        <input type="text" class="search-input" placeholder="Search courses, instructors...">
+                    </div>
+                    <button class="notification-btn">
+                        🔔
+                        <div class="notification-badge"></div>
+                    </button>
+                    <div class="user-avatar">JD</div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Page Header -->
+                <div class="mb-6">
+                    <h1 class="h1 mb-4">Discover New Skills</h1>
+                    <p style="color: var(--text-light);">Browse our comprehensive catalog of professional development courses</p>
+                </div>
+
+                <!-- Filter Bar -->
+                <div class="filter-bar">
+                    <div class="flex" style="align-items: center; gap: 16px;">
+                        <span class="body-medium">Filter by:</span>
+                        <select class="filter-select">
+                            <option>All Categories</option>
+                            <option>Development</option>
+                            <option>Design</option>
+                            <option>Business</option>
+                            <option>Marketing</option>
+                        </select>
+                        <select class="filter-select">
+                            <option>All Levels</option>
+                            <option>Beginner</option>
+                            <option>Intermediate</option>
+                            <option>Advanced</option>
+                        </select>
+                        <select class="filter-select">
+                            <option>All Durations</option>
+                            <option>Under 2 hours</option>
+                            <option>2-5 hours</option>
+                            <option>5+ hours</option>
+                        </select>
+                    </div>
+                    <div class="flex" style="align-items: center; gap: 12px;">
+                        <span class="caption-small">156 courses found</span>
+                        <select class="filter-select">
+                            <option>Sort by Popular</option>
+                            <option>Sort by Newest</option>
+                            <option>Sort by Rating</option>
+                            <option>Sort by Duration</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Course Grid -->
+                <div class="grid grid-3">
+                    <!-- Course Card 1 -->
+                    <div class="card course-card">
+                        <div class="course-image">💻</div>
+                        <div class="course-content">
+                            <div class="course-category">Development</div>
+                            <h3 class="course-title">Advanced React Development</h3>
+                            <p class="course-instructor">by Sarah Johnson</p>
+                            <div class="course-stats">
+                                <span>⭐ 4.8 (124 reviews)</span>
+                                <span>⏱️ 6h 30m</span>
+                            </div>
+                            <div class="course-actions">
+                                <button class="btn btn-primary">Enroll Now</button>
+                                <button class="btn btn-secondary">Preview</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Course Card 2 -->
+                    <div class="card course-card">
+                        <div class="course-image">🎨</div>
+                        <div class="course-content">
+                            <div class="course-category">Design</div>
+                            <h3 class="course-title">UI/UX Design Principles</h3>
+                            <p class="course-instructor">by Mike Chen</p>
+                            <div class="course-stats">
+                                <span>⭐ 4.9 (89 reviews)</span>
+                                <span>⏱️ 4h 45m</span>
+                            </div>
+                            <div class="course-actions">
+                                <button class="btn btn-primary">Enroll Now</button>
+                                <button class="btn btn-secondary">Preview</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Course Card 3 -->
+                    <div class="card course-card">
+                        <div class="course-image">💼</div>
+                        <div class="course-content">
+                            <div class="course-category">Business</div>
+                            <h3 class="course-title">Project Management Basics</h3>
+                            <p class="course-instructor">by Lisa Rodriguez</p>
+                            <div class="course-stats">
+                                <span>⭐ 4.7 (156 reviews)</span>
+                                <span>⏱️ 3h 20m</span>
+                            </div>
+                            <div class="course-actions">
+                                <button class="btn btn-primary">Enroll Now</button>
+                                <button class="btn btn-secondary">Preview</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Course Card 4 -->
+                    <div class="card course-card">
+                        <div class="course-image">📊</div>
+                        <div class="course-content">
+                            <div class="course-category">Marketing</div>
+                            <h3 class="course-title">Digital Marketing Strategy</h3>
+                            <p class="course-instructor">by Alex Thompson</p>
+                            <div class="course-stats">
+                                <span>⭐ 4.6 (203 reviews)</span>
+                                <span>⏱️ 5h 15m</span>
+                            </div>
+                            <div class="course-actions">
+                                <button class="btn btn-primary">Enroll Now</button>
+                                <button class="btn btn-secondary">Preview</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Course Card 5 -->
+                    <div class="card course-card">
+                        <div class="course-image">🔒</div>
+                        <div class="course-content">
+                            <div class="course-category">Development</div>
+                            <h3 class="course-title">Cybersecurity Fundamentals</h3>
+                            <p class="course-instructor">by David Park</p>
+                            <div class="course-stats">
+                                <span>⭐ 4.8 (98 reviews)</span>
+                                <span>⏱️ 7h 10m</span>
+                            </div>
+                            <div class="course-actions">
+                                <button class="btn btn-primary">Enroll Now</button>
+                                <button class="btn btn-secondary">Preview</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Course Card 6 -->
+                    <div class="card course-card">
+                        <div class="course-image">📱</div>
+                        <div class="course-content">
+                            <div class="course-category">Design</div>
+                            <h3 class="course-title">Mobile App Design</h3>
+                            <p class="course-instructor">by Emma Wilson</p>
+                            <div class="course-stats">
+                                <span>⭐ 4.9 (67 reviews)</span>
+                                <span>⏱️ 4h 30m</span>
+                            </div>
+                            <div class="course-actions">
+                                <button class="btn btn-primary">Enroll Now</button>
+                                <button class="btn btn-secondary">Preview</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Load More -->
+                <div class="text-center" style="margin-top: 48px;">
+                    <button class="btn btn-secondary btn-large">Load More Courses</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showScreen(screenName) {
+            // Hide all screens
+            document.getElementById('admin-screen').style.display = 'none';
+            document.getElementById('user-screen').style.display = 'none';
+            document.getElementById('catalog-screen').style.display = 'none';
+            
+            // Show selected screen
+            document.getElementById(screenName + '-screen').style.display = 'flex';
+            
+            // Animate progress bars if they exist
+            setTimeout(() => {
+                const progressBars = document.querySelectorAll('.progress-fill');
+                progressBars.forEach(bar => {
+                    const width = bar.style.width;
+                    bar.style.width = '0%';
+                    setTimeout(() => {
+                        bar.style.width = width;
+                    }, 100);
+                });
+            }, 100);
+        }
+
+        // Add interactivity
+        document.addEventListener('DOMContentLoaded', function() {
+            // Navigation item clicks
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    // Remove active class from siblings
+                    this.parentElement.querySelectorAll('.nav-item').forEach(sibling => {
+                        sibling.classList.remove('active');
+                    });
+                    // Add active class to clicked item
+                    this.classList.add('active');
+                });
+            });
+
+            // Tab navigation
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Remove active class from siblings
+                    this.parentElement.querySelectorAll('.nav-tab').forEach(sibling => {
+                        sibling.classList.remove('active');
+                    });
+                    // Add active class to clicked tab
+                    this.classList.add('active');
+                });
+            });
+
+            // Button hover effects
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-1px)';
+                });
+                btn.addEventListener('mouseleave', function() {
+                    this.style.transform = '';
+                });
+            });
+
+            // Course card hover effects
+            document.querySelectorAll('.course-card').forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-4px)';
+                    this.style.boxShadow = 'var(--shadow-large)';
+                });
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = '';
+                    this.style.boxShadow = 'var(--shadow-small)';
+                });
+            });
+
+            // Initialize progress bars
+            setTimeout(() => {
+                const progressBars = document.querySelectorAll('.progress-fill');
+                progressBars.forEach(bar => {
+                    const width = bar.style.width;
+                    bar.style.width = '0%';
+                    setTimeout(() => {
+                        bar.style.width = width;
+                    }, 100);
+                });
+            }, 500);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Wireframes - Kyzer Solutions LMS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #3B82F6;
+            --primary-dark: #1E40AF;
+            --secondary-color: #10B981;
+            --accent-color: #F59E0B;
+            --success-color: #10B981;
+            --warning-color: #F59E0B;
+            --error-color: #EF4444;
+            --text-dark: #1F2937;
+            --text-light: #6B7280;
+            --bg-light: #F9FAFB;
+            --white: #FFFFFF;
+            --border-color: #E5E7EB;
+            --sidebar-bg: #1F2937;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background: var(--bg-light);
+        }
+
+        .wireframe-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: var(--text-light);
+            font-size: 1.125rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Device Showcase */
+        .device-showcase {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 3rem;
+            margin-bottom: 4rem;
+        }
+
+        .device-frame {
+            background: var(--white);
+            border-radius: 2rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+        }
+
+        .device-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .device-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .device-specs {
+            color: var(--text-light);
+            font-size: 0.875rem;
+        }
+
+        /* Mobile Phone Frame */
+        .mobile-frame {
+            width: 300px;
+            height: 600px;
+            background: #333;
+            border-radius: 2rem;
+            padding: 1rem;
+            position: relative;
+            margin: 0 auto;
+        }
+
+        .mobile-screen {
+            width: 100%;
+            height: 100%;
+            background: var(--white);
+            border-radius: 1.5rem;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .mobile-notch {
+            width: 120px;
+            height: 20px;
+            background: #333;
+            border-radius: 0 0 1rem 1rem;
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+
+        /* Tablet Frame */
+        .tablet-frame {
+            width: 400px;
+            height: 500px;
+            background: #333;
+            border-radius: 1.5rem;
+            padding: 1rem;
+            position: relative;
+            margin: 0 auto;
+        }
+
+        .tablet-screen {
+            width: 100%;
+            height: 100%;
+            background: var(--white);
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+
+        /* Desktop Frame */
+        .desktop-frame {
+            width: 60%;
+            height: 400px;
+            background: #333;
+            border-radius: 0.5rem 0.5rem 0 0;
+            position: relative;
+            margin: 0 auto;
+        }
+
+        .desktop-screen {
+            width: 100%;
+            height: calc(100% - 20px);
+            background: var(--white);
+            border-radius: 0.25rem 0.25rem 0 0;
+            overflow: hidden;
+        }
+
+        .desktop-base {
+            width: 200px;
+            height: 20px;
+            background: #666;
+            border-radius: 0 0 0.5rem 0.5rem;
+            margin: 0 auto;
+        }
+
+        /* Screen Content */
+        .screen-content {
+            height: 100%;
+            overflow-y: auto;
+            font-size: 0.75rem;
+        }
+
+        .mobile-screen .screen-content {
+            padding: 2rem 1rem 1rem;
+        }
+
+        /* Mobile Navigation */
+        .mobile-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--sidebar-bg);
+            padding: 0.75rem;
+            display: flex;
+            justify-content: space-around;
+            border-radius: 0 0 1.5rem 1.5rem;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            color: #D1D5DB;
+            font-size: 0.625rem;
+        }
+
+        .nav-item.active {
+            color: var(--primary-color);
+        }
+
+        /* Header */
+        .mobile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+
+        .header-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .menu-button {
+            width: 24px;
+            height: 24px;
+            background: var(--primary-color);
+            border-radius: 0.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            font-size: 0.75rem;
+        }
+
+        /* Cards */
+        .content-card {
+            background: var(--white);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .card-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .card-content {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            line-height: 1.4;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--success-color);
+            border-radius: 2px;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-card {
+            background: var(--bg-light);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            font-size: 0.625rem;
+            color: var(--text-light);
+            margin-top: 0.25rem;
+        }
+
+        /* Responsive Breakpoints Demo */
+        .breakpoints-demo {
+            background: var(--white);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 3rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+        }
+
+        .breakpoints-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .breakpoints-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .breakpoint-card {
+            background: var(--bg-light);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .breakpoint-size {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .breakpoint-description {
+            color: var(--text-light);
+            margin-bottom: 1rem;
+        }
+
+        .breakpoint-features {
+            list-style: none;
+        }
+
+        .breakpoint-features li {
+            color: var(--text-dark);
+            margin-bottom: 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        .breakpoint-features li::before {
+            content: '✓';
+            color: var(--success-color);
+            margin-right: 0.5rem;
+            font-weight: 600;
+        }
+
+        /* Design Principles */
+        .design-principles {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .principle-card {
+            background: var(--white);
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .principle-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .principle-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .principle-description {
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+
+        /* Touch Targets */
+        .touch-demo {
+            background: var(--white);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 3rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+        }
+
+        .touch-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .touch-examples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .touch-example {
+            background: var(--bg-light);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .touch-target {
+            width: 44px;
+            height: 44px;
+            background: var(--primary-color);
+            border-radius: 0.5rem;
+            margin: 0 auto 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            font-weight: 600;
+        }
+
+        .touch-label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .touch-description {
+            color: var(--text-light);
+            font-size: 0.875rem;
+        }
+
+        /* Responsive Table */
+        @media (max-width: 768px) {
+            .wireframe-container {
+                padding: 1rem;
+            }
+
+            .device-showcase {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
+            .page-title {
+                font-size: 2rem;
+            }
+
+            .breakpoints-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .design-principles {
+                grid-template-columns: 1fr;
+            }
+
+            .touch-examples {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wireframe-container">
+        <div class="page-header">
+            <h1 class="page-title">Mobile-First Responsive Design</h1>
+            <p class="page-subtitle">Adaptive interfaces that work seamlessly across all devices</p>
+        </div>
+
+        <!-- Device Showcase -->
+        <div class="device-showcase">
+            <!-- Mobile Design -->
+            <div class="device-frame">
+                <div class="device-header">
+                    <h3 class="device-title">Mobile Dashboard</h3>
+                    <p class="device-specs">375px × 667px • iPhone SE</p>
+                </div>
+                
+                <div class="mobile-frame">
+                    <div class="mobile-screen">
+                        <div class="mobile-notch"></div>
+                        <div class="screen-content">
+                            <div class="mobile-header">
+                                <div class="header-title">Dashboard</div>
+                                <div class="menu-button">☰</div>
+                            </div>
+                            
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-value">8</div>
+                                    <div class="stat-label">Courses</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">75%</div>
+                                    <div class="stat-label">Progress</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">5</div>
+                                    <div class="stat-label">Certificates</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">12</div>
+                                    <div class="stat-label">Streak</div>
+                                </div>
+                            </div>
+                            
+                            <div class="content-card">
+                                <div class="card-header">
+                                    <div class="card-title">Continue Learning</div>
+                                </div>
+                                <div class="card-content">
+                                    <strong>JavaScript Fundamentals</strong><br>
+                                    Lesson 6 of 8
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 75%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="content-card">
+                                <div class="card-header">
+                                    <div class="card-title">Recent Activity</div>
+                                </div>
+                                <div class="card-content">
+                                    Completed "Functions" lesson<br>
+                                    <span style="color: var(--text-light);">2 hours ago</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mobile-nav">
+                            <div class="nav-item active">
+                                <div>📊</div>
+                                <div>Home</div>
+                            </div>
+                            <div class="nav-item">
+                                <div>📚</div>
+                                <div>Courses</div>
+                            </div>
+                            <div class="nav-item">
+                                <div>🔍</div>
+                                <div>Browse</div>
+                            </div>
+                            <div class="nav-item">
+                                <div>🏆</div>
+                                <div>Certificates</div>
+                            </div>
+                            <div class="nav-item">
+                                <div>👤</div>
+                                <div>Profile</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tablet Design -->
+            <div class="device-frame">
+                <div class="device-header">
+                    <h3 class="device-title">Tablet Layout</h3>
+                    <p class="device-specs">768px × 1024px • iPad</p>
+                </div>
+                
+                <div class="tablet-frame">
+                    <div class="tablet-screen">
+                        <div class="screen-content">
+                            <div class="mobile-header">
+                                <div class="header-title">Learning Dashboard</div>
+                                <div class="menu-button">⚙️</div>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                                <div>
+                                    <div class="content-card">
+                                        <div class="card-title" style="margin-bottom: 0.75rem;">Course Progress</div>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                                            <div style="background: var(--bg-light); padding: 0.75rem; border-radius: 0.5rem;">
+                                                <div style="font-weight: 600; font-size: 0.75rem;">JavaScript</div>
+                                                <div class="progress-bar">
+                                                    <div class="progress-fill" style="width: 75%;"></div>
+                                                </div>
+                                                <div style="font-size: 0.625rem; color: var(--text-light);">6/8 lessons</div>
+                                            </div>
+                                            <div style="background: var(--bg-light); padding: 0.75rem; border-radius: 0.5rem;">
+                                                <div style="font-weight: 600; font-size: 0.75rem;">UI/UX Design</div>
+                                                <div class="progress-bar">
+                                                    <div class="progress-fill" style="width: 25%;"></div>
+                                                </div>
+                                                <div style="font-size: 0.625rem; color: var(--text-light);">3/12 lessons</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <div class="content-card">
+                                        <div class="card-title" style="margin-bottom: 0.75rem;">Quick Stats</div>
+                                        <div style="text-align: center;">
+                                            <div class="stat-value" style="font-size: 1.5rem;">5</div>
+                                            <div class="stat-label">Certificates</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="content-card">
+                                <div class="card-title" style="margin-bottom: 0.75rem;">Recent Achievements</div>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <div style="background: var(--success-color); color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.625rem;">
+                                        🏆 JavaScript Certified
+                                    </div>
+                                    <div style="background: var(--primary-color); color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.625rem;">
+                                        📈 Learning Streak: 12 days
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+           
+        </div>
+ <!-- Desktop Design -->
+            <div class="device-frame">
+                <div class="device-header">
+                    <h3 class="device-title">Desktop Interface</h3>
+                    <p class="device-specs">1440px × 900px • MacBook</p>
+                </div>
+                
+                <div class="desktop-frame">
+                    <div class="desktop-screen">
+                        <div class="screen-content">
+                            <div style="display: grid; grid-template-columns: 150px 1fr; height: 100%;">
+                                <!-- Sidebar -->
+                                <div style="background: var(--sidebar-bg); color: white; padding: 1rem; font-size: 0.625rem;">
+                                    <div style="color: var(--primary-color); font-weight: 600; margin-bottom: 1rem;">Kyzer LMS</div>
+                                    <div style="margin-bottom: 0.5rem; color: #D1D5DB;">📊 Dashboard</div>
+                                    <div style="margin-bottom: 0.5rem; color: #9CA3AF;">📚 My Courses</div>
+                                    <div style="margin-bottom: 0.5rem; color: #9CA3AF;">🔍 Browse</div>
+                                    <div style="margin-bottom: 0.5rem; color: #9CA3AF;">🏆 Certificates</div>
+                                    <div style="margin-bottom: 0.5rem; color: #9CA3AF;">📈 Progress</div>
+                                </div>
+                                
+                                <!-- Main Content -->
+                                <div style="padding: 1rem;">
+                                    <div style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem;">Welcome back, John!</div>
+                                    
+                                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1rem;">
+                                        <div class="stat-card">
+                                            <div class="stat-value">8</div>
+                                            <div class="stat-label">Enrolled</div>
+                                        </div>
+                                        <div class="stat-card">
+                                            <div class="stat-value">12</div>
+                                            <div class="stat-label">Streak</div>
+                                        </div>
+                                        <div class="stat-card">
+                                            <div class="stat-value">5</div>
+                                            <div class="stat-label">Certificates</div>
+                                        </div>
+                                        <div class="stat-card">
+                                            <div class="stat-value">45h</div>
+                                            <div class="stat-label">Time</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="content-card">
+                                        <div class="card-title" style="margin-bottom: 0.75rem;">Continue Learning</div>
+                                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;">
+                                            <div style="border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 0.75rem; width:90%;">
+                                                <div style="font-weight: 600; font-size: 0.75rem; margin-bottom: 0.25rem;">JavaScript Fundamentals</div>
+                                                <div class="progress-bar">
+                                                    <div class="progress-fill" style="width: 75%;"></div>
+                                                </div>
+                                                <div style="font-size: 0.625rem; color: var(--text-light);">Lesson 6 of 8</div>
+                                            </div>
+                                            <div style="border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 0.75rem;width:90%;">
+                                                <div style="font-weight: 600; font-size: 0.75rem; margin-bottom: 0.25rem;">UI/UX Design</div>
+                                                <div class="progress-bar">
+                                                    <div class="progress-fill" style="width: 25%;"></div>
+                                                </div>
+                                                <div style="font-size: 0.625rem; color: var(--text-light);">Lesson 3 of 12</div>
+                                            </div>
+                                                  <div style="border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 0.75rem; width:90%;">
+                                                <div style="font-weight: 600; font-size: 0.75rem; margin-bottom: 0.25rem;">Web Fundamentals</div>
+                                                <div class="progress-bar">
+                                                    <div class="progress-fill" style="width: 70%;"></div>
+                                                </div>
+                                                <div style="font-size: 0.625rem; color: var(--text-light);">Lesson 5 of 8</div>
+                                            </div>
+                                            <div style="border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 0.75rem;width:80%;">
+                                                <div style="font-weight: 600; font-size: 0.75rem; margin-bottom: 0.25rem;">System Security</div>
+                                                <div class="progress-bar">
+                                                    <div class="progress-fill" style="width: 85%;"></div>
+                                                </div>
+                                                <div style="font-size: 0.625rem; color: var(--text-light);">Lesson 10 of 12</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="desktop-base"></div>
+            </div>
+        <!-- Breakpoints Demo -->
+        <div class="breakpoints-demo">
+            <h2 class="breakpoints-title">Responsive Breakpoints</h2>
+            <div class="breakpoints-grid">
+                <div class="breakpoint-card">
+                    <div class="breakpoint-size">Mobile First</div>
+                    <div class="breakpoint-description">Base styles for mobile devices (320px+)</div>
+                    <ul class="breakpoint-features">
+                        <li>Single column layout</li>
+                        <li>Bottom navigation bar</li>
+                        <li>Touch-optimized buttons (44px min)</li>
+                        <li>Stacked form elements</li>
+                        <li>Collapsed sidebar as drawer</li>
+                    </ul>
+                </div>
+                
+                <div class="breakpoint-card">
+                    <div class="breakpoint-size">768px+ (Tablet)</div>
+                    <div class="breakpoint-description">Enhanced layout for tablet devices</div>
+                    <ul class="breakpoint-features">
+                        <li>Two-column layouts</li>
+                        <li>Persistent sidebar option</li>
+                        <li>Grid-based course cards</li>
+                        <li>Side-by-side form layouts</li>
+                        <li>Hover states enabled</li>
+                    </ul>
+                </div>
+                
+                <div class="breakpoint-card">
+                    <div class="breakpoint-size">1024px+ (Desktop)</div>
+                    <div class="breakpoint-description">Full desktop experience</div>
+                    <ul class="breakpoint-features">
+                        <li>Multi-column layouts</li>
+                        <li>Always-visible sidebar</li>
+                        <li>Right sidebar for tools</li>
+                        <li>Advanced hover interactions</li>
+                        <li>Keyboard shortcuts support</li>
+                    </ul>
+                </div>
+                
+                <div class="breakpoint-card">
+                    <div class="breakpoint-size">1440px+ (Large)</div>
+                    <div class="breakpoint-description">Optimized for large screens</div>
+                    <ul class="breakpoint-features">
+                        <li>Maximum content width</li>
+                        <li>Enhanced spacing</li>
+                        <li>More content per view</li>
+                        <li>Picture-in-picture features</li>
+                        <li>Advanced data visualization</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Design Principles -->
+        <div class="design-principles">
+            <div class="principle-card">
+                <div class="principle-icon">📱</div>
+                <h3 class="principle-title">Mobile-First Approach</h3>
+                <p class="principle-description">
+                    Start with mobile design constraints and progressively enhance for larger screens. This ensures optimal performance and usability across all devices.
+                </p>
+            </div>
+            
+            <div class="principle-card">
+                <div class="principle-icon">👆</div>
+                <h3 class="principle-title">Touch-Friendly Design</h3>
+                <p class="principle-description">
+                    Minimum 44px touch targets, adequate spacing between interactive elements, and gesture-based navigation for mobile users.
+                </p>
+            </div>
+            
+            <div class="principle-card">
+                <div class="principle-icon">⚡</div>
+                <h3 class="principle-title">Performance Optimized</h3>
+                <p class="principle-description">
+                    Lightweight CSS, optimized images, and efficient loading patterns to ensure fast performance on all devices and networks.
+                </p>
+            </div>
+            
+            <div class="principle-card">
+                <div class="principle-icon">🔄</div>
+                <h3 class="principle-title">Adaptive Layouts</h3>
+                <p class="principle-description">
+                    Flexible grid systems that adapt content presentation based on available screen space while maintaining visual hierarchy.
+                </p>
+            </div>
+        </div>
+
+        <!-- Touch Targets Demo -->
+        <div class="touch-demo">
+            <h2 class="touch-title">Touch Target Guidelines</h2>
+            <div class="touch-examples">
+                <div class="touch-example">
+                    <div class="touch-target">✓</div>
+                    <div class="touch-label">Primary Button</div>
+                    <div class="touch-description">44px × 44px minimum for comfortable tapping</div>
+                </div>
+                
+                <div class="touch-example">
+                    <div class="touch-target" style="border-radius: 50%;">☰</div>
+                    <div class="touch-label">Navigation</div>
+                    <div class="touch-description">Easily accessible with thumb reach</div>
+                </div>
+                
+                <div class="touch-example">
+                    <div class="touch-target" style="background: var(--secondary-color);">▶</div>
+                    <div class="touch-label">Media Controls</div>
+                    <div class="touch-description">Prominent placement for video lessons</div>
+                </div>
+                
+                <div class="touch-example">
+                    <div class="touch-target" style="background: var(--accent-color);">⋯</div>
+                    <div class="touch-label">Menu Actions</div>
+                    <div class="touch-description">Secondary actions with clear affordance</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
