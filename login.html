@@ -591,8 +591,9 @@
 </head>
 <body>
     <!-- Demo Switcher -->
-            <button primary class="btn btn-secondary" style="position: fixed; top: 20px; left: 20px;" onclick="window.location.href='/index.html'"
-            ><a href="/index.html" >Back to home</a></button>
+     <a href="#" class="btn btn-primary btn-large" 
+     style="position: absolute;top: 0.5rem; left: 0; z-index: 1;"
+     onclick="showIndex()">Back to home</a>
 
     <div class="demo-switcher">
 
@@ -933,7 +934,9 @@
 
     <script>
         let currentAccountType = 'individual';
-        
+       function showIndex() {
+            window.location.href = '/index.html';
+        } 
         function switchDemo(page) {
             // Hide all pages
             document.getElementById('login-page').style.display = 'none';
