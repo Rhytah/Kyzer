@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LMS Security Configuration Guide</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #dc2626 0%, #7f1d1d 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            border: 1px solid #dc2626;
+        }
+        
+        .title {
+            text-align: center;
+            color: #ffffff;
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #fca5a5;
+            font-size: 1.3rem;
+            margin-bottom: 30px;
+        }
+        
+        .security-header {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 30px 0;
+            text-align: center;
+            border: 1px solid #ef4444;
+        }
+        
+        .header-title {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .header-desc {
+            color: #fecaca;
+            font-size: 1.1rem;
+        }
+        
+        .security-sections {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+        
+        .security-section {
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            border-radius: 15px;
+            padding: 30px;
+            border: 1px solid #334155;
+        }
+        
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+        }
+        
+        .section-icon {
+            background: #dc2626;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+        
+        .config-item {
+            background: rgba(255,255,255,0.03);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #dc2626;
+        }
+        
+        .config-title {
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+        
+        .config-desc {
+            color: #cbd5e1;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        
+        .code-block {
+            background: #000000;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid #333;
+            overflow-x: auto;
+        }
+        
+        .code-block pre {
+            margin: 0;
+            color: #e2e8f0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        
+        .code-comment {
+            color: #64748b;
+        }
+        
+        .code-string {
+            color: #10b981;
+        }
+        
+        .code-keyword {
+            color: #3b82f6;
+        }
+        
+        .code-function {
+            color: #f59e0b;
+        }
+        
+        .critical-warning {
+            background: linear-gradient(135deg, #7f1d1d, #991b1b);
+            border: 2px solid #dc2626;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .warning-title {
+            font-weight: 700;
+            color: #fca5a5;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.1rem;
+        }
+        
+        .warning-text {
+            color: #fecaca;
+            line-height: 1.5;
+        }
+        
+        .security-checklist {
+            background: linear-gradient(135deg, #064e3b, #065f46);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 30px 0;
+            border: 1px solid #10b981;
+        }
+        
+        .checklist-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #10b981;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .checklist-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        
+        .checklist-item {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #10b981;
+            backdrop-filter: blur(10px);
+        }
+        
+        .checklist-item input {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        
+        .checklist-text {
+            color: #d1fae5;
+            font-size: 0.9rem;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .tab {
+            background: #334155;
+            color: #cbd5e1;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .tab.active {
+            background: #dc2626;
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .threat-matrix {
+            background: #1e1b4b;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 30px 0;
+            border: 1px solid #4c1d95;
+        }
+        
+        .matrix-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #a5b4fc;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .threat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .threat-item {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #6366f1;
+        }
+        
+        .threat-level {
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .threat-high {
+            color: #ef4444;
+        }
+        
+        .threat-medium {
+            color: #f59e0b;
+        }
+        
+        .threat-low {
+            color: #10b981;
+        }
+        
+        .threat-desc {
+            color: #cbd5e1;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            .title {
+                font-size: 2.2rem;
+            }
+            
+            .checklist-grid, .threat-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .tabs {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">🔒 LMS Security Configuration</h1>
+        <div class="subtitle">Essential security for Next.js + Supabase + Vercel</div>
+        
+        <div class="security-header">
+            <div class="header-title">
+                🛡️ Comprehensive Security Setup
+            </div>
+            <div class="header-desc">
+                Protect user data, corporate accounts, and course content with enterprise-grade security
+            </div>
+        </div>
+        
+        <div class="security-sections">
+            <!-- Supabase Security -->
+            <div class="security-section">
+                <div class="section-title">
+                    <div class="section-icon">🗄️</div>
+                    Supabase Database & Auth Security
+                </div>
+                
+                <div class="tabs">
+                    <div class="tab active" onclick="showTab('supabase-rls')">Row Level Security</div>
+                    <div class="tab" onclick="showTab('supabase-auth')">Authentication</div>
+                    <div class="tab" onclick="showTab('supabase-api')">API Security</div>
+                </div>
+                
+                <div id="supabase-rls" class="tab-content active">
+                    <div class="config-item">
+                        <div class="config-title">🔐 Row Level Security (RLS) Setup</div>
+                        <div class="config-desc">Essential for multi-tenant data isolation between corporate accounts</div>
+                        <div class="code-block">
+                            <pre><code><span class="code-comment">-- Enable RLS on all tables</span>
+<span class="code-keyword">ALTER TABLE</span> profiles <span class="code-keyword">ENABLE ROW LEVEL SECURITY</span>;
+<span class="code-keyword">ALTER TABLE</span> organizations <span class="code-keyword">ENABLE ROW LEVEL SECURITY</span>;
+<span class="code-keyword">ALTER TABLE</span> courses <span class="code-keyword">ENABLE ROW LEVEL SECURITY</span>;
+<span class="code-keyword">ALTER TABLE</span> enrollments <span class="code-keyword">ENABLE ROW LEVEL SECURITY</span>;
+
+<span class="code-comment">-- Users can only see their own profile</span>
+<span class="code-keyword">CREATE POLICY</span> <span class="code-string">"Users see own profile"</span> <span class="code-keyword">ON</span> profiles
+  <span class="code-keyword">FOR SELECT USING</span> (auth.uid() = id);
+
+<span class="code-comment">-- Corporate admins can see their org's users</span>
+<span class="code-keyword">CREATE POLICY</span> <span class="code-string">"Admins see org users"</span> <span class="code-keyword">ON</span> profiles
+  <span class="code-keyword">FOR SELECT USING</span> (
+    organization_id <span class="code-keyword">IN</span> (
+      <span class="code-keyword">SELECT</span> organization_id <span class="code-keyword">FROM</span> profiles 
+      <span class="code-keyword">WHERE</span> id = auth.uid() <span class="code-keyword">AND</span> role = <span class="code-string">'admin'</span>
+    )
+  );
+
+<span class="code-comment">-- Course access based on enrollment</span>
+<span class="code-keyword">CREATE POLICY</span> <span class="code-string">"Users see enrolled courses"</span> <span class="code-keyword">ON</span> courses
+  <span class="code-keyword">FOR SELECT USING</span> (
+    id <span class="code-keyword">IN</span> (
+      <span class="code-keyword">SELECT</span> course_id <span class="code-keyword">FROM</span> enrollments 
+      <span class="code-keyword">WHERE</span> user_id = auth.uid()
+    )
+  );</code></pre>
+                        </div>
+                    </div>
+                    
+                    <div class="config-item">
+                        <div class="config-title">🛡️ Advanced RLS for Corporate Isolation</div>
+                        <div class="config-desc">Prevent data leaks between different organizations</div>
+                        <div class="code-block">
+                            <pre><code><span class="code-comment">-- Function to get user's organization</span>
+<span class="code-keyword">CREATE OR REPLACE FUNCTION</span> <span class="code-function">get_user_org()</span>
+<span class="code-keyword">RETURNS</span> UUID <span class="code-keyword">AS</span> $$
+  <span class="code-keyword">SELECT</span> organization_id <span class="code-keyword">FROM</span> profiles 
+  <span class="code-keyword">WHERE</span> id = auth.uid()
+$$ <span class="code-keyword">LANGUAGE SQL STABLE</span>;
+
+<span class="code-comment">-- Org-specific course access</span>
+<span class="code-keyword">CREATE POLICY</span> <span class="code-string">"Org courses only"</span> <span class="code-keyword">ON</span> courses
+  <span class="code-keyword">FOR ALL USING</span> (
+    organization_id = get_user_org() 
+    <span class="code-keyword">OR</span> organization_id <span class="code-keyword">IS NULL</span> <span class="code-comment">-- Public courses</span>
+  );</code></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="supabase-auth" class="tab-content">
+                    <div class="config-item">
+                        <div class="config-title">🔑 Authentication Configuration</div>
+                        <div class="config-desc">Secure auth settings for corporate and individual users</div>
+                        <div class="code-block">
+                            <pre><code><span class="code-comment">// supabase/config/auth.js</span>
+<span class="code-keyword">export const</span> authConfig = {
+  <span class="code-comment">// Password requirements</span>
+  password: {
+    minLength: 8,
+    requireUppercase: <span class="code-keyword">true</span>,
+    requireNumbers: <span class="code-keyword">true</span>,
+    requireSymbols: <span class="code-keyword">true</span>
+  },
+  
+  <span class="code-comment">// Session settings</span>
+  session: {
+    timeoutHours: 24,
+    maxConcurrentSessions: 3
+  },
+  
+  <span class="code-comment">// MFA settings</span>
+  mfa: {
+    required: <span class="code-keyword">false</span>, <span class="code-comment">// Enable for corporate accounts</span>
+    methods: [<span class="code-string">'totp'</span>, <span class="code-string">'sms'</span>]
+  }
+}
+
+<span class="code-comment">// Email verification required</span>
+<span class="code-keyword">const</span> { data, error } = <span class="code-keyword">await</span> supabase.auth.signUp({
+  email,
+  password,
+  options: {
+    emailRedirectTo: <span class="code-string">'https://yourdomain.com/auth/callback'</span>
+  }
+})</code></pre>
+                        </div>
+                    </div>
+                    
+                    <div class="config-item">
+                        <div class="config-title">🏢 Corporate Account Security</div>
+                        <div class="config-desc">Enhanced security for corporate users</div>
+                        <div class="code-block">
+                            <pre><code><span class="code-comment">// Enhanced security for corporate accounts</span>
+<span class="code-keyword">const</span> <span class="code-function">setupCorporateUser</span> = <span class="code-keyword">async</span> (userId, orgId) => {
+  <span class="code-comment">// Require email domain verification</span>
+  <span class="code-keyword">const</span> allowedDomains = <span class="code-keyword">await</span> getOrgDomains(orgId)
+  <span class="code-keyword">const</span> userEmail = user.email
+  <span class="code-keyword">const</span> domain = userEmail.split(<span class="code-string">'@'</span>)[1]
+  
+  <span class="code-keyword">if</span> (!allowedDomains.includes(domain)) {
+    <span class="code-keyword">throw new</span> Error(<span class="code-string">'Invalid email domain for organization'</span>)
+  }
+  
+  <span class="code-comment">// Enable MFA for corporate users</span>
+  <span class="code-keyword">await</span> supabase.auth.mfa.enroll({
+    factorType: <span class="code-string">'totp'</span>,
+    friendlyName: <span class="code-string">'Corporate LMS'</span>
+  })
+  
+  <span class="code-comment">// Set enhanced session policies</span>
+  <span class="code-keyword">await</span> supabase.rpc(<span class="code-string">'set_user_security_level'</span>, {
+    user_id: userId,
+    level: <span class="code-string">'corporate'</span>
+  })
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="supabase-api" class="tab-content">
+                    <div class="config-item">
+                        <div class="config-title">🔒 API Security & Rate Limiting</div>
+                        <div class="config-desc">Protect against abuse and unauthorized access</div>
+                        <div class="code-block">
+                            <pre><code><span class="code-comment">-- Database function for rate limiting</span>
+<span class="code-keyword">CREATE OR REPLACE FUNCTION</span> <span class="code-function">check_rate_limit</span>(
+  user_id UUID,
+  action_type TEXT,
+  max_requests INTEGER DEFAULT 100,
+  window_minutes INTEGER DEFAULT 60
+) <span class="code-keyword">RETURNS BOOLEAN AS</span> $$
+<span class="code-keyword">DECLARE</span>
+  request_count INTEGER;
+<span class="code-keyword">BEGIN</span>
+  <span class="code-keyword">SELECT COUNT</span>(*)
+  <span class="code-keyword">INTO</span> request_count
+  <span class="code-keyword">FROM</span> api_requests
+  <span class="code-keyword">WHERE</span> user_id = $1
+    <span class="code-keyword">AND</span> action_type = $2
+    <span class="code-keyword">AND</span> created_at > <span class="code-function">NOW</span>() - <span class="code-function">INTERVAL</span> <span class="code-string">'1 minute'</span> * window_minutes;
+  
+  <span class="code-keyword">RETURN</span> request_count < max_requests;
+<span class="code-keyword">END</span>;
+$$ <span class="code-keyword">LANGUAGE</span> plpgsql;</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Next.js Security -->
+            <div class="security-section">
+                <div class="section-title">
+                    <div class="section-icon">⚛️</div>
+                    Next.js Application Security
+                </div>
+                
+                <div class="config-item">
+                    <div class="config-title">🔐 Environment Variables Security</div>
+                    <div class="config-desc">Secure handling of sensitive configuration</div>
+                    <div class="code-block">
+                        <pre><code><span class="code-comment">// .env.local (NEVER commit to git)</span>
+<span class="code-comment"># Database</span>
+<span class="code-keyword">SUPABASE_URL</span>=<span class="code-string">https://your-project.supabase.co</span>
+<span class="code-keyword">SUPABASE_ANON_KEY</span>=<span class="code-string">your-anon-key</span>
+<span class="code-keyword">SUPABASE_SERVICE_ROLE_KEY</span>=<span class="code-string">your-service-role-key</span>
+
+<span class="code-comment"># App Security</span>
+<span class="code-keyword">NEXTAUTH_SECRET</span>=<span class="code-string">super-secret-key-min-32-chars</span>
+<span class="code-keyword">NEXTAUTH_URL</span>=<span class="code-string">https://yourdomain.com</span>
+
+<span class="code-comment"># Encryption keys</span>
+<span class="code-keyword">ENCRYPTION_KEY</span>=<span class="code-string">your-32-byte-encryption-key</span>
+<span class="code-keyword">JWT_SECRET</span>=<span class="code-string">your-jwt-signing-secret</span>
+
+<span class="code-comment">// lib/config.ts - Validate env vars</span>
+<span class="code-keyword">const</span> requiredEnvVars = [
+  <span class="code-string">'SUPABASE_URL'</span>,
+  <span class="code-string">'SUPABASE_ANON_KEY'</span>,
+  <span class="code-string">'NEXTAUTH_SECRET'</span>
+]
+
+requiredEnvVars.forEach((envVar) => {
+  <span class="code-keyword">if</span> (!process.env[envVar]) {
+    <span class="code-keyword">throw new</span> Error(<span class="code-string">`Missing required environment variable: ${envVar}`</span>)
+  }
+})</code></pre>
+                    </div>
+                </div>
+                
+                <div class="config-item">
+                    <div class="config-title">🛡️ API Route Security</div>
+                    <div class="config-desc">Secure your Next.js API endpoints</div>
+                    <div class="code-block">
+                        <pre><code><span class="code-comment">// middleware.ts - Global security middleware</span>
+<span class="code-keyword">import</span> { NextResponse } <span class="code-keyword">from</span> <span class="code-string">'next/server'</span>
+<span class="code-keyword">import type</span> { NextRequest } <span class="code-keyword">from</span> <span class="code-string">'next/server'</span>
+
+<span class="code-keyword">export function</span> <span class="code-function">middleware</span>(request: NextRequest) {
+  <span class="code-comment">// Security headers</span>
+  <span class="code-keyword">const</span> response = NextResponse.next()
+  
+  <span class="code-comment">// Content Security Policy</span>
+  response.headers.set(
+    <span class="code-string">'Content-Security-Policy'</span>,
+    <span class="code-string">"default-src 'self'; script-src 'self' 'unsafe-inline' *.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: *.supabase.co;"</span>
+  )
+  
+  <span class="code-comment">// Security headers</span>
+  response.headers.set(<span class="code-string">'X-Frame-Options'</span>, <span class="code-string">'DENY'</span>)
+  response.headers.set(<span class="code-string">'X-Content-Type-Options'</span>, <span class="code-string">'nosniff'</span>)
+  response.headers.set(<span class="code-string">'Referrer-Policy'</span>, <span class="code-string">'strict-origin-when-cross-origin'</span>)
+  
+  <span class="code-comment">// HSTS</span>
+  response.headers.set(
+    <span class="code-string">'Strict-Transport-Security'</span>,
+    <span class="code-string">'max-age=63072000; includeSubDomains; preload'</span>
+  )
+  
+  <span class="code-keyword">return</span> response
+}
+
+<span class="code-keyword">export const</span> config = {
+  matcher: [<span class="code-string">'/((?!_next/static|_next/image|favicon.ico).*)'</span>]
+}</code></pre>
+                    </div>
+                </div>
+                
+                <div class="config-item">
+                    <div class="config-title">🔒 Input Validation & Sanitization</div>
+                    <div class="config-desc">Prevent injection attacks and validate all inputs</div>
+                    <div class="code-block">
+                        <pre><code><span class="code-comment">// lib/validation.ts</span>
+<span class="code-keyword">import</span> { z } <span class="code-keyword">from</span> <span class="code-string">'zod'</span>
+<span class="code-keyword">import</span> DOMPurify <span class="code-keyword">from</span> <span class="code-string">'isomorphic-dompurify'</span>
+
+<span class="code-comment">// Input schemas</span>
+<span class="code-keyword">export const</span> CourseSchema = z.object({
+  title: z.string().min(1).max(200).trim(),
+  description: z.string().max(2000).optional(),
+  organizationId: z.string().uuid().optional()
+})
+
+<span class="code-comment">// Sanitize HTML content</span>
+<span class="code-keyword">export const</span> <span class="code-function">sanitizeHtml</span> = (html: string) => {
+  <span class="code-keyword">return</span> DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [<span class="code-string">'b'</span>, <span class="code-string">'i'</span>, <span class="code-string">'em'</span>, <span class="code-string">'strong'</span>, <span class="code-string">'p'</span>, <span class="code-string">'br'</span>, <span class="code-string">'ul'</span>, <span class="code-string">'ol'</span>, <span class="code-string">'li'</span>],
+    ALLOWED_ATTR: []
+  })
+}
+
+<span class="code-comment">// API route with validation</span>
+<span class="code-keyword">export default async function</span> <span class="code-function">handler</span>(req: NextRequest) {
+  <span class="code-keyword">try</span> {
+    <span class="code-keyword">const</span> validatedData = CourseSchema.parse(req.body)
+    
+    <span class="code-comment">// Sanitize text fields</span>
+    validatedData.description = sanitizeHtml(validatedData.description)
+    
+    <span class="code-comment">// Process request...</span>
+  } <span class="code-keyword">catch</span> (error) {
+    <span class="code-keyword">if</span> (error <span class="code-keyword">instanceof</span> z.ZodError) {
+      <span class="code-keyword">return</span> NextResponse.json(
+        { error: <span class="code-string">'Invalid input'</span>, details: error.errors },
+        { status: 400 }
+      )
+    }
+  }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Vercel Security -->
+            <div class="security-section">
+                <div class="section-title">
+                    <div class="section-icon">▲</div>
+                    Vercel Deployment Security
+                </div>
+                
+                <div class="config-item">
+                    <div class="config-title">🔐 Environment Variables</div>
+                    <div class="config-desc">Secure configuration in Vercel dashboard</div>
+                    <div class="code-block">
+                        <pre><code><span class="code-comment"># Vercel Environment Variables Configuration</span>
+
+<span class="code-comment"># Development Environment</span>
+ENVIRONMENT=development
+NODE_ENV=development
+
+<span class="code-comment"># Production Environment (encrypted in Vercel)</span>
+ENVIRONMENT=production
+NODE_ENV=production
+
+<span class="code-comment"># Security: Use different keys per environment</span>
+NEXTAUTH_SECRET_DEV=dev-secret-key
+NEXTAUTH_SECRET_PROD=production-secret-key
+
+<span class="code-comment"># File upload limits</span>
+MAX_FILE_SIZE=10485760  <span class="code-comment"># 10MB</span>
+ALLOWED_FILE_TYPES=pdf,doc,docx,mp4,mp3,jpg,png
+
+<span class="code-comment"># Rate limiting</span>
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_WINDOW=3600  <span class="code-comment"># 1 hour</span></code></pre>
+                    </div>
+                </div>
+                
+                <div class="config-item">
+                    <div class="config-title">🌐 Domain & SSL Security</div>
+                    <div class="config-desc">Secure domain configuration and HTTPS enforcement</div>
+                    <div class="code-block">
+                        <pre><code><span class="code-comment">// vercel.json - Security configuration</span>
+{
+  <span class="code-string">"headers"</span>: [
+    {
+      <span class="code-string">"source"</span>: <span class="code-string">"/(.*)"</span>,
+      <span class="code-string">"headers"</span>: [
+        {
+          <span class="code-string">"key"</span>: <span class="code-string">"X-Frame-Options"</span>,
+          <span class="code-string">"value"</span>: <span class="code-string">"DENY"</span>
+        },
+        {
+          <span class="code-string">"key"</span>: <span class="code-string">"X-Content-Type-Options"</span>,
+          <span class="code-string">"value"</span>: <span class="code-string">"nosniff"</span>
+        },
+        {
+          <span class="code-string">"key"</span>: <span class="code-string">"Strict-Transport-Security"</span>,
+          <span class="code-string">"value"</span>: <span class="code-string">"max-age=63072000; includeSubDomains; preload"</span>
+        }
+      ]
+    }
+  ],
+  <span class="code-string">"redirects"</span>: [
+    {
+      <span class="code-string">"source"</span>: <span class="code-string">"/(.*)"</span>,
+      <span class="code-string">"has"</span>: [
+        {
+          <span class="code-string">"type"</span>: <span class="code-string">"header"</span>,
+          <span class="code-string">"key"</span>: <span class="code-string">"x-forwarded-proto"</span>,
+          <span class="code-string">"value"</span>: <span class="code-string">"http"</span>
+        }
+      ],
+      <span class="code-string">"destination"</span>: <span class="code-string">"https://yourdomain.com/$1"</span>,
+      <span class="code-string">"permanent"</span>: <span class="code-keyword">true</span>
+    }
+  ]
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Threat Assessment -->
+        <div class="threat-matrix">
+            <div class="matrix-title">🎯 LMS-Specific Threat Assessment</div>
+            <div class="threat-grid">
+                <div class="threat-item">
+                    <div class="threat-level threat-high">🔴 HIGH RISK</div>
+                    <div class="threat-desc">
+                        <strong>Corporate Data Breach:</strong> Unauthorized access to competitor's training materials or employee data
+                    </div>
+                </div>
+                <div class="threat-item">
+                    <div class="threat-level threat-high">🔴 HIGH RISK</div>
+                    <div class="threat-desc">
+                        <strong>Course Content Piracy:</strong> Unauthorized download and distribution of paid course content
+                    </div>
+                </div>
+                <div class="threat-item">
+                    <div class="threat-level threat-medium">🟡 MEDIUM RISK</div>
+                    <div class="threat-desc">
+                        <strong>Progress Manipulation:</strong> Users falsifying completion status or assessment scores
+                    </div>
+                </div>
+                <div class="threat-item">
+                    <div class="threat-level threat-medium">🟡 MEDIUM RISK</div>
+                    <div class="threat-desc">
+                        <strong>Account Takeover:</strong> Unauthorized access to corporate admin accounts
+                    </div>
+                </div>
+                <div class="threat-item">
+                    <div class="threat-level threat-low">🟢 LOW RISK</div>
+                    <div class="threat-desc">
+                        <strong>Certificate Forgery:</strong> Creation of fake completion certificates
+                    </div>
+                </div>
+                <div class="threat-item">
+                    <div class="threat-level threat-low">🟢 LOW RISK</div>
+                    <div class="threat-desc">
+                        <strong>DoS Attacks:</strong> Service disruption through resource exhaustion
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Critical Warnings -->
+        <div class="critical-warning">
+            <div class="warning-title">
+                ⚠️ CRITICAL SECURITY REMINDERS
+            </div>
+            <div class="warning-text">
+                <strong>1. Service Role Key:</strong> NEVER expose Supabase service role key in client-side code. Only use in API routes.<br><br>
+                <strong>2. RLS Testing:</strong> Always test RLS policies with different user accounts before going live.<br><br>
+                <strong>3. HTTPS Only:</strong> Never allow HTTP traffic in production. All sensitive data must be encrypted in transit.<br><br>
+                <strong>4. Regular Updates:</strong> Keep all dependencies updated and monitor security advisories.<br><br>
+                <strong>5. Backup Strategy:</strong> Implement automated backups with encryption for all user data.
+            </div>
+        </div>
+        
+        <!-- Security Checklist -->
+        <div class="security-checklist">
+            <div class="checklist-title">✅ Security Implementation Checklist</div>
+            <div class="checklist-grid">
+                <div class="checklist-item">
+                    <input type="checkbox" id="rls"> 
+                    <label for="rls" class="checklist-text">Row Level Security enabled on all tables</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="env"> 
+                    <label for="env" class="checklist-text">Environment variables secured (not in git)</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="https"> 
+                    <label for="https" class="checklist-text">HTTPS enforced in production</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="csp"> 
+                    <label for="csp" class="checklist-text">Content Security Policy configured</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="validation"> 
+                    <label for="validation" class="checklist-text">Input validation on all API routes</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="rate"> 
+                    <label for="rate" class="checklist-text">Rate limiting implemented</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="auth"> 
+                    <label for="auth" class="checklist-text">Strong password policies enforced</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="logs"> 
+                    <label for="logs" class="checklist-text">Security logging & monitoring setup</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="backup"> 
+                    <label for="backup" class="checklist-text">Encrypted backup strategy implemented</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="testing"> 
+                    <label for="testing" class="checklist-text">Security policies tested with different user roles</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function showTab(tabId) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabId).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

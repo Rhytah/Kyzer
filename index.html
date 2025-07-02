@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kyzer LMS - Professional Learning Platform</title>
+    <style>
+        /* ===== KYZER LMS DESIGN SYSTEM ===== */
+        
+        :root {
+            /* Primary Colors */
+            --primary-dark: #1F2937;
+            --primary-default: #374151;
+            --primary-light: #F3F4F6;
+            
+            /* Text Colors */
+            --text-dark: #111827;
+            --text-medium: #374151;
+            --text-light: #6B7280;
+            --text-muted: #9CA3AF;
+            
+            /* Background Colors */
+            --bg-white: #FFFFFF;
+            --bg-light: #F9FAFB;
+            --bg-medium: #F3F4F6;
+            --bg-dark: #E5E7EB;
+            
+            /* Semantic Colors */
+            --success-default: #059669;
+            --success-light: #ECFDF5;
+            --warning-default: #D97706;
+            --warning-light: #FFFBEB;
+            --error-default: #DC2626;
+            --error-light: #FEF2F2;
+            
+            /* Shadows */
+            --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-large: 0 10px 15px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Reset & Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background-color: var(--bg-white);
+        }
+        
+        /* Typography */
+        .h1 { font-size: 48px; font-weight: 700; letter-spacing: -0.025em; color: var(--text-dark); line-height: 1.1; }
+        .h2 { font-size: 36px; font-weight: 700; color: var(--text-dark); line-height: 1.2; }
+        .h3 { font-size: 24px; font-weight: 600; color: var(--text-dark); line-height: 1.3; }
+        .h4 { font-size: 20px; font-weight: 600; color: var(--text-dark); line-height: 1.4; }
+        .h5 { font-size: 18px; font-weight: 600; color: var(--text-dark); }
+        .h6 { font-size: 16px; font-weight: 600; color: var(--text-dark); }
+        .body-large { font-size: 18px; font-weight: 400; color: var(--text-light); line-height: 1.7; }
+        .body-default { font-size: 16px; font-weight: 400; color: var(--text-medium); line-height: 1.6; }
+        .body-small { font-size: 14px; font-weight: 400; color: var(--text-light); }
+        .caption { font-size: 12px; font-weight: 400; color: var(--text-muted); }
+        
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        
+        .container-wide {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        
+        /* Header */
+        .header {
+            background-color: var(--bg-white);
+            border-bottom: 1px solid var(--bg-medium);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            background-color: rgba(255, 255, 255, 0.95);
+        }
+        
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 72px;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-default);
+            text-decoration: none;
+        }
+        
+        .nav {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+        
+        .nav-link {
+            color: var(--text-medium);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease;
+            position: relative;
+        }
+        
+        .nav-link:hover {
+            color: var(--primary-default);
+        }
+        
+        .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: var(--primary-default);
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-default);
+            color: var(--bg-white);
+            border-color: var(--primary-default);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            border-color: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-medium);
+        }
+        
+        .btn-secondary {
+            background-color: var(--bg-white);
+            color: var(--primary-default);
+            border-color: var(--primary-default);
+        }
+        
+        .btn-secondary:hover {
+            background-color: var(--primary-light);
+        }
+        
+        .btn-large {
+            padding: 16px 32px;
+            font-size: 16px;
+        }
+        
+        .btn-ghost {
+            background-color: transparent;
+            color: var(--text-medium);
+            border-color: transparent;
+        }
+        
+        .btn-ghost:hover {
+            background-color: var(--bg-light);
+        }
+        
+        /* Hero Section */
+        .hero {
+            padding-top: 140px;
+            padding-bottom: 80px;
+            background: linear-gradient(135deg, var(--bg-light) 0%, var(--bg-white) 50%, var(--bg-light) 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 20%, rgba(55, 65, 81, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(55, 65, 81, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        
+        .hero-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .hero-text h1 {
+            margin-bottom: 24px;
+        }
+        
+        .hero-text p {
+            margin-bottom: 32px;
+            font-size: 20px;
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+        
+        .hero-actions {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .hero-visual {
+            position: relative;
+            text-align: center;
+        }
+        
+        .hero-image {
+            width: 100%;
+            max-width: 500px;
+            height: 400px;
+            background: linear-gradient(135deg, var(--primary-default) 0%, var(--primary-dark) 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 48px;
+            box-shadow: var(--shadow-xl);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero-image::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: float 8s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+        
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 40px;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--primary-default);
+            margin-bottom: 4px;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: var(--text-light);
+        }
+        
+        /* Features Section */
+        .features {
+            padding: 80px 0;
+            background-color: var(--bg-white);
+        }
+        
+        .section-header {
+            text-align: center;
+            margin-bottom: 64px;
+        }
+        
+        .section-header h2 {
+            margin-bottom: 16px;
+        }
+        
+        .section-header p {
+            font-size: 18px;
+            color: var(--text-light);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+        }
+        
+        .feature-card {
+            text-align: center;
+            padding: 32px 24px;
+            background-color: var(--bg-white);
+            border-radius: 16px;
+            border: 1px solid var(--bg-medium);
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-large);
+            border-color: var(--primary-light);
+        }
+        
+        .feature-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--bg-medium) 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            margin: 0 auto 24px;
+            color: var(--primary-default);
+        }
+        
+        .feature-card h3 {
+            margin-bottom: 16px;
+        }
+        
+        .feature-card p {
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+        
+        /* Course Preview Section */
+        .course-preview {
+            padding: 80px 0;
+            background-color: var(--bg-light);
+        }
+        
+        .courses-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 32px;
+            margin-top: 48px;
+        }
+        
+        .course-card {
+            background-color: var(--bg-white);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--bg-medium);
+            transition: all 0.3s ease;
+        }
+        
+        .course-card:hover {
+            transform: translateY(-6px);
+            box-shadow: var(--shadow-xl);
+        }
+        
+        .course-image {
+            height: 200px;
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--bg-medium) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: var(--primary-default);
+        }
+        
+        .course-content {
+            padding: 24px;
+        }
+        
+        .course-category {
+            display: inline-block;
+            padding: 4px 12px;
+            background-color: var(--primary-light);
+            color: var(--primary-default);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+        
+        .course-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-dark);
+        }
+        
+        .course-instructor {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-bottom: 16px;
+        }
+        
+        .course-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: var(--text-light);
+        }
+        
+        .course-rating {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        /* Testimonials Section */
+        .testimonials {
+            padding: 80px 0;
+            background-color: var(--bg-white);
+        }
+        
+        .testimonials-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+            margin-top: 48px;
+        }
+        
+        .testimonial-card {
+            background-color: var(--bg-light);
+            padding: 32px;
+            border-radius: 16px;
+            border: 1px solid var(--bg-medium);
+            position: relative;
+        }
+        
+        .testimonial-quote {
+            font-size: 18px;
+            color: var(--text-medium);
+            line-height: 1.6;
+            margin-bottom: 24px;
+            font-style: italic;
+        }
+        
+        .testimonial-author {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .author-avatar {
+            width: 48px;
+            height: 48px;
+            background-color: var(--primary-default);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .author-info h4 {
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+        
+        .author-role {
+            font-size: 14px;
+            color: var(--text-light);
+        }
+        
+        /* Pricing Section */
+        .pricing {
+            padding: 80px 0;
+            background-color: var(--bg-light);
+        }
+        
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 32px;
+            margin-top: 48px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .pricing-card {
+            background-color: var(--bg-white);
+            padding: 40px 32px;
+            border-radius: 16px;
+            border: 2px solid var(--bg-medium);
+            text-align: center;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .pricing-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+        }
+        
+        .pricing-card.featured {
+            border-color: var(--primary-default);
+            background: linear-gradient(135deg, var(--bg-white) 0%, var(--primary-light) 100%);
+        }
+        
+        .pricing-badge {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--primary-default);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .pricing-plan {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-dark);
+        }
+        
+        .pricing-price {
+            font-size: 48px;
+            font-weight: 700;
+            color: var(--primary-default);
+            margin-bottom: 8px;
+        }
+        
+        .pricing-period {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-bottom: 32px;
+        }
+        
+        .pricing-features {
+            list-style: none;
+            margin-bottom: 32px;
+        }
+        
+        .pricing-features li {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: var(--text-medium);
+        }
+        
+        .pricing-features li::before {
+            content: '✓';
+            color: var(--success-default);
+            font-weight: 600;
+        }
+        
+        /* CTA Section */
+        .cta {
+            padding: 80px 0;
+            background: linear-gradient(135deg, var(--primary-default) 0%, var(--primary-dark) 100%);
+            color: white;
+            text-align: center;
+        }
+        
+        .cta h2 {
+            color: white;
+            margin-bottom: 16px;
+        }
+        
+        .cta p {
+            font-size: 18px;
+            margin-bottom: 32px;
+            opacity: 0.9;
+        }
+        
+        .cta-actions {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .btn-white {
+            background-color: white;
+            color: var(--primary-default);
+            border-color: white;
+        }
+        
+        .btn-white:hover {
+            background-color: var(--bg-light);
+            transform: translateY(-1px);
+        }
+        
+        .btn-outline {
+            background-color: transparent;
+            color: white;
+            border-color: white;
+        }
+        
+        .btn-outline:hover {
+            background-color: white;
+            color: var(--primary-default);
+        }
+        
+        /* Footer */
+        .footer {
+            background-color: var(--primary-dark);
+            color: white;
+            padding: 64px 0 32px;
+        }
+        
+        .footer-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 48px;
+            margin-bottom: 48px;
+        }
+        
+        .footer-brand h3 {
+            color: white;
+            margin-bottom: 16px;
+        }
+        
+        .footer-brand p {
+            opacity: 0.8;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        
+        .footer-social {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .social-link {
+            width: 40px;
+            height: 40px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        
+        .social-link:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .footer-column h4 {
+            color: white;
+            margin-bottom: 16px;
+            font-size: 16px;
+        }
+        
+        .footer-links {
+            list-style: none;
+        }
+        
+        .footer-links li {
+            margin-bottom: 8px;
+        }
+        
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s ease;
+        }
+        
+        .footer-links a:hover {
+            color: white;
+        }
+        
+        .footer-bottom {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        
+        .footer-copyright {
+            opacity: 0.8;
+            font-size: 14px;
+        }
+        
+        .footer-legal {
+            display: flex;
+            gap: 24px;
+        }
+        
+        .footer-legal a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .footer-legal a:hover {
+            color: white;
+        }
+        
+        /* Mobile Navigation */
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--primary-default);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+        
+        .mobile-menu-toggle:hover {
+            background-color: var(--bg-light);
+        }
+        
+        /* Mobile Menu Overlay */
+        .mobile-menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1500;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .mobile-menu-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .mobile-menu {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 300px;
+            height: 100%;
+            background-color: var(--bg-white);
+            box-shadow: var(--shadow-xl);
+            z-index: 1600;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .mobile-menu.active {
+            transform: translateX(0);
+        }
+        
+        .mobile-menu-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--bg-medium);
+        }
+        
+        .mobile-menu-logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary-default);
+        }
+        
+        .mobile-menu-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text-medium);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+        
+        .mobile-menu-close:hover {
+            background-color: var(--bg-light);
+            color: var(--primary-default);
+        }
+        
+        .mobile-menu-nav {
+            flex: 1;
+            padding: 24px 0;
+        }
+        
+        .mobile-nav-link {
+            display: block;
+            padding: 16px 24px;
+            color: var(--text-medium);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        
+        .mobile-nav-link:hover {
+            background-color: var(--bg-light);
+            color: var(--primary-default);
+            border-left-color: var(--primary-default);
+        }
+        
+        .mobile-menu-actions {
+            padding: 24px;
+            border-top: 1px solid var(--bg-medium);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 16px;
+            }
+            
+            .h1 { font-size: 32px; }
+            .h2 { font-size: 28px; }
+            .h3 { font-size: 20px; }
+            
+            .nav {
+                display: none;
+            }
+            
+            .header-actions {
+                display: none;
+            }
+            
+            .mobile-menu-toggle {
+                display: block;
+            }
+            
+            .hero-content {
+                grid-template-columns: 1fr;
+                gap: 40px;
+                text-align: center;
+            }
+            
+            .hero-stats {
+                gap: 24px;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+            
+            .courses-grid {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+            
+            .testimonials-grid {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+            
+            .pricing-grid {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+            
+            .footer-content {
+                grid-template-columns: 1fr;
+                gap: 32px;
+                text-align: center;
+            }
+            
+            .footer-bottom {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .hero-actions {
+                justify-content: center;
+            }
+            
+            .cta-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .mobile-menu {
+                width: 100%;
+            }
+            
+            .hero-stats {
+                flex-direction: column;
+                gap: 16px;
+            }
+        }
+        
+        /* Animations */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 0.6s ease forwards;
+        }
+        
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Scroll reveal */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease;
+        }
+        
+        .reveal.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="#" class="logo">Kyzer LMS</a>
+                
+                <nav class="nav">
+                    <a href="#features" class="nav-link">Features</a>
+                    <a href="#courses" class="nav-link">Courses</a>
+                    <a href="#pricing" class="nav-link">Pricing</a>
+                    <a href="#about" class="nav-link">About</a>
+                    <a href="#contact" class="nav-link">Contact</a>
+                </nav>
+                
+                <div class="header-actions">
+                    <a href="#" class="btn btn-ghost" onclick="showLogin()">Sign In</a>
+                    <a href="#" class="btn btn-primary" onclick="showSignup()">Get Started</a>
+                </div>
+                
+                <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Menu Overlay -->
+    <div class="mobile-menu-overlay" id="mobileMenuOverlay" onclick="closeMobileMenu()"></div>
+    
+    <!-- Mobile Menu -->
+    <nav class="mobile-menu" id="mobileMenu">
+        <div class="mobile-menu-header">
+            <div class="mobile-menu-logo">Kyzer LMS</div>
+            <button class="mobile-menu-close" onclick="closeMobileMenu()">✕</button>
+        </div>
+        
+        <div class="mobile-menu-nav">
+            <a href="#features" class="mobile-nav-link" onclick="navigateAndClose('#features')">Features</a>
+            <a href="#courses" class="mobile-nav-link" onclick="navigateAndClose('#courses')">Courses</a>
+            <a href="#pricing" class="mobile-nav-link" onclick="navigateAndClose('#pricing')">Pricing</a>
+            <a href="#about" class="mobile-nav-link" onclick="navigateAndClose('#about')">About</a>
+            <a href="#contact" class="mobile-nav-link" onclick="navigateAndClose('#contact')">Contact</a>
+        </div>
+        
+        <div class="mobile-menu-actions">
+            <a href="#" class="btn btn-ghost" onclick="showLogin()">Sign In</a>
+            <a href="#" class="btn btn-primary" onclick="showSignup()">Get Started</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1 class="h1 fade-in">Empower Your Team with Professional Learning</h1>
+                    <p class="fade-in">Transform your organization's skills with our comprehensive learning management system. From individual growth to corporate training programs.</p>
+                    <div class="hero-actions fade-in">
+                        <a href="#" class="btn btn-primary btn-large" onclick="showSignup()">Start Free Trial</a>
+                        <a href="/userdashboard.html" class="btn btn-secondary btn-large">Watch Demo</a>
+                    </div>
+                </div>
+                
+                <div class="hero-visual">
+                    <div class="hero-image">
+                        🎓
+                        <div style="position: absolute; bottom: 20px; right: 20px; background: rgba(255,255,255,0.9); color: var(--primary-default); padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;">
+                            500+ Courses
+                        </div>
+                    </div>
+                    <div class="hero-stats">
+                        <div class="stat">
+                            <div class="stat-number">50K+</div>
+                            <div class="stat-label">Active Learners</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-number">500+</div>
+                            <div class="stat-label">Expert Courses</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-number">95%</div>
+                            <div class="stat-label">Completion Rate</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="h2 reveal">Why Choose Kyzer LMS?</h2>
+                <p class="reveal">Everything you need to create, manage, and scale professional learning programs</p>
+            </div>
+            
+            <div class="features-grid">
+                <div class="feature-card reveal">
+                    <div class="feature-icon">📚</div>
+                    <h3 class="h4">Comprehensive Course Library</h3>
+                    <p>Access 500+ professional courses across technology, business, design, and leadership topics.</p>
+                </div>
+                
+                <div class="feature-card reveal">
+                    <div class="feature-icon">📊</div>
+                    <h3 class="h4">Advanced Analytics</h3>
+                    <p>Track learning progress, completion rates, and skill development with detailed reporting.</p>
+                </div>
+                
+                <div class="feature-card reveal">
+                    <div class="feature-icon">🎯</div>
+                    <h3 class="h4">Personalized Learning Paths</h3>
+                    <p>AI-powered recommendations create custom learning journeys for each individual.</p>
+                </div>
+                
+                <div class="feature-card reveal">
+                    <div class="feature-icon">👥</div>
+                    <h3 class="h4">Team Management</h3>
+                    <p>Manage up to 200 employees with role-based access and corporate dashboards.</p>
+                </div>
+                
+                <div class="feature-card reveal">
+                    <div class="feature-icon">⭐</div>
+                    <h3 class="h4">Certified Learning</h3>
+                    <p>Industry-recognized certificates and badges to validate professional achievements.</p>
+                </div>
+                
+                <div class="feature-card reveal">
+                    <div class="feature-icon">📱</div>
+                    <h3 class="h4">Mobile Learning</h3>
+                    <p>Learn anywhere, anytime with our responsive platform and offline capabilities.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Course Preview Section -->
+    <section class="course-preview" id="courses">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="h2 reveal">Popular Courses</h2>
+                <p class="reveal">Explore our most sought-after professional development courses</p>
+            </div>
+            
+            <div class="courses-grid">
+                <div class="course-card reveal">
+                    <div class="course-image">💻</div>
+                    <div class="course-content">
+                        <div class="course-category">Development</div>
+                        <h3 class="course-title">Advanced React Development</h3>
+                        <p class="course-instructor">by Sarah Johnson</p>
+                        <div class="course-meta">
+                            <div class="course-rating">
+                                <span>⭐</span>
+                                <span>4.8 (124)</span>
+                            </div>
+                            <span>6h 30m</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="course-card reveal">
+                    <div class="course-image">🎨</div>
+                    <div class="course-content">
+                        <div class="course-category">Design</div>
+                        <h3 class="course-title">UI/UX Design Principles</h3>
+                        <p class="course-instructor">by Mike Chen</p>
+                        <div class="course-meta">
+                            <div class="course-rating">
+                                <span>⭐</span>
+                                <span>4.9 (89)</span>
+                            </div>
+                            <span>4h 45m</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="course-card reveal">
+                    <div class="course-image">💼</div>
+                    <div class="course-content">
+                        <div class="course-category">Business</div>
+                        <h3 class="course-title">Project Management Essentials</h3>
+                        <p class="course-instructor">by Lisa Rodriguez</p>
+                        <div class="course-meta">
+                            <div class="course-rating">
+                                <span>⭐</span>
+                                <span>4.7 (156)</span>
+                            </div>
+                            <span>3h 20m</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 48px;">
+                <a href="#" class="btn btn-primary btn-large" onclick="showCatalog()">Browse All Courses</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="testimonials">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="h2 reveal">What Our Learners Say</h2>
+                <p class="reveal">Join thousands of professionals who've advanced their careers with Kyzer LMS</p>
+            </div>
+            
+            <div class="testimonials-grid">
+                <div class="testimonial-card reveal">
+                    <p class="testimonial-quote">
+                        "Kyzer LMS transformed our team's skills. The courses are practical, engaging, and directly applicable to our daily work. Our productivity increased by 40% in just 3 months."
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">JS</div>
+                        <div class="author-info">
+                            <h4>John Smith</h4>
+                            <p class="author-role">VP Engineering, TechCorp</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="testimonial-card reveal">
+                    <p class="testimonial-quote">
+                        "The personalized learning paths helped me transition from designer to product manager. The certificates are recognized by employers and gave me the confidence to advance my career."
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">MJ</div>
+                        <div class="author-info">
+                            <h4>Maria Johnson</h4>
+                            <p class="author-role">Product Manager, StartupCo</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section class="pricing" id="pricing">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="h2 reveal">Simple, Transparent Pricing</h2>
+                <p class="reveal">Choose the plan that fits your learning goals and budget</p>
+            </div>
+            
+            <div class="pricing-grid">
+                <div class="pricing-card reveal">
+                    <div class="pricing-plan">Individual</div>
+                    <div class="pricing-price">$29</div>
+                    <div class="pricing-period">per month</div>
+                    <ul class="pricing-features">
+                        <li>Access to all 500+ courses</li>
+                        <li>Personalized learning paths</li>
+                        <li>Progress tracking & analytics</li>
+                        <li>Industry-recognized certificates</li>
+                        <li>Mobile learning app</li>
+                        <li>24/7 support</li>
+                    </ul>
+                    <a href="#" class="btn btn-primary" onclick="showSignup()">Start Free Trial</a>
+                </div>
+                
+                <div class="pricing-card featured reveal">
+                    <div class="pricing-badge">Most Popular</div>
+                    <div class="pricing-plan">Corporate</div>
+                    <div class="pricing-price">$99</div>
+                    <div class="pricing-period">per month (up to 200 employees)</div>
+                    <ul class="pricing-features">
+                        <li>Everything in Individual plan</li>
+                        <li>Team management dashboard</li>
+                        <li>Advanced analytics & reporting</li>
+                        <li>Custom learning paths</li>
+                        <li>SSO integration</li>
+                        <li>Priority support</li>
+                        <li>Dedicated account manager</li>
+                    </ul>
+                    <a href="#" class="btn btn-primary" onclick="showCorporateSignup()">Contact Sales</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta">
+        <div class="container">
+            <h2 class="h2">Ready to Transform Your Learning?</h2>
+            <p>Start your free trial today and see why 50,000+ professionals choose Kyzer LMS</p>
+            <div class="cta-actions">
+                <a href="#" class="btn btn-white btn-large" onclick="showSignup()">Start Free Trial</a>
+                <a href="#" class="btn btn-outline btn-large">Schedule Demo</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <h3>Kyzer LMS</h3>
+                    <p>Empowering teams through personalized professional learning experiences. Transform your organization's skills with our comprehensive learning management system.</p>
+                    <div class="footer-social">
+                        <a href="#" class="social-link">📘</a>
+                        <a href="#" class="social-link">🐦</a>
+                        <a href="#" class="social-link">💼</a>
+                        <a href="#" class="social-link">📸</a>
+                    </div>
+                </div>
+                
+                <div class="footer-column">
+                    <h4>Product</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">Features</a></li>
+                        <li><a href="#">Pricing</a></li>
+                        <li><a href="#">Course Catalog</a></li>
+                        <li><a href="#">Mobile App</a></li>
+                        <li><a href="#">Integrations</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-column">
+                    <h4>Company</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">About Us</a></li>
+                        <li><a href="#">Careers</a></li>
+                        <li><a href="#">Press</a></li>
+                        <li><a href="#">Partners</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-column">
+                    <h4>Support</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Documentation</a></li>
+                        <li><a href="#">API Reference</a></li>
+                        <li><a href="#">System Status</a></li>
+                        <li><a href="#">Community</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <div class="footer-copyright">
+                    © 2025 Kyzer LMS. All rights reserved.
+                </div>
+                <div class="footer-legal">
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">Terms of Service</a>
+                    <a href="#">Cookie Policy</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Scroll reveal animation
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('revealed');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.reveal').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Header scroll effect
+        let lastScroll = 0;
+        window.addEventListener('scroll', () => {
+            const currentScroll = window.pageYOffset;
+            const header = document.querySelector('.header');
+            
+            if (currentScroll > 100) {
+                header.style.background = 'rgba(255, 255, 255, 0.95)';
+                header.style.backdropFilter = 'blur(10px)';
+            } else {
+                header.style.background = 'rgba(255, 255, 255, 0.95)';
+            }
+            
+            lastScroll = currentScroll;
+        });
+
+        // Navigation functions to HTML mockup pages
+        function showLogin() {
+            window.location.href = '/login.html';
+        }
+
+        function showSignup() {
+            window.location.href = '/login.html#signup-page';
+        }
+
+        function showCatalog() {
+            window.location.href = '/catalog.html';
+        }
+
+        function showCorporateSignup() {
+            window.location.href = '/corporate.html';
+        }
+
+        // Course card hover effects
+        document.querySelectorAll('.course-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-8px)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+            });
+        });
+
+        // Feature card hover effects
+        document.querySelectorAll('.feature-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-6px)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+            });
+        });
+
+        // Animate stats on scroll
+        const animateStats = (entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const stats = entry.target.querySelectorAll('.stat-number');
+                    stats.forEach(stat => {
+                        const finalValue = stat.textContent;
+                        const numericValue = parseInt(finalValue.replace(/\D/g, ''));
+                        const suffix = finalValue.replace(/[\d,]/g, '');
+                        
+                        let startValue = 0;
+                        const increment = numericValue / 50;
+                        
+                        const timer = setInterval(() => {
+                            startValue += increment;
+                            if (startValue >= numericValue) {
+                                startValue = numericValue;
+                                clearInterval(timer);
+                            }
+                            stat.textContent = Math.floor(startValue).toLocaleString() + suffix;
+                        }, 30);
+                    });
+                }
+            });
+        };
+
+        const statsObserver = new IntersectionObserver(animateStats, {
+            threshold: 0.5
+        });
+
+        document.querySelectorAll('.hero-stats').forEach(el => {
+            statsObserver.observe(el);
+        });
+
+        // Mobile menu functionality
+        function toggleMobileMenu() {
+            const overlay = document.getElementById('mobileMenuOverlay');
+            const menu = document.getElementById('mobileMenu');
+            
+            overlay.classList.toggle('active');
+            menu.classList.toggle('active');
+            
+            // Prevent body scroll when menu is open
+            document.body.style.overflow = overlay.classList.contains('active') ? 'hidden' : '';
+        }
+        
+        function closeMobileMenu() {
+            const overlay = document.getElementById('mobileMenuOverlay');
+            const menu = document.getElementById('mobileMenu');
+            
+            overlay.classList.remove('active');
+            menu.classList.remove('active');
+            
+            // Restore body scroll
+            document.body.style.overflow = '';
+        }
+        
+        function navigateAndClose(target) {
+            // Close mobile menu first
+            closeMobileMenu();
+            
+            // Then navigate to section
+            setTimeout(() => {
+                const targetElement = document.querySelector(target);
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            }, 300); // Wait for menu close animation
+        }
+        
+        // Close mobile menu when clicking outside or pressing escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeMobileMenu();
+            }
+        });
+        
+        // Close menu when window is resized to desktop size
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
+                closeMobileMenu();
+            }
+        });
+    </script>
+</body>
+</html>
