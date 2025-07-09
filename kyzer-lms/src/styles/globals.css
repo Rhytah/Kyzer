@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background-light text-text-dark antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  .container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-background-dark p-6;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 border border-background-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-primary bg-white text-text-dark placeholder-text-muted;
+  }
+
+  .input-error {
+    @apply border-red-300 focus:ring-red-200 focus:border-red-500;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-text-dark mb-2;
+  }
+
+  .error-text {
+    @apply text-sm text-red-600 mt-1;
+  }
+
+  /* Custom scrollbar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #9CA3AF #F3F4F6;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: #F3F4F6;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #9CA3AF;
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #6B7280;
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    @apply w-full bg-background-medium rounded-full h-2 overflow-hidden;
+  }
+
+  .progress-fill {
+    @apply h-full bg-primary transition-all duration-300 ease-out;
+  }
+
+  /* Course card hover effect */
+  .course-card {
+    @apply transition-all duration-200 ease-in-out;
+  }
+
+  .course-card:hover {
+    @apply -translate-y-1 shadow-lg;
+  }
+
+  /* Loading skeleton */
+  .skeleton {
+    @apply animate-pulse bg-background-medium rounded;
+  }
+
+  /* Focus styles for accessibility */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-light focus:ring-offset-2;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
+}
