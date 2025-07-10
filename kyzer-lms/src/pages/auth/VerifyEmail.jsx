@@ -1,37 +1,39 @@
 // src/pages/auth/VerifyEmail.jsx
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Mail, CheckCircle, RefreshCw, ArrowLeft } from 'lucide-react'
-import { useAuth } from '@/hooks/auth/useAuth'
-import toast from 'react-hot-toast'
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Mail, CheckCircle, RefreshCw, ArrowLeft } from "lucide-react";
+import { useAuth } from "@/hooks/auth/useAuth";
+import toast from "react-hot-toast";
 
 export default function VerifyEmail() {
-  const [isResending, setIsResending] = useState(false)
-  const { resendVerification, user } = useAuth()
+  const [isResending, setIsResending] = useState(false);
+  const { resendVerification, user } = useAuth();
 
   const handleResendVerification = async () => {
     if (!user?.email) {
-      toast.error('No email found. Please sign up again.')
-      return
+      toast.error("No email found. Please sign up again.");
+      return;
     }
 
     try {
-      setIsResending(true)
-      const result = await resendVerification(user.email)
-      
+      setIsResending(true);
+      const result = await resendVerification(user.email);
+
       if (result.error) {
-        toast.error(result.error.message || 'Failed to resend verification email')
-        return
+        toast.error(
+          result.error.message || "Failed to resend verification email",
+        );
+        return;
       }
 
-      toast.success('Verification email sent! Check your inbox.')
+      toast.success("Verification email sent! Check your inbox.");
     } catch (error) {
-      console.error('Error resending verification:', error)
-      toast.error('An unexpected error occurred')
+      console.error("Error resending verification:", error);
+      toast.error("An unexpected error occurred");
     } finally {
-      setIsResending(false)
+      setIsResending(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-background-light flex items-center justify-center px-4 sm:px-6 lg:px-8">
@@ -61,16 +63,19 @@ export default function VerifyEmail() {
           <h3 className="text-lg font-medium text-text-dark mb-4">
             What's next?
           </h3>
-          
+
           <div className="space-y-4">
             <div className="flex items-start space-x-3">
               <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                 <span className="text-white text-xs font-bold">1</span>
               </div>
               <div>
-                <p className="text-sm font-medium text-text-dark">Check your email</p>
+                <p className="text-sm font-medium text-text-dark">
+                  Check your email
+                </p>
                 <p className="text-xs text-text-light">
-                  Look for an email from Kyzer LMS with the subject "Verify your email address"
+                  Look for an email from Kyzer LMS with the subject "Verify your
+                  email address"
                 </p>
               </div>
             </div>
@@ -80,9 +85,12 @@ export default function VerifyEmail() {
                 <span className="text-white text-xs font-bold">2</span>
               </div>
               <div>
-                <p className="text-sm font-medium text-text-dark">Click the verification link</p>
+                <p className="text-sm font-medium text-text-dark">
+                  Click the verification link
+                </p>
                 <p className="text-xs text-text-light">
-                  Click the "Verify Email" button in the email to activate your account
+                  Click the "Verify Email" button in the email to activate your
+                  account
                 </p>
               </div>
             </div>
@@ -92,9 +100,12 @@ export default function VerifyEmail() {
                 <span className="text-white text-xs font-bold">3</span>
               </div>
               <div>
-                <p className="text-sm font-medium text-text-dark">Start learning</p>
+                <p className="text-sm font-medium text-text-dark">
+                  Start learning
+                </p>
                 <p className="text-xs text-text-light">
-                  Once verified, you'll be redirected to your dashboard to begin your learning journey
+                  Once verified, you'll be redirected to your dashboard to begin
+                  your learning journey
                 </p>
               </div>
             </div>
@@ -112,7 +123,7 @@ export default function VerifyEmail() {
             <li>• Wait a few minutes for the email to arrive</li>
             <li>• Check that your email provider isn't blocking our emails</li>
           </ul>
-          
+
           <button
             onClick={handleResendVerification}
             disabled={isResending}
@@ -141,7 +152,8 @@ export default function VerifyEmail() {
             </h3>
           </div>
           <p className="text-sm text-green-700 mt-1">
-            If you've already verified your email, you can sign in to your account.
+            If you've already verified your email, you can sign in to your
+            account.
           </p>
           <div className="mt-3">
             <Link
@@ -156,19 +168,19 @@ export default function VerifyEmail() {
         {/* Footer Links */}
         <div className="text-center space-y-4">
           <div className="text-sm">
-            <Link 
-              to="/login" 
+            <Link
+              to="/login"
               className="inline-flex items-center text-text-light hover:text-primary transition-colors"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to sign in
             </Link>
           </div>
-          
+
           <div className="text-xs text-text-muted">
-            Need help? Contact our support team at{' '}
-            <a 
-              href="mailto:support@kyzer.com" 
+            Need help? Contact our support team at{" "}
+            <a
+              href="mailto:support@kyzer.com"
               className="text-primary hover:text-primary-dark transition-colors"
             >
               support@kyzer.com
@@ -177,5 +189,5 @@ export default function VerifyEmail() {
         </div>
       </div>
     </div>
-  )
+  );
 }

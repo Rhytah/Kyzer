@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
-import { 
-  UserPlus, 
-  Search, 
-  Filter, 
-  Download, 
+import { useState, useEffect } from "react";
+import {
+  UserPlus,
+  Search,
+  Filter,
+  Download,
   Mail,
   MoreVertical,
   Edit,
@@ -14,226 +14,240 @@ import {
   CheckCircle,
   XCircle,
   Users,
-  Upload
-} from 'lucide-react'
-import Button from '../../components/ui/Button'
-import LoadingSpinner from '../../components/ui/LoadingSpinner'
-import toast from 'react-hot-toast'
+  Upload,
+} from "lucide-react";
+import Button from "../../components/ui/Button";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import toast from "react-hot-toast";
 
 const EmployeeManagement = () => {
-  const [employees, setEmployees] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [departmentFilter, setDepartmentFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [showInviteModal, setShowInviteModal] = useState(false)
-  const [selectedEmployees, setSelectedEmployees] = useState(new Set())
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [selectedEmployees, setSelectedEmployees] = useState(new Set());
   const [inviteForm, setInviteForm] = useState({
-    emails: '',
-    department: '',
-    role: 'learner'
-  })
+    emails: "",
+    department: "",
+    role: "learner",
+  });
 
   const departments = [
-    'Engineering', 'Marketing', 'Sales', 'Operations', 'HR', 'Finance', 'Design', 'IT'
-  ]
+    "Engineering",
+    "Marketing",
+    "Sales",
+    "Operations",
+    "HR",
+    "Finance",
+    "Design",
+    "IT",
+  ];
 
   const statuses = [
-    { id: 'all', name: 'All Employees' },
-    { id: 'active', name: 'Active' },
-    { id: 'inactive', name: 'Inactive' },
-    { id: 'pending', name: 'Pending Invitation' }
-  ]
+    { id: "all", name: "All Employees" },
+    { id: "active", name: "Active" },
+    { id: "inactive", name: "Inactive" },
+    { id: "pending", name: "Pending Invitation" },
+  ];
 
   useEffect(() => {
     const loadEmployees = async () => {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       setEmployees([
         {
           id: 1,
-          name: 'Sarah Johnson',
-          email: 'sarah.johnson@company.com',
-          department: 'Engineering',
-          role: 'Developer',
-          status: 'active',
-          joinDate: '2023-06-15',
-          lastActive: '2024-01-20',
+          name: "Sarah Johnson",
+          email: "sarah.johnson@company.com",
+          department: "Engineering",
+          role: "Developer",
+          status: "active",
+          joinDate: "2023-06-15",
+          lastActive: "2024-01-20",
           coursesCompleted: 8,
           coursesInProgress: 2,
           totalHours: 45,
           certificates: 6,
-          avatar: '/avatar-placeholder.jpg'
+          avatar: "/avatar-placeholder.jpg",
         },
         {
           id: 2,
-          name: 'Mike Chen',
-          email: 'mike.chen@company.com',
-          department: 'Marketing',
-          role: 'Marketing Manager',
-          status: 'active',
-          joinDate: '2023-03-22',
-          lastActive: '2024-01-19',
+          name: "Mike Chen",
+          email: "mike.chen@company.com",
+          department: "Marketing",
+          role: "Marketing Manager",
+          status: "active",
+          joinDate: "2023-03-22",
+          lastActive: "2024-01-19",
           coursesCompleted: 6,
           coursesInProgress: 1,
           totalHours: 38,
           certificates: 4,
-          avatar: '/avatar-placeholder.jpg'
+          avatar: "/avatar-placeholder.jpg",
         },
         {
           id: 3,
-          name: 'Emily Rodriguez',
-          email: 'emily.rodriguez@company.com',
-          department: 'Operations',
-          role: 'Operations Lead',
-          status: 'active',
-          joinDate: '2023-08-10',
-          lastActive: '2024-01-18',
+          name: "Emily Rodriguez",
+          email: "emily.rodriguez@company.com",
+          department: "Operations",
+          role: "Operations Lead",
+          status: "active",
+          joinDate: "2023-08-10",
+          lastActive: "2024-01-18",
           coursesCompleted: 7,
           coursesInProgress: 3,
           totalHours: 42,
           certificates: 5,
-          avatar: '/avatar-placeholder.jpg'
+          avatar: "/avatar-placeholder.jpg",
         },
         {
           id: 4,
-          name: 'David Kim',
-          email: 'david.kim@company.com',
-          department: 'Engineering',
-          role: 'Senior Developer',
-          status: 'active',
-          joinDate: '2023-01-05',
-          lastActive: '2024-01-17',
+          name: "David Kim",
+          email: "david.kim@company.com",
+          department: "Engineering",
+          role: "Senior Developer",
+          status: "active",
+          joinDate: "2023-01-05",
+          lastActive: "2024-01-17",
           coursesCompleted: 12,
           coursesInProgress: 1,
           totalHours: 67,
           certificates: 9,
-          avatar: '/avatar-placeholder.jpg'
+          avatar: "/avatar-placeholder.jpg",
         },
         {
           id: 5,
-          name: 'Lisa Park',
-          email: 'lisa.park@company.com',
-          department: 'Design',
-          role: 'UX Designer',
-          status: 'pending',
+          name: "Lisa Park",
+          email: "lisa.park@company.com",
+          department: "Design",
+          role: "UX Designer",
+          status: "pending",
           joinDate: null,
           lastActive: null,
           coursesCompleted: 0,
           coursesInProgress: 0,
           totalHours: 0,
           certificates: 0,
-          avatar: '/avatar-placeholder.jpg'
+          avatar: "/avatar-placeholder.jpg",
         },
         {
           id: 6,
-          name: 'John Smith',
-          email: 'john.smith@company.com',
-          department: 'Sales',
-          role: 'Sales Rep',
-          status: 'inactive',
-          joinDate: '2023-05-12',
-          lastActive: '2023-12-15',
+          name: "John Smith",
+          email: "john.smith@company.com",
+          department: "Sales",
+          role: "Sales Rep",
+          status: "inactive",
+          joinDate: "2023-05-12",
+          lastActive: "2023-12-15",
           coursesCompleted: 3,
           coursesInProgress: 0,
           totalHours: 18,
           certificates: 2,
-          avatar: '/avatar-placeholder.jpg'
-        }
-      ])
-      
-      setLoading(false)
-    }
+          avatar: "/avatar-placeholder.jpg",
+        },
+      ]);
 
-    loadEmployees()
-  }, [])
+      setLoading(false);
+    };
 
-  const filteredEmployees = employees.filter(employee => {
-    const matchesSearch = 
+    loadEmployees();
+  }, []);
+
+  const filteredEmployees = employees.filter((employee) => {
+    const matchesSearch =
       employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.department.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesDepartment = departmentFilter === 'all' || employee.department === departmentFilter
-    const matchesStatus = statusFilter === 'all' || employee.status === statusFilter
-    
-    return matchesSearch && matchesDepartment && matchesStatus
-  })
+      employee.department.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesDepartment =
+      departmentFilter === "all" || employee.department === departmentFilter;
+    const matchesStatus =
+      statusFilter === "all" || employee.status === statusFilter;
+
+    return matchesSearch && matchesDepartment && matchesStatus;
+  });
 
   const handleInviteEmployees = async () => {
-    const emails = inviteForm.emails.split('\n').filter(email => email.trim())
-    
+    const emails = inviteForm.emails
+      .split("\n")
+      .filter((email) => email.trim());
+
     if (emails.length === 0) {
-      toast.error('Please enter at least one email address')
-      return
+      toast.error("Please enter at least one email address");
+      return;
     }
 
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
       // Add new pending employees
       const newEmployees = emails.map((email, index) => ({
         id: Date.now() + index,
-        name: email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        name: email
+          .split("@")[0]
+          .replace(/[._]/g, " ")
+          .replace(/\b\w/g, (l) => l.toUpperCase()),
         email: email.trim(),
         department: inviteForm.department,
-        role: 'Employee',
-        status: 'pending',
+        role: "Employee",
+        status: "pending",
         joinDate: null,
         lastActive: null,
         coursesCompleted: 0,
         coursesInProgress: 0,
         totalHours: 0,
         certificates: 0,
-        avatar: '/avatar-placeholder.jpg'
-      }))
+        avatar: "/avatar-placeholder.jpg",
+      }));
 
-      setEmployees(prev => [...prev, ...newEmployees])
-      setShowInviteModal(false)
-      setInviteForm({ emails: '', department: '', role: 'learner' })
-      toast.success(`Invited ${emails.length} employee(s) successfully!`)
+      setEmployees((prev) => [...prev, ...newEmployees]);
+      setShowInviteModal(false);
+      setInviteForm({ emails: "", department: "", role: "learner" });
+      toast.success(`Invited ${emails.length} employee(s) successfully!`);
     } catch (error) {
-      toast.error('Failed to send invitations')
+      toast.error("Failed to send invitations");
     }
-  }
+  };
 
   const handleSelectEmployee = (employeeId) => {
-    const newSelected = new Set(selectedEmployees)
+    const newSelected = new Set(selectedEmployees);
     if (newSelected.has(employeeId)) {
-      newSelected.delete(employeeId)
+      newSelected.delete(employeeId);
     } else {
-      newSelected.add(employeeId)
+      newSelected.add(employeeId);
     }
-    setSelectedEmployees(newSelected)
-  }
+    setSelectedEmployees(newSelected);
+  };
 
   const handleSelectAll = () => {
     if (selectedEmployees.size === filteredEmployees.length) {
-      setSelectedEmployees(new Set())
+      setSelectedEmployees(new Set());
     } else {
-      setSelectedEmployees(new Set(filteredEmployees.map(emp => emp.id)))
+      setSelectedEmployees(new Set(filteredEmployees.map((emp) => emp.id)));
     }
-  }
+  };
 
   const getStatusBadge = (status) => {
     const badges = {
-      'active': { color: 'bg-green-100 text-green-700', text: 'Active' },
-      'inactive': { color: 'bg-red-100 text-red-700', text: 'Inactive' },
-      'pending': { color: 'bg-yellow-100 text-yellow-700', text: 'Pending' }
-    }
-    return badges[status] || badges.active
-  }
+      active: { color: "bg-green-100 text-green-700", text: "Active" },
+      inactive: { color: "bg-red-100 text-red-700", text: "Inactive" },
+      pending: { color: "bg-yellow-100 text-yellow-700", text: "Pending" },
+    };
+    return badges[status] || badges.active;
+  };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A'
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   if (loading) {
     return (
@@ -242,7 +256,7 @@ const EmployeeManagement = () => {
           <LoadingSpinner size="lg" />
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -275,7 +289,9 @@ const EmployeeManagement = () => {
           <div className="flex items-center">
             <Users className="h-8 w-8 text-blue-600 mr-3" />
             <div>
-              <p className="text-2xl font-bold text-text-dark">{employees.length}</p>
+              <p className="text-2xl font-bold text-text-dark">
+                {employees.length}
+              </p>
               <p className="text-sm text-text-medium">Total Employees</p>
             </div>
           </div>
@@ -285,7 +301,7 @@ const EmployeeManagement = () => {
             <CheckCircle className="h-8 w-8 text-green-600 mr-3" />
             <div>
               <p className="text-2xl font-bold text-text-dark">
-                {employees.filter(emp => emp.status === 'active').length}
+                {employees.filter((emp) => emp.status === "active").length}
               </p>
               <p className="text-sm text-text-medium">Active</p>
             </div>
@@ -296,7 +312,7 @@ const EmployeeManagement = () => {
             <Clock className="h-8 w-8 text-yellow-600 mr-3" />
             <div>
               <p className="text-2xl font-bold text-text-dark">
-                {employees.filter(emp => emp.status === 'pending').length}
+                {employees.filter((emp) => emp.status === "pending").length}
               </p>
               <p className="text-sm text-text-medium">Pending</p>
             </div>
@@ -328,15 +344,17 @@ const EmployeeManagement = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          
+
           <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
             className="input w-auto min-w-40"
           >
             <option value="all">All Departments</option>
-            {departments.map(dept => (
-              <option key={dept} value={dept}>{dept}</option>
+            {departments.map((dept) => (
+              <option key={dept} value={dept}>
+                {dept}
+              </option>
             ))}
           </select>
 
@@ -345,8 +363,10 @@ const EmployeeManagement = () => {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="input w-auto min-w-32"
           >
-            {statuses.map(status => (
-              <option key={status.id} value={status.id}>{status.name}</option>
+            {statuses.map((status) => (
+              <option key={status.id} value={status.id}>
+                {status.name}
+              </option>
             ))}
           </select>
 
@@ -384,7 +404,10 @@ const EmployeeManagement = () => {
                 <th className="px-4 py-3 text-left">
                   <input
                     type="checkbox"
-                    checked={selectedEmployees.size === filteredEmployees.length && filteredEmployees.length > 0}
+                    checked={
+                      selectedEmployees.size === filteredEmployees.length &&
+                      filteredEmployees.length > 0
+                    }
                     onChange={handleSelectAll}
                     className="rounded border-gray-300"
                   />
@@ -411,7 +434,7 @@ const EmployeeManagement = () => {
             </thead>
             <tbody className="divide-y divide-background-dark">
               {filteredEmployees.map((employee) => {
-                const statusBadge = getStatusBadge(employee.status)
+                const statusBadge = getStatusBadge(employee.status);
                 return (
                   <tr key={employee.id} className="hover:bg-background-light">
                     <td className="px-4 py-4">
@@ -448,20 +471,25 @@ const EmployeeManagement = () => {
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge.color}`}>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${statusBadge.color}`}
+                      >
                         {statusBadge.text}
                       </span>
                     </td>
                     <td className="px-4 py-4">
-                      {employee.status === 'pending' ? (
-                        <span className="text-text-light text-sm">Invitation sent</span>
+                      {employee.status === "pending" ? (
+                        <span className="text-text-light text-sm">
+                          Invitation sent
+                        </span>
                       ) : (
                         <div className="text-sm">
                           <div className="font-medium text-text-dark">
                             {employee.coursesCompleted} completed
                           </div>
                           <div className="text-text-medium">
-                            {employee.totalHours}h • {employee.certificates} certs
+                            {employee.totalHours}h • {employee.certificates}{" "}
+                            certs
                           </div>
                         </div>
                       )}
@@ -475,7 +503,7 @@ const EmployeeManagement = () => {
                       </button>
                     </td>
                   </tr>
-                )
+                );
               })}
             </tbody>
           </table>
@@ -501,13 +529,18 @@ const EmployeeManagement = () => {
             <h3 className="text-lg font-semibold text-text-dark mb-4">
               Invite Employees
             </h3>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="label">Email Addresses</label>
                 <textarea
                   value={inviteForm.emails}
-                  onChange={(e) => setInviteForm(prev => ({ ...prev, emails: e.target.value }))}
+                  onChange={(e) =>
+                    setInviteForm((prev) => ({
+                      ...prev,
+                      emails: e.target.value,
+                    }))
+                  }
                   placeholder="Enter email addresses (one per line)"
                   className="input h-32 resize-none"
                   rows={5}
@@ -521,23 +554,27 @@ const EmployeeManagement = () => {
                 <label className="label">Department</label>
                 <select
                   value={inviteForm.department}
-                  onChange={(e) => setInviteForm(prev => ({ ...prev, department: e.target.value }))}
+                  onChange={(e) =>
+                    setInviteForm((prev) => ({
+                      ...prev,
+                      department: e.target.value,
+                    }))
+                  }
                   className="input"
                   required
                 >
                   <option value="">Select department</option>
-                  {departments.map(dept => (
-                    <option key={dept} value={dept}>{dept}</option>
+                  {departments.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
                   ))}
                 </select>
               </div>
             </div>
 
             <div className="flex justify-end space-x-3 mt-6">
-              <Button
-                variant="ghost"
-                onClick={() => setShowInviteModal(false)}
-              >
+              <Button variant="ghost" onClick={() => setShowInviteModal(false)}>
                 Cancel
               </Button>
               <Button onClick={handleInviteEmployees}>
@@ -549,7 +586,7 @@ const EmployeeManagement = () => {
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default EmployeeManagement
+export default EmployeeManagement;

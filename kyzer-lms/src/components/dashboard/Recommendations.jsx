@@ -1,83 +1,89 @@
 // src/components/dashboard/Recommendations.jsx
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { Star, Clock, Users, ArrowRight, Sparkles } from 'lucide-react'
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Star, Clock, Users, ArrowRight, Sparkles } from "lucide-react";
 
-export default function Recommendations({ 
-  userId, 
-  courses = [], 
-  loading = false, 
-  limit = 3 
+export default function Recommendations({
+  userId,
+  courses = [],
+  loading = false,
+  limit = 3,
 }) {
-  const [recommendations, setRecommendations] = useState([])
-  const [recommendationsLoading, setRecommendationsLoading] = useState(true)
+  const [recommendations, setRecommendations] = useState([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
 
   useEffect(() => {
     if (userId && courses.length > 0) {
-      generateRecommendations()
+      generateRecommendations();
     }
-  }, [userId, courses])
+  }, [userId, courses]);
 
   const generateRecommendations = async () => {
     try {
-      setRecommendationsLoading(true)
-      
+      setRecommendationsLoading(true);
+
       // Mock recommendation logic - replace with actual algorithm
       const mockRecommendations = [
         {
-          id: 'react-advanced',
-          title: 'Advanced React Patterns',
-          description: 'Master advanced React concepts including hooks, context, and performance optimization.',
-          thumbnail_url: '/course-placeholder.jpg',
+          id: "react-advanced",
+          title: "Advanced React Patterns",
+          description:
+            "Master advanced React concepts including hooks, context, and performance optimization.",
+          thumbnail_url: "/course-placeholder.jpg",
           rating: 4.8,
           students: 1240,
-          duration: '8 hours',
-          difficulty: 'intermediate',
-          category: 'Frontend Development',
-          reason: 'Based on your React course progress'
+          duration: "8 hours",
+          difficulty: "intermediate",
+          category: "Frontend Development",
+          reason: "Based on your React course progress",
         },
         {
-          id: 'node-backend',
-          title: 'Node.js Backend Development',
-          description: 'Build robust backend applications with Node.js, Express, and MongoDB.',
-          thumbnail_url: '/course-placeholder.jpg',
+          id: "node-backend",
+          title: "Node.js Backend Development",
+          description:
+            "Build robust backend applications with Node.js, Express, and MongoDB.",
+          thumbnail_url: "/course-placeholder.jpg",
           rating: 4.6,
           students: 980,
-          duration: '12 hours',
-          difficulty: 'intermediate',
-          category: 'Backend Development',
-          reason: 'Popular among JavaScript learners'
+          duration: "12 hours",
+          difficulty: "intermediate",
+          category: "Backend Development",
+          reason: "Popular among JavaScript learners",
         },
         {
-          id: 'typescript-essentials',
-          title: 'TypeScript Essentials',
-          description: 'Add type safety to your JavaScript projects with TypeScript.',
-          thumbnail_url: '/course-placeholder.jpg',
+          id: "typescript-essentials",
+          title: "TypeScript Essentials",
+          description:
+            "Add type safety to your JavaScript projects with TypeScript.",
+          thumbnail_url: "/course-placeholder.jpg",
           rating: 4.7,
           students: 756,
-          duration: '6 hours',
-          difficulty: 'beginner',
-          category: 'Programming Languages',
-          reason: 'Recommended for React developers'
-        }
-      ]
+          duration: "6 hours",
+          difficulty: "beginner",
+          category: "Programming Languages",
+          reason: "Recommended for React developers",
+        },
+      ];
 
       // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 300))
-      
-      setRecommendations(mockRecommendations.slice(0, limit))
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      setRecommendations(mockRecommendations.slice(0, limit));
     } catch (error) {
-      console.error('Error generating recommendations:', error)
+      console.error("Error generating recommendations:", error);
     } finally {
-      setRecommendationsLoading(false)
+      setRecommendationsLoading(false);
     }
-  }
+  };
 
   if (loading || recommendationsLoading) {
     return (
       <div className="space-y-4">
         {[...Array(3)].map((_, index) => (
-          <div key={index} className="bg-white rounded-xl border border-background-dark p-4">
+          <div
+            key={index}
+            className="bg-white rounded-xl border border-background-dark p-4"
+          >
             <div className="animate-pulse">
               <div className="flex space-x-3">
                 <div className="w-16 h-12 bg-background-medium rounded-lg"></div>
@@ -91,7 +97,7 @@ export default function Recommendations({
           </div>
         ))}
       </div>
-    )
+    );
   }
 
   if (!recommendations || recommendations.length === 0) {
@@ -105,13 +111,13 @@ export default function Recommendations({
           </p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-4">
       {recommendations.map((course) => (
-        <div 
+        <div
           key={course.id}
           className="bg-white rounded-xl border border-background-dark p-4 hover:shadow-md transition-shadow duration-200"
         >
@@ -119,7 +125,7 @@ export default function Recommendations({
             {/* Course Thumbnail */}
             <div className="flex-shrink-0">
               <img
-                src={course.thumbnail_url || '/course-placeholder.jpg'}
+                src={course.thumbnail_url || "/course-placeholder.jpg"}
                 alt={course.title}
                 className="w-16 h-12 object-cover rounded-lg bg-background-medium"
               />
@@ -167,13 +173,15 @@ export default function Recommendations({
                 </div>
 
                 {course.difficulty && (
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                    course.difficulty === 'beginner' 
-                      ? 'bg-green-100 text-green-700'
-                      : course.difficulty === 'intermediate'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-red-100 text-red-700'
-                  }`}>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      course.difficulty === "beginner"
+                        ? "bg-green-100 text-green-700"
+                        : course.difficulty === "intermediate"
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-red-100 text-red-700"
+                    }`}
+                  >
                     {course.difficulty}
                   </span>
                 )}
@@ -214,5 +222,5 @@ export default function Recommendations({
         </Link>
       </div>
     </div>
-  )
+  );
 }

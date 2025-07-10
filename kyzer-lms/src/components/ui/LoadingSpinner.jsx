@@ -1,20 +1,17 @@
-import { clsx } from 'clsx'
+import { clsx } from "clsx";
 
-const LoadingSpinner = ({ size = 'md', className }) => {
+const LoadingSpinner = ({ size = "md", className }) => {
   const sizes = {
-    sm: 'h-4 w-4',
-    md: 'h-6 w-6',
-    lg: 'h-8 w-8',
-    xl: 'h-12 w-12'
-  }
+    sm: "h-4 w-4",
+    md: "h-6 w-6",
+    lg: "h-8 w-8",
+    xl: "h-12 w-12",
+  };
 
   return (
-    <div className={clsx('flex items-center justify-center', className)}>
+    <div className={clsx("flex items-center justify-center", className)}>
       <svg
-        className={clsx(
-          'animate-spin text-primary',
-          sizes[size]
-        )}
+        className={clsx("animate-spin text-primary", sizes[size])}
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
         viewBox="0 0 24 24"
@@ -34,7 +31,7 @@ const LoadingSpinner = ({ size = 'md', className }) => {
         />
       </svg>
     </div>
-  )
-}
+  );
+};
 
-export default LoadingSpinner
+export default LoadingSpinner;

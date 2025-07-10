@@ -1,22 +1,24 @@
 // src/components/dashboard/EnrolledCourses.jsx
-import { Link } from 'react-router-dom'
-import { Play, Clock, BookOpen, CheckCircle } from 'lucide-react'
+import { Link } from "react-router-dom";
+import { Play, Clock, BookOpen, CheckCircle } from "lucide-react";
 
-export default function EnrolledCourses({ 
-  enrollments = [], 
-  loading = false, 
-  showAll = false, 
-  limit = null 
+export default function EnrolledCourses({
+  enrollments = [],
+  loading = false,
+  showAll = false,
+  limit = null,
 }) {
-  const displayedCourses = showAll || !limit 
-    ? enrollments 
-    : enrollments.slice(0, limit)
+  const displayedCourses =
+    showAll || !limit ? enrollments : enrollments.slice(0, limit);
 
   if (loading) {
     return (
       <div className="space-y-4">
         {[...Array(3)].map((_, index) => (
-          <div key={index} className="bg-white rounded-xl border border-background-dark p-6">
+          <div
+            key={index}
+            className="bg-white rounded-xl border border-background-dark p-6"
+          >
             <div className="animate-pulse">
               <div className="flex space-x-4">
                 <div className="w-20 h-16 bg-background-medium rounded-lg"></div>
@@ -30,14 +32,16 @@ export default function EnrolledCourses({
           </div>
         ))}
       </div>
-    )
+    );
   }
 
   if (!enrollments || enrollments.length === 0) {
     return (
       <div className="bg-white rounded-xl border border-background-dark p-8 text-center">
         <BookOpen className="w-12 h-12 text-text-light mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-text-dark mb-2">No enrolled courses yet</h3>
+        <h3 className="text-lg font-medium text-text-dark mb-2">
+          No enrolled courses yet
+        </h3>
         <p className="text-text-light mb-6">
           Start your learning journey by enrolling in your first course.
         </p>
@@ -48,26 +52,26 @@ export default function EnrolledCourses({
           Browse Courses
         </Link>
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-4">
       {displayedCourses.map((enrollment) => {
-        const course = enrollment.courses || enrollment.course
-        const progress = enrollment.progress || 0
-        const isCompleted = enrollment.completed_at || progress >= 100
+        const course = enrollment.courses || enrollment.course;
+        const progress = enrollment.progress || 0;
+        const isCompleted = enrollment.completed_at || progress >= 100;
 
         return (
-          <div 
-            key={enrollment.id} 
+          <div
+            key={enrollment.id}
             className="bg-white rounded-xl border border-background-dark p-6 hover:shadow-md transition-shadow duration-200"
           >
             <div className="flex items-start space-x-4">
               {/* Course Thumbnail */}
               <div className="relative flex-shrink-0">
                 <img
-                  src={course?.thumbnail_url || '/course-placeholder.jpg'}
+                  src={course?.thumbnail_url || "/course-placeholder.jpg"}
                   alt={course?.title}
                   className="w-20 h-16 object-cover rounded-lg bg-background-medium"
                 />
@@ -100,11 +104,11 @@ export default function EnrolledCourses({
                   <div className="w-full bg-background-medium rounded-full h-2">
                     <div
                       className={`h-2 rounded-full transition-all duration-300 ${
-                        isCompleted 
-                          ? 'bg-green-500' 
-                          : progress > 0 
-                            ? 'bg-primary' 
-                            : 'bg-background-dark'
+                        isCompleted
+                          ? "bg-green-500"
+                          : progress > 0
+                            ? "bg-primary"
+                            : "bg-background-dark"
                       }`}
                       style={{ width: `${Math.min(progress, 100)}%` }}
                     ></div>
@@ -121,24 +125,26 @@ export default function EnrolledCourses({
                       </div>
                     )}
                     {course?.difficulty && (
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        course.difficulty === 'beginner' 
-                          ? 'bg-green-100 text-green-700'
-                          : course.difficulty === 'intermediate'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : 'bg-red-100 text-red-700'
-                      }`}>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          course.difficulty === "beginner"
+                            ? "bg-green-100 text-green-700"
+                            : course.difficulty === "intermediate"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-red-100 text-red-700"
+                        }`}
+                      >
                         {course.difficulty}
                       </span>
                     )}
                   </div>
 
                   <Link
-                    to={`/courses/${course?.id}/${isCompleted ? 'completed' : 'continue'}`}
+                    to={`/courses/${course?.id}/${isCompleted ? "completed" : "continue"}`}
                     className={`inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                       isCompleted
-                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                        : 'bg-primary text-white hover:bg-primary-dark'
+                        ? "bg-green-100 text-green-700 hover:bg-green-200"
+                        : "bg-primary text-white hover:bg-primary-dark"
                     }`}
                   >
                     {isCompleted ? (
@@ -149,7 +155,7 @@ export default function EnrolledCourses({
                     ) : (
                       <>
                         <Play className="w-3 h-3 mr-1" />
-                        {progress > 0 ? 'Continue' : 'Start'}
+                        {progress > 0 ? "Continue" : "Start"}
                       </>
                     )}
                   </Link>
@@ -157,7 +163,7 @@ export default function EnrolledCourses({
               </div>
             </div>
           </div>
-        )
+        );
       })}
 
       {/* Show More Link */}
@@ -172,5 +178,5 @@ export default function EnrolledCourses({
         </div>
       )}
     </div>
-  )
+  );
 }

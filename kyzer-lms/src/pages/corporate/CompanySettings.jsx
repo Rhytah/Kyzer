@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { 
-  Building, 
-  Users, 
-  CreditCard, 
-  Shield, 
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import {
+  Building,
+  Users,
+  CreditCard,
+  Shield,
   Bell,
   Globe,
   Upload,
@@ -16,136 +16,153 @@ import {
   Plus,
   X,
   Check,
-  AlertTriangle
-} from 'lucide-react'
-import Button from '../../components/ui/Button'
-import LoadingSpinner from '../../components/ui/LoadingSpinner'
-import { useAuthStore } from '../../store/authStore'
-import toast from 'react-hot-toast'
+  AlertTriangle,
+} from "lucide-react";
+import Button from "../../components/ui/Button";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
+import { useAuthStore } from "../../store/authStore";
+import toast from "react-hot-toast";
 
 const companySchema = z.object({
-  name: z.string().min(2, 'Company name must be at least 2 characters'),
-  industry: z.string().min(1, 'Please select an industry'),
-  size: z.string().min(1, 'Please select company size'),
-  website: z.string().url('Please enter a valid website URL').optional().or(z.literal('')),
+  name: z.string().min(2, "Company name must be at least 2 characters"),
+  industry: z.string().min(1, "Please select an industry"),
+  size: z.string().min(1, "Please select company size"),
+  website: z
+    .string()
+    .url("Please enter a valid website URL")
+    .optional()
+    .or(z.literal("")),
   description: z.string().optional(),
   address: z.string().optional(),
-  phone: z.string().optional()
-})
+  phone: z.string().optional(),
+});
 
 const CompanySettings = () => {
-  const { profile } = useAuthStore()
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('general')
-  const [companyData, setCompanyData] = useState(null)
-  const [billingData, setBillingData] = useState(null)
-  const [customDomains, setCustomDomains] = useState([])
-  const [newDomain, setNewDomain] = useState('')
+  const { profile } = useAuthStore();
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("general");
+  const [companyData, setCompanyData] = useState(null);
+  const [billingData, setBillingData] = useState(null);
+  const [customDomains, setCustomDomains] = useState([]);
+  const [newDomain, setNewDomain] = useState("");
 
   const {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isDirty }
+    formState: { errors, isDirty },
   } = useForm({
-    resolver: zodResolver(companySchema)
-  })
+    resolver: zodResolver(companySchema),
+  });
 
   const tabs = [
-    { id: 'general', name: 'General', icon: Building },
-    { id: 'billing', name: 'Billing', icon: CreditCard },
-    { id: 'users', name: 'User Management', icon: Users },
-    { id: 'security', name: 'Security', icon: Shield },
-    { id: 'notifications', name: 'Notifications', icon: Bell },
-    { id: 'branding', name: 'Branding', icon: Globe }
-  ]
+    { id: "general", name: "General", icon: Building },
+    { id: "billing", name: "Billing", icon: CreditCard },
+    { id: "users", name: "User Management", icon: Users },
+    { id: "security", name: "Security", icon: Shield },
+    { id: "notifications", name: "Notifications", icon: Bell },
+    { id: "branding", name: "Branding", icon: Globe },
+  ];
 
   const industries = [
-    'Technology', 'Healthcare', 'Finance', 'Education', 'Manufacturing',
-    'Retail', 'Consulting', 'Real Estate', 'Non-profit', 'Other'
-  ]
+    "Technology",
+    "Healthcare",
+    "Finance",
+    "Education",
+    "Manufacturing",
+    "Retail",
+    "Consulting",
+    "Real Estate",
+    "Non-profit",
+    "Other",
+  ];
 
   const companySizes = [
-    '1-10 employees', '11-50 employees', '51-200 employees', 
-    '201-500 employees', '501-1000 employees', '1000+ employees'
-  ]
+    "1-10 employees",
+    "11-50 employees",
+    "51-200 employees",
+    "201-500 employees",
+    "501-1000 employees",
+    "1000+ employees",
+  ];
 
   useEffect(() => {
     const loadSettings = async () => {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       const mockCompanyData = {
-        name: profile?.organization?.name || 'Acme Corporation',
-        industry: 'Technology',
-        size: '51-200 employees',
-        website: 'https://acme.com',
-        description: 'Leading technology company focused on innovation and growth.',
-        address: '123 Business St, Suite 100, City, State 12345',
-        phone: '+1 (555) 123-4567',
-        logo: '/company-logo.png'
-      }
+        name: profile?.organization?.name || "Acme Corporation",
+        industry: "Technology",
+        size: "51-200 employees",
+        website: "https://acme.com",
+        description:
+          "Leading technology company focused on innovation and growth.",
+        address: "123 Business St, Suite 100, City, State 12345",
+        phone: "+1 (555) 123-4567",
+        logo: "/company-logo.png",
+      };
 
       const mockBillingData = {
-        plan: 'Corporate Pro',
+        plan: "Corporate Pro",
         price: 2999,
-        billingCycle: 'annual',
-        nextBilling: '2024-12-15',
+        billingCycle: "annual",
+        nextBilling: "2024-12-15",
         employeeLimit: 200,
         currentEmployees: 156,
-        paymentMethod: '**** **** **** 4567',
-        billingEmail: 'billing@acme.com'
-      }
+        paymentMethod: "**** **** **** 4567",
+        billingEmail: "billing@acme.com",
+      };
 
-      setCompanyData(mockCompanyData)
-      setBillingData(mockBillingData)
-      setCustomDomains(['acme.com', 'acme-corp.com'])
-      
-      reset(mockCompanyData)
-      setLoading(false)
-    }
+      setCompanyData(mockCompanyData);
+      setBillingData(mockBillingData);
+      setCustomDomains(["acme.com", "acme-corp.com"]);
 
-    loadSettings()
-  }, [reset, profile])
+      reset(mockCompanyData);
+      setLoading(false);
+    };
+
+    loadSettings();
+  }, [reset, profile]);
 
   const handleSaveGeneral = async (data) => {
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      setCompanyData(prev => ({ ...prev, ...data }))
-      toast.success('Company settings updated successfully')
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      setCompanyData((prev) => ({ ...prev, ...data }));
+      toast.success("Company settings updated successfully");
     } catch (error) {
-      toast.error('Failed to update settings')
+      toast.error("Failed to update settings");
     }
-  }
+  };
 
   const handleAddDomain = async () => {
-    if (!newDomain.trim()) return
+    if (!newDomain.trim()) return;
 
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      setCustomDomains(prev => [...prev, newDomain.trim()])
-      setNewDomain('')
-      toast.success('Domain added successfully')
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      setCustomDomains((prev) => [...prev, newDomain.trim()]);
+      setNewDomain("");
+      toast.success("Domain added successfully");
     } catch (error) {
-      toast.error('Failed to add domain')
+      toast.error("Failed to add domain");
     }
-  }
+  };
 
   const handleRemoveDomain = async (domain) => {
     try {
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      setCustomDomains(prev => prev.filter(d => d !== domain))
-      toast.success('Domain removed successfully')
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      setCustomDomains((prev) => prev.filter((d) => d !== domain));
+      toast.success("Domain removed successfully");
     } catch (error) {
-      toast.error('Failed to remove domain')
+      toast.error("Failed to remove domain");
     }
-  }
+  };
 
   const renderGeneralTab = () => (
     <form onSubmit={handleSubmit(handleSaveGeneral)} className="space-y-6">
@@ -155,7 +172,11 @@ const CompanySettings = () => {
         <div className="flex items-center space-x-4">
           <div className="w-20 h-20 bg-background-medium rounded-lg flex items-center justify-center">
             {companyData?.logo ? (
-              <img src={companyData.logo} alt="Company logo" className="w-full h-full object-cover rounded-lg" />
+              <img
+                src={companyData.logo}
+                alt="Company logo"
+                className="w-full h-full object-cover rounded-lg"
+              />
             ) : (
               <Building className="h-8 w-8 text-text-light" />
             )}
@@ -177,25 +198,25 @@ const CompanySettings = () => {
         <div>
           <label className="label">Company Name</label>
           <input
-            {...register('name')}
-            className={`input ${errors.name ? 'input-error' : ''}`}
+            {...register("name")}
+            className={`input ${errors.name ? "input-error" : ""}`}
             placeholder="Enter company name"
           />
-          {errors.name && (
-            <p className="error-text">{errors.name.message}</p>
-          )}
+          {errors.name && <p className="error-text">{errors.name.message}</p>}
         </div>
 
         {/* Industry */}
         <div>
           <label className="label">Industry</label>
           <select
-            {...register('industry')}
-            className={`input ${errors.industry ? 'input-error' : ''}`}
+            {...register("industry")}
+            className={`input ${errors.industry ? "input-error" : ""}`}
           >
             <option value="">Select industry</option>
-            {industries.map(industry => (
-              <option key={industry} value={industry}>{industry}</option>
+            {industries.map((industry) => (
+              <option key={industry} value={industry}>
+                {industry}
+              </option>
             ))}
           </select>
           {errors.industry && (
@@ -207,26 +228,26 @@ const CompanySettings = () => {
         <div>
           <label className="label">Company Size</label>
           <select
-            {...register('size')}
-            className={`input ${errors.size ? 'input-error' : ''}`}
+            {...register("size")}
+            className={`input ${errors.size ? "input-error" : ""}`}
           >
             <option value="">Select size</option>
-            {companySizes.map(size => (
-              <option key={size} value={size}>{size}</option>
+            {companySizes.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
             ))}
           </select>
-          {errors.size && (
-            <p className="error-text">{errors.size.message}</p>
-          )}
+          {errors.size && <p className="error-text">{errors.size.message}</p>}
         </div>
 
         {/* Website */}
         <div>
           <label className="label">Website</label>
           <input
-            {...register('website')}
+            {...register("website")}
             type="url"
-            className={`input ${errors.website ? 'input-error' : ''}`}
+            className={`input ${errors.website ? "input-error" : ""}`}
             placeholder="https://company.com"
           />
           {errors.website && (
@@ -238,7 +259,7 @@ const CompanySettings = () => {
         <div>
           <label className="label">Phone</label>
           <input
-            {...register('phone')}
+            {...register("phone")}
             type="tel"
             className="input"
             placeholder="+1 (555) 123-4567"
@@ -250,7 +271,7 @@ const CompanySettings = () => {
       <div>
         <label className="label">Description</label>
         <textarea
-          {...register('description')}
+          {...register("description")}
           rows={4}
           className="input"
           placeholder="Brief description of your company..."
@@ -261,7 +282,7 @@ const CompanySettings = () => {
       <div>
         <label className="label">Address</label>
         <textarea
-          {...register('address')}
+          {...register("address")}
           rows={3}
           className="input"
           placeholder="Enter company address..."
@@ -275,7 +296,7 @@ const CompanySettings = () => {
         </Button>
       </div>
     </form>
-  )
+  );
 
   const renderBillingTab = () => (
     <div className="space-y-6">
@@ -283,21 +304,23 @@ const CompanySettings = () => {
       <div className="card border-l-4 border-l-primary">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold text-text-dark">{billingData?.plan}</h3>
+            <h3 className="text-lg font-semibold text-text-dark">
+              {billingData?.plan}
+            </h3>
             <p className="text-text-medium">
-              ${billingData?.price}/year • Up to {billingData?.employeeLimit} employees
+              ${billingData?.price}/year • Up to {billingData?.employeeLimit}{" "}
+              employees
             </p>
           </div>
-          <Button variant="secondary">
-            Change Plan
-          </Button>
+          <Button variant="secondary">Change Plan</Button>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div>
             <p className="text-text-medium">Current Usage</p>
             <p className="font-medium text-text-dark">
-              {billingData?.currentEmployees} / {billingData?.employeeLimit} employees
+              {billingData?.currentEmployees} / {billingData?.employeeLimit}{" "}
+              employees
             </p>
           </div>
           <div>
@@ -318,28 +341,34 @@ const CompanySettings = () => {
       {/* Payment Method */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-text-dark">Payment Method</h3>
+          <h3 className="text-lg font-semibold text-text-dark">
+            Payment Method
+          </h3>
           <Button variant="secondary" size="sm">
             <Edit className="h-4 w-4 mr-2" />
             Update
           </Button>
         </div>
-        
+
         <div className="flex items-center space-x-4">
           <div className="w-12 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded flex items-center justify-center">
             <CreditCard className="h-4 w-4 text-white" />
           </div>
           <div>
             <p className="font-medium text-text-dark">Credit Card</p>
-            <p className="text-sm text-text-medium">{billingData?.paymentMethod}</p>
+            <p className="text-sm text-text-medium">
+              {billingData?.paymentMethod}
+            </p>
           </div>
         </div>
       </div>
 
       {/* Billing Information */}
       <div className="card">
-        <h3 className="text-lg font-semibold text-text-dark mb-4">Billing Information</h3>
-        
+        <h3 className="text-lg font-semibold text-text-dark mb-4">
+          Billing Information
+        </h3>
+
         <div className="space-y-4">
           <div>
             <label className="label">Billing Email</label>
@@ -350,7 +379,7 @@ const CompanySettings = () => {
               placeholder="billing@company.com"
             />
           </div>
-          
+
           <div>
             <label className="label">Billing Address</label>
             <textarea
@@ -371,40 +400,46 @@ const CompanySettings = () => {
       </div>
 
       {/* Usage Warning */}
-      {billingData && billingData.currentEmployees / billingData.employeeLimit > 0.8 && (
-        <div className="card border-l-4 border-l-yellow-500">
-          <div className="flex items-start space-x-3">
-            <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
-            <div>
-              <h4 className="font-medium text-text-dark mb-1">
-                Approaching Employee Limit
-              </h4>
-              <p className="text-sm text-text-medium mb-3">
-                You're using {billingData.currentEmployees} of {billingData.employeeLimit} employee slots. 
-                Consider upgrading your plan to add more team members.
-              </p>
-              <Button size="sm">
-                Upgrade Plan
-              </Button>
+      {billingData &&
+        billingData.currentEmployees / billingData.employeeLimit > 0.8 && (
+          <div className="card border-l-4 border-l-yellow-500">
+            <div className="flex items-start space-x-3">
+              <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-text-dark mb-1">
+                  Approaching Employee Limit
+                </h4>
+                <p className="text-sm text-text-medium mb-3">
+                  You're using {billingData.currentEmployees} of{" "}
+                  {billingData.employeeLimit} employee slots. Consider upgrading
+                  your plan to add more team members.
+                </p>
+                <Button size="sm">Upgrade Plan</Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
-  )
+  );
 
   const renderSecurityTab = () => (
     <div className="space-y-6">
       {/* Custom Domains */}
       <div className="card">
-        <h3 className="text-lg font-semibold text-text-dark mb-4">Custom Email Domains</h3>
+        <h3 className="text-lg font-semibold text-text-dark mb-4">
+          Custom Email Domains
+        </h3>
         <p className="text-text-medium mb-4">
-          Add email domains to automatically assign employees to your organization when they sign up.
+          Add email domains to automatically assign employees to your
+          organization when they sign up.
         </p>
-        
+
         <div className="space-y-3 mb-4">
           {customDomains.map((domain, index) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-background-light rounded-lg">
+            <div
+              key={index}
+              className="flex items-center justify-between p-3 bg-background-light rounded-lg"
+            >
               <div className="flex items-center">
                 <Globe className="h-4 w-4 text-primary mr-3" />
                 <span className="font-medium text-text-dark">{domain}</span>
@@ -439,13 +474,19 @@ const CompanySettings = () => {
 
       {/* Security Settings */}
       <div className="card">
-        <h3 className="text-lg font-semibold text-text-dark mb-4">Security Settings</h3>
-        
+        <h3 className="text-lg font-semibold text-text-dark mb-4">
+          Security Settings
+        </h3>
+
         <div className="space-y-4">
           <div className="flex items-center justify-between p-4 border border-background-dark rounded-lg">
             <div>
-              <h4 className="font-medium text-text-dark">Two-Factor Authentication</h4>
-              <p className="text-sm text-text-medium">Require 2FA for all organization members</p>
+              <h4 className="font-medium text-text-dark">
+                Two-Factor Authentication
+              </h4>
+              <p className="text-sm text-text-medium">
+                Require 2FA for all organization members
+              </p>
             </div>
             <label className="flex items-center">
               <input type="checkbox" className="rounded" />
@@ -455,8 +496,12 @@ const CompanySettings = () => {
 
           <div className="flex items-center justify-between p-4 border border-background-dark rounded-lg">
             <div>
-              <h4 className="font-medium text-text-dark">Single Sign-On (SSO)</h4>
-              <p className="text-sm text-text-medium">Enable SAML/OIDC integration</p>
+              <h4 className="font-medium text-text-dark">
+                Single Sign-On (SSO)
+              </h4>
+              <p className="text-sm text-text-medium">
+                Enable SAML/OIDC integration
+              </p>
             </div>
             <Button variant="secondary" size="sm">
               Configure
@@ -466,7 +511,9 @@ const CompanySettings = () => {
           <div className="flex items-center justify-between p-4 border border-background-dark rounded-lg">
             <div>
               <h4 className="font-medium text-text-dark">Session Timeout</h4>
-              <p className="text-sm text-text-medium">Automatically log out inactive users</p>
+              <p className="text-sm text-text-medium">
+                Automatically log out inactive users
+              </p>
             </div>
             <select className="input w-32">
               <option value="30">30 minutes</option>
@@ -478,44 +525,56 @@ const CompanySettings = () => {
         </div>
       </div>
     </div>
-  )
+  );
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'general':
-        return renderGeneralTab()
-      case 'billing':
-        return renderBillingTab()
-      case 'security':
-        return renderSecurityTab()
-      case 'users':
+      case "general":
+        return renderGeneralTab();
+      case "billing":
+        return renderBillingTab();
+      case "security":
+        return renderSecurityTab();
+      case "users":
         return (
           <div className="text-center py-12">
             <Users className="h-12 w-12 text-text-light mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-text-dark mb-2">User Management</h3>
-            <p className="text-text-medium">Configure user roles, permissions, and access controls.</p>
+            <h3 className="text-lg font-medium text-text-dark mb-2">
+              User Management
+            </h3>
+            <p className="text-text-medium">
+              Configure user roles, permissions, and access controls.
+            </p>
           </div>
-        )
-      case 'notifications':
+        );
+      case "notifications":
         return (
           <div className="text-center py-12">
             <Bell className="h-12 w-12 text-text-light mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-text-dark mb-2">Notification Settings</h3>
-            <p className="text-text-medium">Manage email notifications and alerts for your organization.</p>
+            <h3 className="text-lg font-medium text-text-dark mb-2">
+              Notification Settings
+            </h3>
+            <p className="text-text-medium">
+              Manage email notifications and alerts for your organization.
+            </p>
           </div>
-        )
-      case 'branding':
+        );
+      case "branding":
         return (
           <div className="text-center py-12">
             <Globe className="h-12 w-12 text-text-light mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-text-dark mb-2">Branding & Customization</h3>
-            <p className="text-text-medium">Customize the look and feel of your learning platform.</p>
+            <h3 className="text-lg font-medium text-text-dark mb-2">
+              Branding & Customization
+            </h3>
+            <p className="text-text-medium">
+              Customize the look and feel of your learning platform.
+            </p>
           </div>
-        )
+        );
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -524,7 +583,7 @@ const CompanySettings = () => {
           <LoadingSpinner size="lg" />
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -545,21 +604,21 @@ const CompanySettings = () => {
           <div className="card">
             <nav className="space-y-1">
               {tabs.map((tab) => {
-                const Icon = tab.icon
+                const Icon = tab.icon;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors ${
                       activeTab === tab.id
-                        ? 'bg-primary text-white'
-                        : 'text-text-medium hover:bg-background-light hover:text-text-dark'
+                        ? "bg-primary text-white"
+                        : "text-text-medium hover:bg-background-light hover:text-text-dark"
                     }`}
                   >
                     <Icon className="h-4 w-4 mr-3" />
                     <span className="text-sm">{tab.name}</span>
                   </button>
-                )
+                );
               })}
             </nav>
           </div>
@@ -570,16 +629,16 @@ const CompanySettings = () => {
           <div className="card">
             <div className="mb-6">
               <h2 className="text-xl font-semibold text-text-dark">
-                {tabs.find(tab => tab.id === activeTab)?.name}
+                {tabs.find((tab) => tab.id === activeTab)?.name}
               </h2>
             </div>
-            
+
             {renderContent()}
           </div>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default CompanySettings
+export default CompanySettings;

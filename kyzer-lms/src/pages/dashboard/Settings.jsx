@@ -1,186 +1,186 @@
 // src/pages/dashboard/Settings.jsx
-import { useState } from 'react'
-import { 
-  Settings as SettingsIcon, 
-  User, 
-  Bell, 
-  Shield, 
-  Globe, 
+import { useState } from "react";
+import {
+  Settings as SettingsIcon,
+  User,
+  Bell,
+  Shield,
+  Globe,
   Palette,
   Monitor,
   Moon,
   Sun,
   Volume2,
   Download,
-  Trash2
-} from 'lucide-react'
+  Trash2,
+} from "lucide-react";
 
 export default function Settings() {
-  const [theme, setTheme] = useState('system')
-  const [language, setLanguage] = useState('en')
-  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [theme, setTheme] = useState("system");
+  const [language, setLanguage] = useState("en");
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   const settingsGroups = [
     {
-      title: 'Appearance',
+      title: "Appearance",
       icon: Palette,
       settings: [
         {
-          id: 'theme',
-          label: 'Theme',
-          description: 'Choose your preferred color scheme',
-          type: 'select',
+          id: "theme",
+          label: "Theme",
+          description: "Choose your preferred color scheme",
+          type: "select",
           value: theme,
           options: [
-            { value: 'light', label: 'Light', icon: Sun },
-            { value: 'dark', label: 'Dark', icon: Moon },
-            { value: 'system', label: 'System', icon: Monitor }
+            { value: "light", label: "Light", icon: Sun },
+            { value: "dark", label: "Dark", icon: Moon },
+            { value: "system", label: "System", icon: Monitor },
           ],
-          onChange: setTheme
-        }
-      ]
+          onChange: setTheme,
+        },
+      ],
     },
     {
-      title: 'Accessibility',
+      title: "Accessibility",
       icon: Globe,
       settings: [
         {
-          id: 'language',
-          label: 'Language',
-          description: 'Select your preferred language',
-          type: 'select',
+          id: "language",
+          label: "Language",
+          description: "Select your preferred language",
+          type: "select",
           value: language,
           options: [
-            { value: 'en', label: 'English' },
-            { value: 'es', label: 'Español' },
-            { value: 'fr', label: 'Français' },
-            { value: 'de', label: 'Deutsch' }
+            { value: "en", label: "English" },
+            { value: "es", label: "Español" },
+            { value: "fr", label: "Français" },
+            { value: "de", label: "Deutsch" },
           ],
-          onChange: setLanguage
+          onChange: setLanguage,
         },
         {
-          id: 'sounds',
-          label: 'Sound Effects',
-          description: 'Enable notification and interaction sounds',
-          type: 'toggle',
+          id: "sounds",
+          label: "Sound Effects",
+          description: "Enable notification and interaction sounds",
+          type: "toggle",
           value: soundEnabled,
-          onChange: setSoundEnabled
-        }
-      ]
+          onChange: setSoundEnabled,
+        },
+      ],
     },
     {
-      title: 'Learning Preferences',
+      title: "Learning Preferences",
       icon: User,
       settings: [
         {
-          id: 'autoplay',
-          label: 'Auto-play videos',
-          description: 'Automatically start videos when opening lessons',
-          type: 'toggle',
+          id: "autoplay",
+          label: "Auto-play videos",
+          description: "Automatically start videos when opening lessons",
+          type: "toggle",
           value: true,
-          onChange: () => {}
+          onChange: () => {},
         },
         {
-          id: 'subtitles',
-          label: 'Show subtitles',
-          description: 'Display captions for video content by default',
-          type: 'toggle',
+          id: "subtitles",
+          label: "Show subtitles",
+          description: "Display captions for video content by default",
+          type: "toggle",
           value: false,
-          onChange: () => {}
+          onChange: () => {},
         },
         {
-          id: 'speed',
-          label: 'Default playback speed',
-          description: 'Set your preferred video playback speed',
-          type: 'select',
-          value: '1',
+          id: "speed",
+          label: "Default playback speed",
+          description: "Set your preferred video playback speed",
+          type: "select",
+          value: "1",
           options: [
-            { value: '0.5', label: '0.5x' },
-            { value: '0.75', label: '0.75x' },
-            { value: '1', label: '1x (Normal)' },
-            { value: '1.25', label: '1.25x' },
-            { value: '1.5', label: '1.5x' },
-            { value: '2', label: '2x' }
+            { value: "0.5", label: "0.5x" },
+            { value: "0.75", label: "0.75x" },
+            { value: "1", label: "1x (Normal)" },
+            { value: "1.25", label: "1.25x" },
+            { value: "1.5", label: "1.5x" },
+            { value: "2", label: "2x" },
           ],
-          onChange: () => {}
-        }
-      ]
+          onChange: () => {},
+        },
+      ],
     },
     {
-      title: 'Notifications',
+      title: "Notifications",
       icon: Bell,
       settings: [
         {
-          id: 'desktop-notifications',
-          label: 'Desktop notifications',
-          description: 'Show notifications on your desktop',
-          type: 'toggle',
+          id: "desktop-notifications",
+          label: "Desktop notifications",
+          description: "Show notifications on your desktop",
+          type: "toggle",
           value: true,
-          onChange: () => {}
+          onChange: () => {},
         },
         {
-          id: 'email-digest',
-          label: 'Weekly email digest',
-          description: 'Receive a summary of your learning progress',
-          type: 'toggle',
+          id: "email-digest",
+          label: "Weekly email digest",
+          description: "Receive a summary of your learning progress",
+          type: "toggle",
           value: true,
-          onChange: () => {}
+          onChange: () => {},
         },
         {
-          id: 'deadline-reminders',
-          label: 'Deadline reminders',
-          description: 'Get notified about upcoming assignment deadlines',
-          type: 'toggle',
+          id: "deadline-reminders",
+          label: "Deadline reminders",
+          description: "Get notified about upcoming assignment deadlines",
+          type: "toggle",
           value: true,
-          onChange: () => {}
-        }
-      ]
+          onChange: () => {},
+        },
+      ],
     },
     {
-      title: 'Privacy & Security',
+      title: "Privacy & Security",
       icon: Shield,
       settings: [
         {
-          id: 'analytics',
-          label: 'Usage analytics',
-          description: 'Help improve our platform by sharing usage data',
-          type: 'toggle',
+          id: "analytics",
+          label: "Usage analytics",
+          description: "Help improve our platform by sharing usage data",
+          type: "toggle",
           value: true,
-          onChange: () => {}
+          onChange: () => {},
         },
         {
-          id: 'profile-visibility',
-          label: 'Profile visibility',
-          description: 'Who can see your learning progress',
-          type: 'select',
-          value: 'organization',
+          id: "profile-visibility",
+          label: "Profile visibility",
+          description: "Who can see your learning progress",
+          type: "select",
+          value: "organization",
           options: [
-            { value: 'public', label: 'Public' },
-            { value: 'organization', label: 'Organization only' },
-            { value: 'private', label: 'Private' }
+            { value: "public", label: "Public" },
+            { value: "organization", label: "Organization only" },
+            { value: "private", label: "Private" },
           ],
-          onChange: () => {}
-        }
-      ]
-    }
-  ]
+          onChange: () => {},
+        },
+      ],
+    },
+  ];
 
   const dangerZoneActions = [
     {
-      title: 'Export Data',
-      description: 'Download a copy of all your learning data',
-      action: 'Export',
+      title: "Export Data",
+      description: "Download a copy of all your learning data",
+      action: "Export",
       icon: Download,
-      variant: 'secondary'
+      variant: "secondary",
     },
     {
-      title: 'Delete Account',
-      description: 'Permanently delete your account and all associated data',
-      action: 'Delete',
+      title: "Delete Account",
+      description: "Permanently delete your account and all associated data",
+      action: "Delete",
       icon: Trash2,
-      variant: 'danger'
-    }
-  ]
+      variant: "danger",
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-background-light">
@@ -199,17 +199,25 @@ export default function Settings() {
         {/* Settings Groups */}
         <div className="space-y-8">
           {settingsGroups.map((group) => (
-            <div key={group.title} className="bg-white rounded-xl border border-background-dark p-6">
+            <div
+              key={group.title}
+              className="bg-white rounded-xl border border-background-dark p-6"
+            >
               <div className="flex items-center space-x-3 mb-6">
                 <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
                   <group.icon className="w-5 h-5 text-primary" />
                 </div>
-                <h2 className="text-lg font-semibold text-text-dark">{group.title}</h2>
+                <h2 className="text-lg font-semibold text-text-dark">
+                  {group.title}
+                </h2>
               </div>
 
               <div className="space-y-6">
                 {group.settings.map((setting) => (
-                  <div key={setting.id} className="flex items-center justify-between">
+                  <div
+                    key={setting.id}
+                    className="flex items-center justify-between"
+                  >
                     <div className="flex-1">
                       <label className="block text-sm font-medium text-text-dark mb-1">
                         {setting.label}
@@ -220,7 +228,7 @@ export default function Settings() {
                     </div>
 
                     <div className="ml-6">
-                      {setting.type === 'toggle' && (
+                      {setting.type === "toggle" && (
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
                             type="checkbox"
@@ -232,7 +240,7 @@ export default function Settings() {
                         </label>
                       )}
 
-                      {setting.type === 'select' && (
+                      {setting.type === "select" && (
                         <select
                           value={setting.value}
                           onChange={(e) => setting.onChange(e.target.value)}
@@ -254,26 +262,39 @@ export default function Settings() {
 
           {/* Danger Zone */}
           <div className="bg-white rounded-xl border border-red-200 p-6">
-            <h2 className="text-lg font-semibold text-red-900 mb-6">Danger Zone</h2>
-            
+            <h2 className="text-lg font-semibold text-red-900 mb-6">
+              Danger Zone
+            </h2>
+
             <div className="space-y-4">
               {dangerZoneActions.map((action) => (
-                <div key={action.title} className="flex items-center justify-between p-4 border border-background-dark rounded-lg">
+                <div
+                  key={action.title}
+                  className="flex items-center justify-between p-4 border border-background-dark rounded-lg"
+                >
                   <div className="flex items-center space-x-3">
-                    <action.icon className={`w-5 h-5 ${
-                      action.variant === 'danger' ? 'text-red-600' : 'text-text-light'
-                    }`} />
+                    <action.icon
+                      className={`w-5 h-5 ${
+                        action.variant === "danger"
+                          ? "text-red-600"
+                          : "text-text-light"
+                      }`}
+                    />
                     <div>
-                      <h3 className="font-medium text-text-dark">{action.title}</h3>
-                      <p className="text-sm text-text-light">{action.description}</p>
+                      <h3 className="font-medium text-text-dark">
+                        {action.title}
+                      </h3>
+                      <p className="text-sm text-text-light">
+                        {action.description}
+                      </p>
                     </div>
                   </div>
-                  
+
                   <button
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      action.variant === 'danger'
-                        ? 'bg-red-600 text-white hover:bg-red-700'
-                        : 'border border-primary text-primary hover:bg-primary-light'
+                      action.variant === "danger"
+                        ? "bg-red-600 text-white hover:bg-red-700"
+                        : "border border-primary text-primary hover:bg-primary-light"
                     }`}
                   >
                     {action.action}
@@ -292,5 +313,5 @@ export default function Settings() {
         </div>
       </div>
     </div>
-  )
+  );
 }

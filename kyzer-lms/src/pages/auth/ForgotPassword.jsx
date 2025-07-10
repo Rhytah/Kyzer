@@ -1,42 +1,42 @@
 // src/pages/auth/ForgotPassword.jsx (Simple validation)
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
-import { Mail, ArrowLeft, CheckCircle, Loader2 } from 'lucide-react'
-import { useAuth } from '@/hooks/auth/useAuth'
-import toast from 'react-hot-toast'
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { Mail, ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/auth/useAuth";
+import toast from "react-hot-toast";
 
 export default function ForgotPassword() {
-  const [emailSent, setEmailSent] = useState(false)
-  const { resetPassword, loading } = useAuth()
+  const [emailSent, setEmailSent] = useState(false);
+  const { resetPassword, loading } = useAuth();
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    getValues
+    getValues,
   } = useForm({
-    defaultValues: { email: '' }
-  })
+    defaultValues: { email: "" },
+  });
 
   const onSubmit = async (data) => {
     try {
-      const result = await resetPassword(data.email)
-      
+      const result = await resetPassword(data.email);
+
       if (result.error) {
-        toast.error(result.error.message || 'Failed to send reset email')
-        return
+        toast.error(result.error.message || "Failed to send reset email");
+        return;
       }
 
-      setEmailSent(true)
-      toast.success('Password reset email sent!')
+      setEmailSent(true);
+      toast.success("Password reset email sent!");
     } catch (error) {
-      console.error('Reset password error:', error)
-      toast.error('An unexpected error occurred')
+      console.error("Reset password error:", error);
+      toast.error("An unexpected error occurred");
     }
-  }
+  };
 
-  const isLoading = loading || isSubmitting
+  const isLoading = loading || isSubmitting;
 
   if (emailSent) {
     return (
@@ -52,9 +52,9 @@ export default function ForgotPassword() {
               Check your email
             </h2>
             <p className="mt-2 text-sm text-text-light">
-              We've sent a password reset link to{' '}
+              We've sent a password reset link to{" "}
               <span className="font-medium text-text-dark">
-                {getValues('email')}
+                {getValues("email")}
               </span>
             </p>
           </div>
@@ -82,8 +82,8 @@ export default function ForgotPassword() {
             </button>
 
             <div className="text-center">
-              <Link 
-                to="/login" 
+              <Link
+                to="/login"
                 className="inline-flex items-center text-sm text-text-light hover:text-primary transition-colors"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -93,7 +93,7 @@ export default function ForgotPassword() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -117,7 +117,10 @@ export default function ForgotPassword() {
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-text-dark mb-2">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-text-dark mb-2"
+            >
               Email address
             </label>
             <div className="relative">
@@ -125,12 +128,12 @@ export default function ForgotPassword() {
                 <Mail className="h-5 w-5 text-text-light" />
               </div>
               <input
-                {...register('email', {
-                  required: 'Email is required',
+                {...register("email", {
+                  required: "Email is required",
                   pattern: {
                     value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                    message: 'Please enter a valid email address'
-                  }
+                    message: "Please enter a valid email address",
+                  },
                 })}
                 type="email"
                 id="email"
@@ -142,16 +145,19 @@ export default function ForgotPassword() {
                   focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
                   disabled:bg-background-medium disabled:cursor-not-allowed
                   transition-colors
-                  ${errors.email 
-                    ? 'border-red-300 bg-red-50' 
-                    : 'border-background-dark bg-white hover:border-primary-light'
+                  ${
+                    errors.email
+                      ? "border-red-300 bg-red-50"
+                      : "border-background-dark bg-white hover:border-primary-light"
                   }
                 `}
                 placeholder="Enter your email address"
               />
             </div>
             {errors.email && (
-              <p className="mt-2 text-sm text-red-600">{errors.email.message}</p>
+              <p className="mt-2 text-sm text-red-600">
+                {errors.email.message}
+              </p>
             )}
           </div>
 
@@ -163,9 +169,10 @@ export default function ForgotPassword() {
               rounded-lg shadow-sm text-sm font-medium text-white 
               focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/20
               transition-all duration-200
-              ${isLoading
-                ? 'bg-primary/70 cursor-not-allowed'
-                : 'bg-primary hover:bg-primary-dark hover:shadow-md transform hover:-translate-y-0.5'
+              ${
+                isLoading
+                  ? "bg-primary/70 cursor-not-allowed"
+                  : "bg-primary hover:bg-primary-dark hover:shadow-md transform hover:-translate-y-0.5"
               }
             `}
           >
@@ -175,7 +182,7 @@ export default function ForgotPassword() {
                 Sending reset link...
               </>
             ) : (
-              'Send reset link'
+              "Send reset link"
             )}
           </button>
         </form>
@@ -183,8 +190,8 @@ export default function ForgotPassword() {
         {/* Footer Links */}
         <div className="text-center space-y-4">
           <div className="text-sm">
-            <Link 
-              to="/login" 
+            <Link
+              to="/login"
               className="inline-flex items-center text-text-light hover:text-primary transition-colors"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -194,5 +201,5 @@ export default function ForgotPassword() {
         </div>
       </div>
     </div>
-  )
+  );
 }

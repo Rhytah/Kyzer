@@ -1,92 +1,97 @@
 // src/pages/dashboard/Dashboard.jsx
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { useAuth } from '@/hooks/auth/useAuth'
-import { useCourses } from '@/hooks/courses/useCourses'
-import { useEnrollment } from '@/hooks/courses/useEnrollment'
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useCourses } from "@/hooks/courses/useCourses";
+import { useEnrollment } from "@/hooks/courses/useEnrollment";
 // import StatsCard from '@/components/dashboard/StatsCard'
 // import RecentActivity from '@/components/dashboard/RecentActivity'
 // import EnrolledCourses from '@/components/dashboard/EnrolledCourses'
 // import Recommendations from '@/components/dashboard/Recommendations'
 // import ProgressChart from '@/components/dashboard/ProgressChart'
-import { 
-  BookOpen, 
-  Clock, 
-  Trophy, 
-  TrendingUp, 
-  Users, 
+import {
+  BookOpen,
+  Clock,
+  Trophy,
+  TrendingUp,
+  Users,
   Calendar,
   ArrowRight,
   Target,
   Award,
   BarChart3,
   Play,
-  Plus
-} from 'lucide-react'
+  Plus,
+} from "lucide-react";
 
 export default function Dashboard() {
-  const { user, isCorporateUser } = useAuth()
-  const { enrollments, loading: enrollmentsLoading, getStats } = useEnrollment()
-  const { courses, loading: coursesLoading } = useCourses()
-  const [stats, setStats] = useState(null)
-  const [greeting, setGreeting] = useState('')
+  const { user, isCorporateUser } = useAuth();
+  const {
+    enrollments,
+    loading: enrollmentsLoading,
+    getStats,
+  } = useEnrollment();
+  const { courses, loading: coursesLoading } = useCourses();
+  const [stats, setStats] = useState(null);
+  const [greeting, setGreeting] = useState("");
 
   useEffect(() => {
     // Set greeting based on time of day
-    const hour = new Date().getHours()
-    if (hour < 12) setGreeting('Good morning')
-    else if (hour < 17) setGreeting('Good afternoon')
-    else setGreeting('Good evening')
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting("Good morning");
+    else if (hour < 17) setGreeting("Good afternoon");
+    else setGreeting("Good evening");
 
     // Load user stats
     if (user) {
-      loadUserStats()
+      loadUserStats();
     }
-  }, [user])
+  }, [user]);
 
   const loadUserStats = async () => {
     try {
-      const userStats = await getStats(user.id)
-      setStats(userStats)
+      const userStats = await getStats(user.id);
+      setStats(userStats);
     } catch (error) {
-      console.error('Error loading stats:', error)
+      console.error("Error loading stats:", error);
     }
-  }
+  };
 
-  const userName = user?.profile?.first_name || user?.email?.split('@')[0] || 'there'
+  const userName =
+    user?.profile?.first_name || user?.email?.split("@")[0] || "there";
 
   const quickActions = [
     {
-      title: 'Browse Courses',
-      description: 'Explore our course catalog',
+      title: "Browse Courses",
+      description: "Explore our course catalog",
       icon: BookOpen,
-      href: '/courses',
-      color: 'bg-blue-500'
+      href: "/courses",
+      color: "bg-blue-500",
     },
     {
-      title: 'Continue Learning',
-      description: 'Pick up where you left off',
+      title: "Continue Learning",
+      description: "Pick up where you left off",
       icon: Play,
-      href: '/my-courses',
-      color: 'bg-green-500'
+      href: "/my-courses",
+      color: "bg-green-500",
     },
     {
-      title: 'View Certificates',
-      description: 'See your achievements',
+      title: "View Certificates",
+      description: "See your achievements",
       icon: Award,
-      href: '/certificates',
-      color: 'bg-purple-500'
-    }
-  ]
+      href: "/certificates",
+      color: "bg-purple-500",
+    },
+  ];
 
   if (isCorporateUser) {
     quickActions.push({
-      title: 'Team Analytics',
-      description: 'View team progress',
+      title: "Team Analytics",
+      description: "View team progress",
       icon: BarChart3,
-      href: '/corporate/analytics',
-      color: 'bg-orange-500'
-    })
+      href: "/corporate/analytics",
+      color: "bg-orange-500",
+    });
   }
 
   return (
@@ -100,10 +105,9 @@ export default function Dashboard() {
                 {greeting}, {userName}! 👋
               </h1>
               <p className="text-text-light mt-1">
-                {isCorporateUser 
-                  ? "Here's your team's learning progress" 
-                  : "Ready to continue your learning journey?"
-                }
+                {isCorporateUser
+                  ? "Here's your team's learning progress"
+                  : "Ready to continue your learning journey?"}
               </p>
             </div>
             <div className="hidden sm:flex items-center space-x-3">
@@ -156,7 +160,9 @@ export default function Dashboard() {
           <div className="lg:col-span-2 space-y-8">
             {/* Quick Actions */}
             <div>
-              <h2 className="text-lg font-semibold text-text-dark mb-4">Quick Actions</h2>
+              <h2 className="text-lg font-semibold text-text-dark mb-4">
+                Quick Actions
+              </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {quickActions.map((action, index) => (
                   <Link
@@ -165,7 +171,9 @@ export default function Dashboard() {
                     className="group relative bg-white rounded-xl border border-background-dark p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-1"
                   >
                     <div className="flex items-start space-x-4">
-                      <div className={`${action.color} rounded-lg p-3 text-white group-hover:scale-110 transition-transform`}>
+                      <div
+                        className={`${action.color} rounded-lg p-3 text-white group-hover:scale-110 transition-transform`}
+                      >
                         <action.icon className="w-6 h-6" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -186,16 +194,18 @@ export default function Dashboard() {
             {/* Enrolled Courses */}
             <div>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-text-dark">Continue Learning</h2>
-                <Link 
+                <h2 className="text-lg font-semibold text-text-dark">
+                  Continue Learning
+                </h2>
+                <Link
                   to="/my-courses"
                   className="text-sm text-primary hover:text-primary-dark font-medium transition-colors"
                 >
                   View all courses
                 </Link>
               </div>
-              <EnrolledCourses 
-                enrollments={enrollments} 
+              <EnrolledCourses
+                enrollments={enrollments}
                 loading={enrollmentsLoading}
                 showAll={false}
                 limit={3}
@@ -205,7 +215,9 @@ export default function Dashboard() {
             {/* Progress Chart */}
             {stats && (
               <div>
-                <h2 className="text-lg font-semibold text-text-dark mb-6">Learning Progress</h2>
+                <h2 className="text-lg font-semibold text-text-dark mb-6">
+                  Learning Progress
+                </h2>
                 <div className="bg-white rounded-xl border border-background-dark p-6">
                   <ProgressChart data={stats.progressData} />
                 </div>
@@ -216,8 +228,10 @@ export default function Dashboard() {
             {isCorporateUser && (
               <div>
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-semibold text-text-dark">Team Overview</h2>
-                  <Link 
+                  <h2 className="text-lg font-semibold text-text-dark">
+                    Team Overview
+                  </h2>
+                  <Link
                     to="/corporate/team"
                     className="text-sm text-primary hover:text-primary-dark font-medium transition-colors"
                   >
@@ -231,8 +245,12 @@ export default function Dashboard() {
                         <Users className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <p className="text-sm text-text-light">Total Employees</p>
-                        <p className="text-xl font-bold text-text-dark">{stats?.totalEmployees || 0}</p>
+                        <p className="text-sm text-text-light">
+                          Total Employees
+                        </p>
+                        <p className="text-xl font-bold text-text-dark">
+                          {stats?.totalEmployees || 0}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -242,8 +260,12 @@ export default function Dashboard() {
                         <Target className="w-5 h-5 text-green-600" />
                       </div>
                       <div>
-                        <p className="text-sm text-text-light">Active Learners</p>
-                        <p className="text-xl font-bold text-text-dark">{stats?.activeLearners || 0}</p>
+                        <p className="text-sm text-text-light">
+                          Active Learners
+                        </p>
+                        <p className="text-xl font-bold text-text-dark">
+                          {stats?.activeLearners || 0}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -254,7 +276,9 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <p className="text-sm text-text-light">Avg. Progress</p>
-                        <p className="text-xl font-bold text-text-dark">{stats?.avgProgress || 0}%</p>
+                        <p className="text-xl font-bold text-text-dark">
+                          {stats?.avgProgress || 0}%
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -267,13 +291,17 @@ export default function Dashboard() {
           <div className="space-y-8">
             {/* Recent Activity */}
             <div>
-              <h2 className="text-lg font-semibold text-text-dark mb-6">Recent Activity</h2>
+              <h2 className="text-lg font-semibold text-text-dark mb-6">
+                Recent Activity
+              </h2>
               <RecentActivity userId={user?.id} />
             </div>
 
             {/* Upcoming Deadlines */}
             <div>
-              <h2 className="text-lg font-semibold text-text-dark mb-6">Upcoming Deadlines</h2>
+              <h2 className="text-lg font-semibold text-text-dark mb-6">
+                Upcoming Deadlines
+              </h2>
               <div className="bg-white rounded-xl border border-background-dark p-6">
                 <div className="space-y-4">
                   {stats?.upcomingDeadlines?.length > 0 ? (
@@ -281,15 +309,21 @@ export default function Dashboard() {
                       <div key={index} className="flex items-center space-x-3">
                         <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-text-dark">{deadline.title}</p>
-                          <p className="text-xs text-text-light">{deadline.dueDate}</p>
+                          <p className="text-sm font-medium text-text-dark">
+                            {deadline.title}
+                          </p>
+                          <p className="text-xs text-text-light">
+                            {deadline.dueDate}
+                          </p>
                         </div>
                       </div>
                     ))
                   ) : (
                     <div className="text-center py-4">
                       <Calendar className="w-8 h-8 text-text-light mx-auto mb-2" />
-                      <p className="text-sm text-text-light">No upcoming deadlines</p>
+                      <p className="text-sm text-text-light">
+                        No upcoming deadlines
+                      </p>
                     </div>
                   )}
                 </div>
@@ -298,8 +332,10 @@ export default function Dashboard() {
 
             {/* Course Recommendations */}
             <div>
-              <h2 className="text-lg font-semibold text-text-dark mb-6">Recommended for You</h2>
-              <Recommendations 
+              <h2 className="text-lg font-semibold text-text-dark mb-6">
+                Recommended for You
+              </h2>
+              <Recommendations
                 userId={user?.id}
                 courses={courses}
                 loading={coursesLoading}
@@ -308,7 +344,9 @@ export default function Dashboard() {
 
             {/* Achievement Highlights */}
             <div>
-              <h2 className="text-lg font-semibold text-text-dark mb-6">Recent Achievements</h2>
+              <h2 className="text-lg font-semibold text-text-dark mb-6">
+                Recent Achievements
+              </h2>
               <div className="bg-white rounded-xl border border-background-dark p-6">
                 <div className="space-y-4">
                   {stats?.recentAchievements?.length > 0 ? (
@@ -318,15 +356,21 @@ export default function Dashboard() {
                           <Trophy className="w-4 h-4 text-yellow-600" />
                         </div>
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-text-dark">{achievement.title}</p>
-                          <p className="text-xs text-text-light">{achievement.date}</p>
+                          <p className="text-sm font-medium text-text-dark">
+                            {achievement.title}
+                          </p>
+                          <p className="text-xs text-text-light">
+                            {achievement.date}
+                          </p>
                         </div>
                       </div>
                     ))
                   ) : (
                     <div className="text-center py-4">
                       <Trophy className="w-8 h-8 text-text-light mx-auto mb-2" />
-                      <p className="text-sm text-text-light">Complete your first course to earn achievements!</p>
+                      <p className="text-sm text-text-light">
+                        Complete your first course to earn achievements!
+                      </p>
                     </div>
                   )}
                 </div>
@@ -339,10 +383,13 @@ export default function Dashboard() {
         {!stats?.hasCompletedCourse && (
           <div className="mt-12 bg-gradient-to-r from-primary to-primary-dark rounded-xl p-8 text-white">
             <div className="max-w-3xl">
-              <h3 className="text-xl font-bold mb-2">Welcome to Kyzer LMS! 🎉</h3>
+              <h3 className="text-xl font-bold mb-2">
+                Welcome to Kyzer LMS! 🎉
+              </h3>
               <p className="text-blue-100 mb-6">
-                You're all set to start your learning journey. Browse our courses, enroll in the ones that interest you, 
-                and track your progress as you build new skills.
+                You're all set to start your learning journey. Browse our
+                courses, enroll in the ones that interest you, and track your
+                progress as you build new skills.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link
@@ -364,5 +411,5 @@ export default function Dashboard() {
         )}
       </div>
     </div>
-  )
+  );
 }

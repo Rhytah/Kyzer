@@ -1,44 +1,44 @@
 // src/components/dashboard/StatsCard.jsx
-import { TrendingUp, TrendingDown } from 'lucide-react'
+import { TrendingUp, TrendingDown } from "lucide-react";
 
 const colorClasses = {
   blue: {
-    bg: 'bg-blue-500',
-    light: 'bg-blue-100',
-    text: 'text-blue-600'
+    bg: "bg-blue-500",
+    light: "bg-blue-100",
+    text: "text-blue-600",
   },
   green: {
-    bg: 'bg-green-500',
-    light: 'bg-green-100',
-    text: 'text-green-600'
+    bg: "bg-green-500",
+    light: "bg-green-100",
+    text: "text-green-600",
   },
   purple: {
-    bg: 'bg-purple-500',
-    light: 'bg-purple-100',
-    text: 'text-purple-600'
+    bg: "bg-purple-500",
+    light: "bg-purple-100",
+    text: "text-purple-600",
   },
   orange: {
-    bg: 'bg-orange-500',
-    light: 'bg-orange-100',
-    text: 'text-orange-600'
+    bg: "bg-orange-500",
+    light: "bg-orange-100",
+    text: "text-orange-600",
   },
   red: {
-    bg: 'bg-red-500',
-    light: 'bg-red-100',
-    text: 'text-red-600'
-  }
-}
+    bg: "bg-red-500",
+    light: "bg-red-100",
+    text: "text-red-600",
+  },
+};
 
-export default function StatsCard({ 
-  title, 
-  value, 
-  icon: Icon, 
-  color = 'blue', 
+export default function StatsCard({
+  title,
+  value,
+  icon: Icon,
+  color = "blue",
   trend = null,
   subtitle = null,
-  loading = false 
+  loading = false,
 }) {
-  const colors = colorClasses[color] || colorClasses.blue
+  const colors = colorClasses[color] || colorClasses.blue;
 
   if (loading) {
     return (
@@ -52,7 +52,7 @@ export default function StatsCard({
           <div className="w-24 h-4 bg-background-medium rounded"></div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -62,33 +62,31 @@ export default function StatsCard({
           <Icon className={`w-6 h-6 ${colors.text}`} />
         </div>
         {trend && (
-          <div className={`flex items-center text-xs font-medium ${
-            trend.direction === 'up' 
-              ? 'text-green-600' 
-              : trend.direction === 'down' 
-                ? 'text-red-600' 
-                : 'text-text-light'
-          }`}>
-            {trend.direction === 'up' && <TrendingUp className="w-3 h-3 mr-1" />}
-            {trend.direction === 'down' && <TrendingDown className="w-3 h-3 mr-1" />}
+          <div
+            className={`flex items-center text-xs font-medium ${
+              trend.direction === "up"
+                ? "text-green-600"
+                : trend.direction === "down"
+                  ? "text-red-600"
+                  : "text-text-light"
+            }`}
+          >
+            {trend.direction === "up" && (
+              <TrendingUp className="w-3 h-3 mr-1" />
+            )}
+            {trend.direction === "down" && (
+              <TrendingDown className="w-3 h-3 mr-1" />
+            )}
             {trend.value}
           </div>
         )}
       </div>
-      
+
       <div>
-        <p className="text-2xl font-bold text-text-dark mb-1">
-          {value}
-        </p>
-        <p className="text-sm text-text-light">
-          {title}
-        </p>
-        {subtitle && (
-          <p className="text-xs text-text-muted mt-1">
-            {subtitle}
-          </p>
-        )}
+        <p className="text-2xl font-bold text-text-dark mb-1">{value}</p>
+        <p className="text-sm text-text-light">{title}</p>
+        {subtitle && <p className="text-xs text-text-muted mt-1">{subtitle}</p>}
       </div>
     </div>
-  )
+  );
 }

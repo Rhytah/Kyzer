@@ -1,18 +1,18 @@
-import React from 'react'
-import Button from '../ui/Button'
+import React from "react";
+import Button from "../ui/Button";
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
-    super(props)
-    this.state = { hasError: false, error: null }
+    super(props);
+    this.state = { hasError: false, error: null };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error }
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Error boundary caught an error:', error, errorInfo)
+    console.error("Error boundary caught an error:", error, errorInfo);
     // Here you could send error to logging service
   }
 
@@ -40,7 +40,8 @@ class ErrorBoundary extends React.Component {
               Something went wrong
             </h1>
             <p className="text-text-medium mb-6">
-              We're sorry, but something unexpected happened. Please try refreshing the page.
+              We're sorry, but something unexpected happened. Please try
+              refreshing the page.
             </p>
             <div className="space-y-3">
               <Button
@@ -51,13 +52,13 @@ class ErrorBoundary extends React.Component {
               </Button>
               <Button
                 variant="ghost"
-                onClick={() => window.location.href = '/'}
+                onClick={() => (window.location.href = "/")}
                 className="w-full"
               >
                 Go Home
               </Button>
             </div>
-            {process.env.NODE_ENV === 'development' && (
+            {process.env.NODE_ENV === "development" && (
               <details className="mt-4 text-left">
                 <summary className="cursor-pointer text-sm text-text-light">
                   Error Details (Development)
@@ -69,11 +70,11 @@ class ErrorBoundary extends React.Component {
             )}
           </div>
         </div>
-      )
+      );
     }
 
-    return this.props.children
+    return this.props.children;
   }
 }
 
-export default ErrorBoundary
+export default ErrorBoundary;

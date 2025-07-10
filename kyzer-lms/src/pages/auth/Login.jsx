@@ -1,20 +1,20 @@
 // src/pages/auth/Login.jsx
-import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useState } from 'react'
-import { useAuth } from '@/hooks/auth/useAuth'
-import LoginForm from '@/components/auth/LoginForm'
-import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react'
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { useAuth } from "@/hooks/auth/useAuth";
+import LoginForm from "@/components/auth/LoginForm";
+import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
 
 export default function Login() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { login, loading } = useAuth()
-  
-  const from = location.state?.from?.pathname || '/dashboard'
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login, loading } = useAuth();
+
+  const from = location.state?.from?.pathname || "/dashboard";
 
   const handleLoginSuccess = () => {
-    navigate(from, { replace: true })
-  }
+    navigate(from, { replace: true });
+  };
 
   return (
     <div className="min-h-screen bg-background-light flex">
@@ -28,9 +28,7 @@ export default function Login() {
                 <span className="text-white font-bold text-xl">K</span>
               </div>
             </div>
-            <h2 className="text-2xl font-bold text-text-dark">
-              Welcome back
-            </h2>
+            <h2 className="text-2xl font-bold text-text-dark">Welcome back</h2>
             <p className="mt-2 text-sm text-text-light">
               Sign in to your account to continue learning
             </p>
@@ -43,17 +41,17 @@ export default function Login() {
           <div className="text-center space-y-4">
             <div className="text-sm">
               <span className="text-text-light">Don't have an account? </span>
-              <Link 
-                to="/signup" 
+              <Link
+                to="/signup"
                 className="font-medium text-primary hover:text-primary-dark transition-colors"
               >
                 Sign up here
               </Link>
             </div>
-            
+
             <div className="text-sm">
-              <Link 
-                to="/forgot-password" 
+              <Link
+                to="/forgot-password"
                 className="text-text-light hover:text-primary transition-colors"
               >
                 Forgot your password?
@@ -71,16 +69,19 @@ export default function Login() {
               Continue Your Learning Journey
             </h1>
             <p className="text-lg text-gray-200 mb-8">
-              Access your courses, track your progress, and advance your skills with our comprehensive learning platform.
+              Access your courses, track your progress, and advance your skills
+              with our comprehensive learning platform.
             </p>
-            
+
             {/* Feature highlights */}
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
                   <ArrowRight className="w-3 h-3" />
                 </div>
-                <span className="text-gray-200">Self-paced learning modules</span>
+                <span className="text-gray-200">
+                  Self-paced learning modules
+                </span>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
@@ -97,11 +98,11 @@ export default function Login() {
             </div>
           </div>
         </div>
-        
+
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-32 translate-x-32"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-24 -translate-x-24"></div>
       </div>
     </div>
-  )
+  );
 }

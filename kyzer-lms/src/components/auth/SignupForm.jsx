@@ -1,37 +1,46 @@
 // src/components/auth/SignupForm.jsx (Simple validation)
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { Eye, EyeOff, Mail, Lock, User, Building, Users, Loader2 } from 'lucide-react'
-import { useAuth } from '@/hooks/auth/useAuth'
-import toast from 'react-hot-toast'
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import {
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  User,
+  Building,
+  Users,
+  Loader2,
+} from "lucide-react";
+import { useAuth } from "@/hooks/auth/useAuth";
+import toast from "react-hot-toast";
 
 export default function SignupForm({ accountType, onSuccess }) {
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const { signup, loading } = useAuth()
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const { signup, loading } = useAuth();
 
   const {
     register,
     handleSubmit,
     watch,
-    formState: { errors, isSubmitting }
+    formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
-      firstName: '',
-      lastName: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      ...(accountType === 'corporate' && {
-        companyName: '',
-        jobTitle: '',
-        employeeCount: ''
-      })
-    }
-  })
+      firstName: "",
+      lastName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      ...(accountType === "corporate" && {
+        companyName: "",
+        jobTitle: "",
+        employeeCount: "",
+      }),
+    },
+  });
 
   // Watch password for confirmation validation
-  const watchPassword = watch('password')
+  const watchPassword = watch("password");
 
   const onSubmit = async (data) => {
     try {
@@ -43,38 +52,43 @@ export default function SignupForm({ accountType, onSuccess }) {
             first_name: data.firstName,
             last_name: data.lastName,
             account_type: accountType,
-            ...(accountType === 'corporate' && {
+            ...(accountType === "corporate" && {
               company_name: data.companyName,
               job_title: data.jobTitle,
-              employee_count: data.employeeCount
-            })
-          }
-        }
-      }
+              employee_count: data.employeeCount,
+            }),
+          },
+        },
+      };
 
-      const result = await signup(userData)
-      
+      const result = await signup(userData);
+
       if (result.error) {
-        toast.error(result.error.message || 'Signup failed')
-        return
+        toast.error(result.error.message || "Signup failed");
+        return;
       }
 
-      toast.success('Account created! Please check your email to verify your account.')
-      onSuccess?.()
+      toast.success(
+        "Account created! Please check your email to verify your account.",
+      );
+      onSuccess?.();
     } catch (error) {
-      console.error('Signup error:', error)
-      toast.error('An unexpected error occurred')
+      console.error("Signup error:", error);
+      toast.error("An unexpected error occurred");
     }
-  }
+  };
 
-  const isLoading = loading || isSubmitting
+  const isLoading = loading || isSubmitting;
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Name Fields */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor="firstName" className="block text-sm font-medium text-text-dark mb-2">
+          <label
+            htmlFor="firstName"
+            className="block text-sm font-medium text-text-dark mb-2"
+          >
             First name
           </label>
           <div className="relative">
@@ -82,12 +96,12 @@ export default function SignupForm({ accountType, onSuccess }) {
               <User className="h-5 w-5 text-text-light" />
             </div>
             <input
-              {...register('firstName', {
-                required: 'First name is required',
+              {...register("firstName", {
+                required: "First name is required",
                 minLength: {
                   value: 2,
-                  message: 'First name must be at least 2 characters'
-                }
+                  message: "First name must be at least 2 characters",
+                },
               })}
               type="text"
               id="firstName"
@@ -99,30 +113,36 @@ export default function SignupForm({ accountType, onSuccess }) {
                 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
                 disabled:bg-background-medium disabled:cursor-not-allowed
                 transition-colors
-                ${errors.firstName 
-                  ? 'border-red-300 bg-red-50' 
-                  : 'border-background-dark bg-white hover:border-primary-light'
+                ${
+                  errors.firstName
+                    ? "border-red-300 bg-red-50"
+                    : "border-background-dark bg-white hover:border-primary-light"
                 }
               `}
               placeholder="First name"
             />
           </div>
           {errors.firstName && (
-            <p className="mt-2 text-sm text-red-600">{errors.firstName.message}</p>
+            <p className="mt-2 text-sm text-red-600">
+              {errors.firstName.message}
+            </p>
           )}
         </div>
 
         <div>
-          <label htmlFor="lastName" className="block text-sm font-medium text-text-dark mb-2">
+          <label
+            htmlFor="lastName"
+            className="block text-sm font-medium text-text-dark mb-2"
+          >
             Last name
           </label>
           <input
-            {...register('lastName', {
-              required: 'Last name is required',
+            {...register("lastName", {
+              required: "Last name is required",
               minLength: {
                 value: 2,
-                message: 'Last name must be at least 2 characters'
-              }
+                message: "Last name must be at least 2 characters",
+              },
             })}
             type="text"
             id="lastName"
@@ -134,24 +154,30 @@ export default function SignupForm({ accountType, onSuccess }) {
               focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
               disabled:bg-background-medium disabled:cursor-not-allowed
               transition-colors
-              ${errors.lastName 
-                ? 'border-red-300 bg-red-50' 
-                : 'border-background-dark bg-white hover:border-primary-light'
+              ${
+                errors.lastName
+                  ? "border-red-300 bg-red-50"
+                  : "border-background-dark bg-white hover:border-primary-light"
               }
             `}
             placeholder="Last name"
           />
           {errors.lastName && (
-            <p className="mt-2 text-sm text-red-600">{errors.lastName.message}</p>
+            <p className="mt-2 text-sm text-red-600">
+              {errors.lastName.message}
+            </p>
           )}
         </div>
       </div>
 
       {/* Corporate Fields */}
-      {accountType === 'corporate' && (
+      {accountType === "corporate" && (
         <>
           <div>
-            <label htmlFor="companyName" className="block text-sm font-medium text-text-dark mb-2">
+            <label
+              htmlFor="companyName"
+              className="block text-sm font-medium text-text-dark mb-2"
+            >
               Company name
             </label>
             <div className="relative">
@@ -159,12 +185,12 @@ export default function SignupForm({ accountType, onSuccess }) {
                 <Building className="h-5 w-5 text-text-light" />
               </div>
               <input
-                {...register('companyName', {
-                  required: 'Company name is required',
+                {...register("companyName", {
+                  required: "Company name is required",
                   minLength: {
                     value: 2,
-                    message: 'Company name must be at least 2 characters'
-                  }
+                    message: "Company name must be at least 2 characters",
+                  },
                 })}
                 type="text"
                 id="companyName"
@@ -176,27 +202,33 @@ export default function SignupForm({ accountType, onSuccess }) {
                   focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
                   disabled:bg-background-medium disabled:cursor-not-allowed
                   transition-colors
-                  ${errors.companyName 
-                    ? 'border-red-300 bg-red-50' 
-                    : 'border-background-dark bg-white hover:border-primary-light'
+                  ${
+                    errors.companyName
+                      ? "border-red-300 bg-red-50"
+                      : "border-background-dark bg-white hover:border-primary-light"
                   }
                 `}
                 placeholder="Your company name"
               />
             </div>
             {errors.companyName && (
-              <p className="mt-2 text-sm text-red-600">{errors.companyName.message}</p>
+              <p className="mt-2 text-sm text-red-600">
+                {errors.companyName.message}
+              </p>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="jobTitle" className="block text-sm font-medium text-text-dark mb-2">
+              <label
+                htmlFor="jobTitle"
+                className="block text-sm font-medium text-text-dark mb-2"
+              >
                 Job title
               </label>
               <input
-                {...register('jobTitle', {
-                  required: 'Job title is required'
+                {...register("jobTitle", {
+                  required: "Job title is required",
                 })}
                 type="text"
                 id="jobTitle"
@@ -208,20 +240,26 @@ export default function SignupForm({ accountType, onSuccess }) {
                   focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
                   disabled:bg-background-medium disabled:cursor-not-allowed
                   transition-colors
-                  ${errors.jobTitle 
-                    ? 'border-red-300 bg-red-50' 
-                    : 'border-background-dark bg-white hover:border-primary-light'
+                  ${
+                    errors.jobTitle
+                      ? "border-red-300 bg-red-50"
+                      : "border-background-dark bg-white hover:border-primary-light"
                   }
                 `}
                 placeholder="Your job title"
               />
               {errors.jobTitle && (
-                <p className="mt-2 text-sm text-red-600">{errors.jobTitle.message}</p>
+                <p className="mt-2 text-sm text-red-600">
+                  {errors.jobTitle.message}
+                </p>
               )}
             </div>
 
             <div>
-              <label htmlFor="employeeCount" className="block text-sm font-medium text-text-dark mb-2">
+              <label
+                htmlFor="employeeCount"
+                className="block text-sm font-medium text-text-dark mb-2"
+              >
                 Company size
               </label>
               <div className="relative">
@@ -229,8 +267,8 @@ export default function SignupForm({ accountType, onSuccess }) {
                   <Users className="h-5 w-5 text-text-light" />
                 </div>
                 <select
-                  {...register('employeeCount', {
-                    required: 'Please select employee count'
+                  {...register("employeeCount", {
+                    required: "Please select employee count",
                   })}
                   id="employeeCount"
                   disabled={isLoading}
@@ -240,9 +278,10 @@ export default function SignupForm({ accountType, onSuccess }) {
                     focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
                     disabled:bg-background-medium disabled:cursor-not-allowed
                     transition-colors
-                    ${errors.employeeCount 
-                      ? 'border-red-300 bg-red-50' 
-                      : 'border-background-dark hover:border-primary-light'
+                    ${
+                      errors.employeeCount
+                        ? "border-red-300 bg-red-50"
+                        : "border-background-dark hover:border-primary-light"
                     }
                   `}
                 >
@@ -254,7 +293,9 @@ export default function SignupForm({ accountType, onSuccess }) {
                 </select>
               </div>
               {errors.employeeCount && (
-                <p className="mt-2 text-sm text-red-600">{errors.employeeCount.message}</p>
+                <p className="mt-2 text-sm text-red-600">
+                  {errors.employeeCount.message}
+                </p>
               )}
             </div>
           </div>
@@ -263,7 +304,10 @@ export default function SignupForm({ accountType, onSuccess }) {
 
       {/* Email Field */}
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-text-dark mb-2">
+        <label
+          htmlFor="email"
+          className="block text-sm font-medium text-text-dark mb-2"
+        >
           Email address
         </label>
         <div className="relative">
@@ -271,12 +315,12 @@ export default function SignupForm({ accountType, onSuccess }) {
             <Mail className="h-5 w-5 text-text-light" />
           </div>
           <input
-            {...register('email', {
-              required: 'Email is required',
+            {...register("email", {
+              required: "Email is required",
               pattern: {
                 value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                message: 'Please enter a valid email address'
-              }
+                message: "Please enter a valid email address",
+              },
             })}
             type="email"
             id="email"
@@ -288,9 +332,10 @@ export default function SignupForm({ accountType, onSuccess }) {
               focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
               disabled:bg-background-medium disabled:cursor-not-allowed
               transition-colors
-              ${errors.email 
-                ? 'border-red-300 bg-red-50' 
-                : 'border-background-dark bg-white hover:border-primary-light'
+              ${
+                errors.email
+                  ? "border-red-300 bg-red-50"
+                  : "border-background-dark bg-white hover:border-primary-light"
               }
             `}
             placeholder="Enter your email"
@@ -304,7 +349,10 @@ export default function SignupForm({ accountType, onSuccess }) {
       {/* Password Fields */}
       <div className="grid grid-cols-1 gap-4">
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-text-dark mb-2">
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-text-dark mb-2"
+          >
             Password
           </label>
           <div className="relative">
@@ -312,18 +360,19 @@ export default function SignupForm({ accountType, onSuccess }) {
               <Lock className="h-5 w-5 text-text-light" />
             </div>
             <input
-              {...register('password', {
-                required: 'Password is required',
+              {...register("password", {
+                required: "Password is required",
                 minLength: {
                   value: 8,
-                  message: 'Password must be at least 8 characters'
+                  message: "Password must be at least 8 characters",
                 },
                 pattern: {
                   value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-                  message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
-                }
+                  message:
+                    "Password must contain at least one uppercase letter, one lowercase letter, and one number",
+                },
               })}
-              type={showPassword ? 'text' : 'password'}
+              type={showPassword ? "text" : "password"}
               id="password"
               autoComplete="new-password"
               disabled={isLoading}
@@ -333,9 +382,10 @@ export default function SignupForm({ accountType, onSuccess }) {
                 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
                 disabled:bg-background-medium disabled:cursor-not-allowed
                 transition-colors
-                ${errors.password 
-                  ? 'border-red-300 bg-red-50' 
-                  : 'border-background-dark bg-white hover:border-primary-light'
+                ${
+                  errors.password
+                    ? "border-red-300 bg-red-50"
+                    : "border-background-dark bg-white hover:border-primary-light"
                 }
               `}
               placeholder="Create a password"
@@ -354,12 +404,17 @@ export default function SignupForm({ accountType, onSuccess }) {
             </button>
           </div>
           {errors.password && (
-            <p className="mt-2 text-sm text-red-600">{errors.password.message}</p>
+            <p className="mt-2 text-sm text-red-600">
+              {errors.password.message}
+            </p>
           )}
         </div>
 
         <div>
-          <label htmlFor="confirmPassword" className="block text-sm font-medium text-text-dark mb-2">
+          <label
+            htmlFor="confirmPassword"
+            className="block text-sm font-medium text-text-dark mb-2"
+          >
             Confirm password
           </label>
           <div className="relative">
@@ -367,12 +422,12 @@ export default function SignupForm({ accountType, onSuccess }) {
               <Lock className="h-5 w-5 text-text-light" />
             </div>
             <input
-              {...register('confirmPassword', {
-                required: 'Please confirm your password',
-                validate: value => 
-                  value === watchPassword || "Passwords don't match"
+              {...register("confirmPassword", {
+                required: "Please confirm your password",
+                validate: (value) =>
+                  value === watchPassword || "Passwords don't match",
               })}
-              type={showConfirmPassword ? 'text' : 'password'}
+              type={showConfirmPassword ? "text" : "password"}
               id="confirmPassword"
               autoComplete="new-password"
               disabled={isLoading}
@@ -382,9 +437,10 @@ export default function SignupForm({ accountType, onSuccess }) {
                 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
                 disabled:bg-background-medium disabled:cursor-not-allowed
                 transition-colors
-                ${errors.confirmPassword 
-                  ? 'border-red-300 bg-red-50' 
-                  : 'border-background-dark bg-white hover:border-primary-light'
+                ${
+                  errors.confirmPassword
+                    ? "border-red-300 bg-red-50"
+                    : "border-background-dark bg-white hover:border-primary-light"
                 }
               `}
               placeholder="Confirm your password"
@@ -403,7 +459,9 @@ export default function SignupForm({ accountType, onSuccess }) {
             </button>
           </div>
           {errors.confirmPassword && (
-            <p className="mt-2 text-sm text-red-600">{errors.confirmPassword.message}</p>
+            <p className="mt-2 text-sm text-red-600">
+              {errors.confirmPassword.message}
+            </p>
           )}
         </div>
       </div>
@@ -417,9 +475,10 @@ export default function SignupForm({ accountType, onSuccess }) {
           rounded-lg shadow-sm text-sm font-medium text-white 
           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/20
           transition-all duration-200
-          ${isLoading
-            ? 'bg-primary/70 cursor-not-allowed'
-            : 'bg-primary hover:bg-primary-dark hover:shadow-md transform hover:-translate-y-0.5'
+          ${
+            isLoading
+              ? "bg-primary/70 cursor-not-allowed"
+              : "bg-primary hover:bg-primary-dark hover:shadow-md transform hover:-translate-y-0.5"
           }
         `}
       >
@@ -433,5 +492,5 @@ export default function SignupForm({ accountType, onSuccess }) {
         )}
       </button>
     </form>
-  )
+  );
 }

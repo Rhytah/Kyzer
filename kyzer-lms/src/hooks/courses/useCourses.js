@@ -16,7 +16,7 @@
 //     try {
 //       setLoading(true)
 //       setError(null)
-      
+
 //       // For now, using mock data - replace with actual Supabase call
 //       const mockCourses = [
 //         {
@@ -100,7 +100,7 @@
 //       let filteredCourses = mockCourses
 
 //       if (filters.category) {
-//         filteredCourses = filteredCourses.filter(course => 
+//         filteredCourses = filteredCourses.filter(course =>
 //           course.category_id === filters.category
 //         )
 //       }
@@ -125,7 +125,7 @@
 
 //       // Simulate API delay
 //       await new Promise(resolve => setTimeout(resolve, 300))
-      
+
 //       setCourses(filteredCourses)
 //     } catch (err) {
 //       console.error('Error loading courses:', err)
@@ -140,7 +140,7 @@
 //     try {
 //       // Mock course detail - replace with actual Supabase call
 //       const course = courses.find(c => c.id === courseId)
-      
+
 //       if (!course) {
 //         // If not in current list, simulate fetching from API
 //         const mockCourseDetail = {
@@ -206,22 +206,22 @@
 //     courses,
 //     loading,
 //     error,
-    
+
 //     // Actions
 //     loadCourses,
 //     getCourseById,
 //     searchCourses,
-    
+
 //     // Computed data
 //     getPopularCourses,
 //     getRecentCourses,
 //     getFreeCourses,
 //     getCoursesByCategory,
-    
+
 //     // Stats
 //     totalCourses: courses.length,
 //     freeCourses: courses.filter(c => c.price === 0).length,
-//     averageRating: courses.length > 0 
+//     averageRating: courses.length > 0
 //       ? (courses.reduce((sum, course) => sum + (course.rating || 0), 0) / courses.length).toFixed(1)
 //       : 0
 //   }
@@ -229,70 +229,75 @@
 
 // src/hooks/courses/useCourses.js
 // =================
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 export const useCourses = (filters = {}) => {
-  const [courses, setCourses] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchCourses()
-  }, [filters])
+    fetchCourses();
+  }, [filters]);
 
   const fetchCourses = async () => {
     try {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
 
       let query = supabase
-        .from('courses')
-        .select(`
+        .from("courses")
+        .select(
+          `
           *,
           course_modules (
             id,
             title,
             lessons (id)
           )
-        `)
-        .eq('is_published', true)
+        `,
+        )
+        .eq("is_published", true);
 
       // Apply filters
       if (filters.search) {
-        query = query.ilike('title', `%${filters.search}%`)
+        query = query.ilike("title", `%${filters.search}%`);
       }
-      
+
       if (filters.difficulty) {
-        query = query.eq('difficulty_level', filters.difficulty)
+        query = query.eq("difficulty_level", filters.difficulty);
       }
 
-      const { data, error: fetchError } = await query.order('created_at', { ascending: false })
+      const { data, error: fetchError } = await query.order("created_at", {
+        ascending: false,
+      });
 
-      if (fetchError) throw fetchError
+      if (fetchError) throw fetchError;
 
       // Calculate lesson count for each course
-      const coursesWithStats = data.map(course => ({
+      const coursesWithStats = data.map((course) => ({
         ...course,
-        lesson_count: course.course_modules.reduce((total, module) => 
-          total + module.lessons.length, 0
+        lesson_count: course.course_modules.reduce(
+          (total, module) => total + module.lessons.length,
+          0,
         ),
-        module_count: course.course_modules.length
-      }))
+        module_count: course.course_modules.length,
+      }));
 
-      setCourses(coursesWithStats)
+      setCourses(coursesWithStats);
     } catch (err) {
-      setError(err.message)
-      console.error('Error fetching courses:', err)
+      setError(err.message);
+      console.error("Error fetching courses:", err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return {
     courses,
     loading,
     error,
-    refetch: fetchCourses
-  }
-}
+    refetch: fetchCourses,
+  };
+};

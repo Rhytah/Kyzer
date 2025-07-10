@@ -1,39 +1,155 @@
+/* src/styles/globals.css */
+
+/* Import Google Fonts FIRST - before any other CSS */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+/* Tailwind CSS imports */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Custom CSS Variables for Design System */
+:root {
+  /* Primary Colors */
+  --color-primary: #374151;
+  --color-primary-dark: #1f2937;
+  --color-primary-light: #f3f4f6;
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  
-  body {
-    @apply bg-background-light text-text-dark antialiased;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Text Colors */
+  --color-text-dark: #111827;
+  --color-text-medium: #374151;
+  --color-text-light: #6b7280;
+  --color-text-muted: #9ca3af;
+
+  /* Background Colors */
+  --color-background-white: #ffffff;
+  --color-background-light: #f9fafb;
+  --color-background-medium: #f3f4f6;
+  --color-background-dark: #e5e7eb;
+
+  /* Border */
+  --color-border: #e5e7eb;
+}
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  line-height: 1.6;
+  color: var(--color-text-dark);
+  background-color: var(--color-background-light);
+}
+
+/* Custom Utility Classes */
+@layer utilities {
+  .text-primary {
+    color: var(--color-primary);
   }
 
-  html {
-    scroll-behavior: smooth;
+  .text-primary-dark {
+    color: var(--color-primary-dark);
+  }
+
+  .text-text-dark {
+    color: var(--color-text-dark);
+  }
+
+  .text-text-medium {
+    color: var(--color-text-medium);
+  }
+
+  .text-text-light {
+    color: var(--color-text-light);
+  }
+
+  .text-text-muted {
+    color: var(--color-text-muted);
+  }
+
+  .bg-primary {
+    background-color: var(--color-primary);
+  }
+
+  .bg-primary-dark {
+    background-color: var(--color-primary-dark);
+  }
+
+  .bg-primary-light {
+    background-color: var(--color-primary-light);
+  }
+
+  .bg-background-white {
+    background-color: var(--color-background-white);
+  }
+
+  .bg-background-light {
+    background-color: var(--color-background-light);
+  }
+
+  .bg-background-medium {
+    background-color: var(--color-background-medium);
+  }
+
+  .bg-background-dark {
+    background-color: var(--color-background-dark);
+  }
+
+  .border-background-dark {
+    border-color: var(--color-background-dark);
+  }
+
+  .border-primary {
+    border-color: var(--color-primary);
+  }
+
+  .hover\:bg-primary-dark:hover {
+    background-color: var(--color-primary-dark);
+  }
+
+  .hover\:bg-primary-light:hover {
+    background-color: var(--color-primary-light);
+  }
+
+  .hover\:border-primary-light:hover {
+    border-color: var(--color-primary-light);
+  }
+
+  .focus\:border-primary:focus {
+    border-color: var(--color-primary);
+  }
+
+  .focus\:ring-primary\/20:focus {
+    box-shadow: 0 0 0 3px rgba(55, 65, 81, 0.2);
   }
 }
 
+/* Component Styles */
 @layer components {
-  .container {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
-  }
-
-  .card {
-    @apply bg-white rounded-lg shadow-sm border border-background-dark p-6;
-  }
-
+  /* Form Elements */
   .input {
-    @apply w-full px-3 py-2 border border-background-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-primary bg-white text-text-dark placeholder-text-muted;
+    @apply w-full px-3 py-2 border border-background-dark rounded-lg;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary;
+    @apply placeholder-text-muted text-text-dark;
+    @apply transition-colors duration-200;
+  }
+
+  .input:disabled {
+    @apply bg-background-medium cursor-not-allowed opacity-60;
   }
 
   .input-error {
-    @apply border-red-300 focus:ring-red-200 focus:border-red-500;
+    @apply border-red-300 bg-red-50;
   }
 
   .label {
@@ -41,64 +157,66 @@
   }
 
   .error-text {
-    @apply text-sm text-red-600 mt-1;
+    @apply mt-2 text-sm text-red-600;
   }
 
-  /* Custom scrollbar */
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: #9CA3AF #F3F4F6;
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply transition-all duration-200;
   }
 
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary-dark;
+    @apply focus:ring-primary/20;
   }
 
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: #F3F4F6;
+  .btn-secondary {
+    @apply bg-white text-primary border border-primary;
+    @apply hover:bg-primary-light focus:ring-primary/20;
   }
 
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: #9CA3AF;
-    border-radius: 3px;
+  .btn-ghost {
+    @apply bg-transparent text-text-light hover:bg-background-medium;
+    @apply focus:ring-primary/20;
   }
 
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: #6B7280;
+  .btn:disabled {
+    @apply opacity-60 cursor-not-allowed;
   }
 
-  /* Progress bar */
-  .progress-bar {
-    @apply w-full bg-background-medium rounded-full h-2 overflow-hidden;
+  /* Cards */
+  .card {
+    @apply bg-white rounded-xl border border-background-dark p-6;
+    @apply shadow-sm hover:shadow-md transition-shadow duration-200;
   }
 
-  .progress-fill {
-    @apply h-full bg-primary transition-all duration-300 ease-out;
+  /* Toggle Switch */
+  .toggle {
+    @apply relative inline-flex h-6 w-11 items-center rounded-full;
+    @apply bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20;
   }
 
-  /* Course card hover effect */
-  .course-card {
-    @apply transition-all duration-200 ease-in-out;
+  .toggle:checked {
+    @apply bg-primary;
   }
 
-  .course-card:hover {
-    @apply -translate-y-1 shadow-lg;
+  .toggle::after {
+    @apply absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition-transform;
+    content: "";
   }
 
-  /* Loading skeleton */
-  .skeleton {
-    @apply animate-pulse bg-background-medium rounded;
+  .toggle:checked::after {
+    @apply translate-x-5;
   }
 
-  /* Focus styles for accessibility */
-  .focus-ring {
-    @apply focus:outline-none focus:ring-2 focus:ring-primary-light focus:ring-offset-2;
-  }
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  /* Utility Classes */
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .line-clamp-2 {
@@ -116,13 +234,73 @@
   }
 }
 
-/* Print styles */
+/* Animation Utilities */
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .animate-slide-down {
+    animation: slideDown 0.3s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background-light);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-background-dark);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-light);
+}
+
+/* Print Styles */
 @media print {
   .no-print {
     display: none !important;
-  }
-  
-  .print-only {
-    display: block !important;
   }
 }
