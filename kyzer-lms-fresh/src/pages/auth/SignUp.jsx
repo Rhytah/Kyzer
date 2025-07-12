@@ -16,9 +16,7 @@ export default function Signup() {
   return (
     <div className="min-h-screen bg-background-light flex">
       {/* Left side - Signup Form */}
-      <div className="bg-blue-500 text-white p-4 rounded-lg">
-        If you see blue background, Tailwind is working! 🎉
-      </div>
+     
       <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
           {/* Header */}
