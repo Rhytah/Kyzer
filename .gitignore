@@ -1,0 +1,14 @@
+
+node_modules
+dist
+dist/*
+.qodo
+*.log
+*.log.*
+*.log.json
+*.log.json.*
+*.log.json.gz
+*.log.gz
+*.log.txt
+*.log.txt.*
+*.log.xml       
