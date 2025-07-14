@@ -1,5 +1,5 @@
 // src/pages/auth/VerifyEmail.jsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Mail, CheckCircle, RefreshCw, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
@@ -8,7 +8,18 @@ import toast from "react-hot-toast";
 export default function VerifyEmail() {
   const [isResending, setIsResending] = useState(false);
   const { resendVerification, user } = useAuth();
+useEffect(() => {
+  // Handle email verification callback
+  const handleAuthCallback = async () => {
+    const { data, error } = await supabase.auth.getSession();
+    
+    if (data.session && data.session.user) {
+      navigate('/dashboard');
+    }
+  };
 
+  handleAuthCallback();
+}, []);
   const handleResendVerification = async () => {
     if (!user?.email) {
       toast.error("No email found. Please sign up again.");

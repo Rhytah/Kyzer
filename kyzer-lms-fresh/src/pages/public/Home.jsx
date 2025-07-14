@@ -15,6 +15,7 @@ import {
   Building,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
+import kyzerLogo from "../../assets/images/kyzerlogo.png";
 
 const Home = () => {
   const features = [
@@ -126,10 +127,9 @@ const Home = () => {
         <div className="container">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-2">
-              <BookOpen className="h-8 w-8 text-primary" />
-              <span className="text-xl font-bold text-text-dark">
-                Kyzer LMS
-              </span>
+               <div className="flex justify-center mb-6">
+              <img src={kyzerLogo} alt="Kyzer Logo" className="h-8 ml-2" />
+            </div>
             </div>
 
             <div className="hidden md:flex items-center space-x-8">
@@ -160,10 +160,10 @@ const Home = () => {
             </div>
 
             <div className="flex items-center space-x-4">
-              <Link to="/auth/login">
+              <Link to="/login">
                 <Button variant="ghost">Sign In</Button>
               </Link>
-              <Link to="/auth/signup">
+              <Link to="/signup">
                 <Button>Get Started</Button>
               </Link>
             </div>
@@ -185,7 +185,7 @@ const Home = () => {
               certificates, and unlock new opportunities.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-              <Link to="/auth/signup">
+              <Link to="/signup">
                 <Button size="lg" className="w-full sm:w-auto">
                   Start Learning Free
                   <ArrowRight className="ml-2 h-5 w-5" />

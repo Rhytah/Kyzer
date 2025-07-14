@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import SignupForm from "@/components/auth/SignupForm";
 import { Users, User, Building, Check } from "lucide-react";
+import kyzerLogo from "../../assets/images/kyzerlogo.png";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -22,9 +23,8 @@ export default function Signup() {
           {/* Header */}
           <div className="text-center">
             <div className="flex justify-center mb-6">
-              <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-xl">K</span>
-              </div>
+                          <img src={kyzerLogo} alt="Kyzer Logo" className="h-8 ml-2" />
+
             </div>
             <h2 className="text-2xl font-bold text-text-dark">
               Create your account

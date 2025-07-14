@@ -4,11 +4,11 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCourses } from "@/hooks/courses/useCourses";
 import { useEnrollment } from "@/hooks/courses/useEnrollment";
-// import StatsCard from '@/components/dashboard/StatsCard'
-// import RecentActivity from '@/components/dashboard/RecentActivity'
-// import EnrolledCourses from '@/components/dashboard/EnrolledCourses'
-// import Recommendations from '@/components/dashboard/Recommendations'
-// import ProgressChart from '@/components/dashboard/ProgressChart'
+import StatsCard from '@/components/dashboard/StatsCard'
+import RecentActivity from '@/components/dashboard/RecentActivity'
+import EnrolledCourses from '@/components/dashboard/EnrolledCourses'
+import Recommendations from '@/components/dashboard/Recommendations'
+import ProgressChart from '@/components/dashboard/ProgressChart'
 import {
   BookOpen,
   Clock,

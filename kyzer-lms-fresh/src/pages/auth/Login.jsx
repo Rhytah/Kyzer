@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import LoginForm from "@/components/auth/LoginForm";
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
-
+import kyzerLogo from "../../assets/images/kyzerlogo.png";
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,9 +24,7 @@ export default function Login() {
           {/* Header */}
           <div className="text-center">
             <div className="flex justify-center mb-6">
-              <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-xl">K</span>
-              </div>
+              <img src={kyzerLogo} alt="Kyzer Logo" className="h-8 ml-2" />
             </div>
             <h2 className="text-2xl font-bold text-text-dark">Welcome back</h2>
             <p className="mt-2 text-sm text-text-light">

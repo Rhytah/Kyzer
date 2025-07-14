@@ -325,16 +325,19 @@ export function useAuth() {
             getInitialSession();
         }
 
-        // Listen for auth changes
+        // Listen for auth changes - UPDATED for auto-login on verification
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange(async(event, session) => {
             console.log("Auth state changed:", event, session && session.user && session.user.email);
 
-            if (session && session.user) {
-                // setUser will automatically fetch the profile
-                await setUser(session.user);
-            } else {
+            // Auto-login on email verification success
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                if (session && session.user) {
+                    // setUser will automatically fetch the profile
+                    await setUser(session.user);
+                }
+            } else if (event === 'SIGNED_OUT') {
                 setUser(null);
             }
 
@@ -347,7 +350,6 @@ export function useAuth() {
             }
         };
     }, [setUser, setLoading, setInitialized, initialized]);
-
     // Login function
     const login = async(email, password) => {
         try {
