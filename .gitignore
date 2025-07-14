@@ -11,4 +11,9 @@ dist/*
 *.log.gz
 *.log.txt
 *.log.txt.*
-*.log.xml       
+*.log.xml
+*.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.env  

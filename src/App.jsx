@@ -256,7 +256,7 @@ import PublicLayout from './components/layout/PublicLayout';
 
 // Import pages
 import Login from './pages/auth/Login';
-import Signup from './pages/auth/Signup';
+import Signup from './pages/auth/SignUp';
 import Dashboard from './pages/dashboard/Dashboard';
 import Profile from './pages/dashboard/Profile';
 import Settings from './pages/dashboard/Settings';

@@ -1,111 +1,13 @@
-# Kyzer LMS
+# React + Vite
 
-A modern Learning Management System built with React, Vite, and Supabase.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-## 🚀 Quick Start
+Currently, two official plugins are available:
 
-1. **Clone and Install**
-   ```bash
-   git clone <your-repo>
-   cd kyzer-lms
-   npm install
-   ```
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-2. **Environment Setup**
-   ```bash
-   cp .env.example .env
-   # Add your Supabase credentials to .env
-   ```
 
-3. **Run Development Server**
-   ```bash
-   npm run dev
-   ```
+## Expanding the ESLint configuration
 
-## 🏗️ Project Structure
-
-```
-src/
-├── components/     # Reusable UI components
-├── pages/         # Route-level components
-├── hooks/         # Custom React hooks
-├── lib/           # External library configs
-├── store/         # State management
-└── styles/        # CSS and styling
-```
-
-## 🛠️ Tech Stack
-
-- **Frontend**: React 18 + Vite
-- **Styling**: Tailwind CSS
-- **Backend**: Supabase (PostgreSQL + Auth + Storage)
-- **State**: Zustand
-- **Forms**: React Hook Form + Zod
-- **Icons**: Lucide React
-
-## 📋 Development Timeline
-
-- **Weeks 1-2**: Foundation & Authentication
-- **Weeks 3-6**: Core Features (Courses, Enrollment)
-- **Weeks 7-10**: Advanced Features (Quizzes, Corporate)
-- **Weeks 11-18**: Polish & Deployment
-
-## 🔧 Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-- `npm run lint:fix` - Fix ESLint errors
-
-## 📚 Key Features
-
-### MVP (18 weeks)
-- ✅ User Authentication & Profiles
-- ✅ Course Management & Enrollment
-- ✅ Progress Tracking
-- ✅ Quiz System
-- ✅ Certificate Generation
-- ✅ Corporate Accounts (up to 200 employees)
-- ✅ Basic Reporting
-
-### Future Enhancements
-- Video Content Integration
-- Advanced Analytics
-- Mobile Apps
-- SCORM Compliance
-- Third-party Integrations
-
-## 🏢 Corporate Features
-
-- Multi-tenant architecture
-- Employee invitation system
-- Team progress tracking
-- Admin dashboards
-- Annual subscription model
-
-## 🔐 Security
-
-- Row Level Security (RLS) in Supabase
-- JWT-based authentication
-- Role-based access control
-- Email verification
-- Password reset functionality
-
-## 📱 Responsive Design
-
-- Mobile-first approach
-- Desktop and tablet optimized
-- Touch-friendly interface
-- Progressive Web App ready
-
-## 🚀 Deployment
-
-The app is configured for easy deployment on:
-- **Frontend**: Vercel (recommended)
-- **Backend**: Supabase (managed)
-- **Files**: Supabase Storage or AWS S3
-
-## 📄 License
-
-This project is proprietary software for Kyzer Solutions.
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
