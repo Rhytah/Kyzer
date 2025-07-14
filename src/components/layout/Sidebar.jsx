@@ -153,7 +153,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { useAuth } from '@hooks/auth/useAuth';
 import { individualNavigation, corporateNavigation } from '@/config/navigation';
-import kyzerLogo from "../../assets/images/kyzerlogo.png";
+import kyzerLogo from "../../assets/images/Kyzerlogo.png";
 
 const Sidebar = ({ mobile = false, onClose }) => {
   const location = useLocation();

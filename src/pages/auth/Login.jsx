@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import LoginForm from "@/components/auth/LoginForm";
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
-import kyzerLogo from "../../assets/images/kyzerlogo.png";
+import kyzerLogo from "../../assets/images/Kyzerlogo.png";
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();

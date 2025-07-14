@@ -15,7 +15,7 @@ import {
   Building,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
-import kyzerLogo from "../../assets/images/kyzerlogo.png";
+import kyzerLogo from "../../assets/images/Kyzerlogo.png";
 
 const Home = () => {
   const features = [

@@ -1,7 +1,7 @@
 // import React from 'react';
 // import { Outlet, Link, useLocation } from 'react-router-dom';
 // import { Home, BookOpen, Award, BarChart3, Settings } from 'lucide-react';
-// import kyzerLogo from "../../assets/images/kyzerlogo.png";
+// import kyzerLogo from "../../assets/images/Kyzerlogo.png";
 
 // const Layout = () => {
 //   const location = useLocation();

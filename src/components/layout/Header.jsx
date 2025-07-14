@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, Search, Bell } from 'lucide-react';
 import { useAuth } from '@hooks/auth/useAuth';
-import kyzerLogo from "../../assets/images/kyzerlogo.png";
+import kyzerLogo from "../../assets/images/Kyzerlogo.png";
 import UserMenu from './UserMenu';
 
 const Header = ({ onMenuClick }) => {
