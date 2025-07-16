@@ -210,22 +210,7 @@ export default function LoginForm({ onSuccess }) {
         )}
       </button>
 
-      {/* Demo Credentials */}
-      <div className="bg-background-medium rounded-lg p-4 border border-background-dark">
-        <p className="text-xs text-text-light mb-2 font-medium">
-          Demo Credentials:
-        </p>
-        <div className="space-y-1 text-xs text-text-medium">
-          <p>
-            <span className="font-medium">Student:</span> student@demo.com /
-            password123
-          </p>
-          <p>
-            <span className="font-medium">Admin:</span> admin@demo.com /
-            password123
-          </p>
-        </div>
-      </div>
+    
     </form>
   );
 }
