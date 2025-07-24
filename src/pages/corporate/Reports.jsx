@@ -209,7 +209,6 @@ const Reports = () => {
 
       // In real app, this would trigger actual download
       const filename = `${selectedReport}_report_${new Date().toISOString().split("T")[0]}.${format}`;
-      console.log(`Exporting ${filename}`);
 
       // Create a mock download
       const element = document.createElement("a");

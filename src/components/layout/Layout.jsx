@@ -111,7 +111,6 @@ const Layout = () => {
     const isCorporateUser = user?.user_metadata?.account_type === 'corporate';
 
   const isIndividualUser = user?.user_metadata?.account_type === 'individual';
-console.log('User:', user, "isCorporateUser:", isCorporateUser,"isInd===>", isIndividualUser);
   return (
     <div className="min-h-screen bg-background-light">
       {/* Header */}

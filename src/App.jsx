@@ -263,7 +263,7 @@ import Settings from './pages/dashboard/Settings';
 import CourseCatalog from './pages/courses/CourseCatalog';
 import MyCourses from './pages/courses/MyCourses';
 import Home from './pages/public/Home';
-
+import { AuthProvider } from '@/hooks/auth/useAuth';
 // Import hooks and components
 import { useAuth } from './hooks/auth/useAuth';
 
@@ -305,6 +305,7 @@ function PublicRoute({ children }) {
 
 function App() {
   return (
+     <AuthProvider> 
     <Router>
       <div className="App">
         <Routes>
@@ -373,6 +374,7 @@ function App() {
         />
       </div>
     </Router>
+      </AuthProvider>
   );
 }
 
