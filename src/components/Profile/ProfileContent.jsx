@@ -1,7 +1,7 @@
 import AccountTab from "./tabs/AccountTab";
 import NotificationsTab from "./tabs/NotificationsTab";
 import PrivacyTab from "./tabs/PrivacyTab";
-import ProfileTab from "./Tabs/ProfileTabs";
+import ProfileTab from "./tabs/ProfileTabs";
 
 export default function ProfileContent({ activeTab, user }) {
   switch (activeTab) {

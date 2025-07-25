@@ -7,7 +7,7 @@ const UserMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
    const isCorporateUser = user?.user_metadata?.account_type === 'corporate';
 
   // Close menu when clicking outside
@@ -23,7 +23,7 @@ const UserMenu = () => {
   }, []);
   const handleLogout = async () => {
     try {
-      await logout();
+      await signOut();
       navigate('/auth/login');
     } catch (error) {
       console.error('Logout error:', error);

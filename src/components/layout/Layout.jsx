@@ -105,12 +105,13 @@ import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
 import Breadcrumbs from './Breadcrumbs';
 
-const Layout = () => {
+export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
     const isCorporateUser = user?.user_metadata?.account_type === 'corporate';
 
   const isIndividualUser = user?.user_metadata?.account_type === 'individual';
+  console.log(user, 'Current User in Layout');
   return (
     <div className="min-h-screen bg-background-light">
       {/* Header */}
@@ -118,7 +119,7 @@ const Layout = () => {
 
       <div className="flex">
         {/* Desktop Sidebar */}
-        <Sidebar />
+        <Sidebar isCorporateRoute={user?.user_metadata} company={user?.user_metadata?.company_name}/>
 
         {/* Mobile Sidebar Overlay */}
         {sidebarOpen && (
@@ -148,4 +149,3 @@ const Layout = () => {
   );
 };
 
-export default Layout;

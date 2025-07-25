@@ -2,8 +2,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { Loader2 } from "lucide-react";
-import ProfileContent from "@/components/profile/ProfileContent";
-import ProfileTab from "@/components/profile/tabs/ProfileTabs";
+import ProfileContent from "../../components/Profile/ProfileContent";
 export default function Profile() {
   const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("profile");
