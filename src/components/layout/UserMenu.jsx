@@ -7,7 +7,7 @@ const UserMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
    const isCorporateUser = user?.user_metadata?.account_type === 'corporate';
 
   // Close menu when clicking outside
@@ -21,10 +21,9 @@ const UserMenu = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
   const handleLogout = async () => {
     try {
-      await logout();
+      await signOut();
       navigate('/auth/login');
     } catch (error) {
       console.error('Logout error:', error);
@@ -36,7 +35,7 @@ const UserMenu = () => {
   // Determine routes based on user type
   const profileRoute = isCorporateUser ? '/corporate/settings' : '/app/profile';
   const settingsRoute = isCorporateUser ? '/corporate/settings' : '/app/settings';
-
+const user_iamge = user?.user_metadata?.avatar_url;
   return (
     <div className="relative" ref={menuRef}>
       <button
@@ -44,9 +43,11 @@ const UserMenu = () => {
         className="flex items-center space-x-2 p-2 rounded-lg text-text-medium hover:text-text-dark hover:bg-background-light transition-colors"
       >
         <div className="w-8 h-8 bg-background-medium rounded-full flex items-center justify-center">
-          <span className="text-text-medium text-sm font-medium">
+         {user_iamge? 
+         <img src={user?.user_metadata?.avatar_url} alt='avatar'/>
+         :<span>
             {user?.user_metadata?.first_name?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
-          </span>
+          </span>}
         </div>
         <ChevronDown 
           size={16} 
