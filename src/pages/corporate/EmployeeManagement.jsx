@@ -21,18 +21,18 @@ import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import toast from "react-hot-toast";
 
 const EmployeeManagement = () => {
-  const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [departmentFilter, setDepartmentFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [selectedEmployees, setSelectedEmployees] = useState(new Set());
-  const [inviteForm, setInviteForm] = useState({
-    emails: "",
-    department: "",
-    role: "learner",
-  });
+  // const [employees, setEmployees] = useState([]);
+  // const [loading, setLoading] = useState(true);
+  // const [searchTerm, setSearchTerm] = useState("");
+  // const [departmentFilter, setDepartmentFilter] = useState("all");
+  // const [statusFilter, setStatusFilter] = useState("all");
+  // const [showInviteModal, setShowInviteModal] = useState(false);
+  // const [selectedEmployees, setSelectedEmployees] = useState(new Set());
+  // const [inviteForm, setInviteForm] = useState({
+  //   emails: "",
+  //   department: "",
+  //   role: "learner",
+  // });
 
   const departments = [
     "Engineering",
@@ -51,111 +51,129 @@ const EmployeeManagement = () => {
     { id: "inactive", name: "Inactive" },
     { id: "pending", name: "Pending Invitation" },
   ];
+  // Get store methods
+  const { 
+    employees,
+    fetchEmployees,
+    loading,
+    error 
+  } = useCorporateStore();
+const [searchTerm, setSearchTerm] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [selectedEmployees, setSelectedEmployees] = useState(new Set());
+  const [inviteForm, setInviteForm] = useState({
+    emails: "",
+    department: "",
+    role: "learner",
+  });
+  // useEffect(() => {
+  //   const loadEmployees = async () => {
+  //     // Simulate API call
+  //     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  useEffect(() => {
-    const loadEmployees = async () => {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+  //     setEmployees([
+  //       {
+  //         id: 1,
+  //         name: "Sarah Johnson",
+  //         email: "sarah.johnson@company.com",
+  //         department: "Engineering",
+  //         role: "Developer",
+  //         status: "active",
+  //         joinDate: "2023-06-15",
+  //         lastActive: "2024-01-20",
+  //         coursesCompleted: 8,
+  //         coursesInProgress: 2,
+  //         totalHours: 45,
+  //         certificates: 6,
+  //         avatar: "/avatar-placeholder.jpg",
+  //       },
+  //       {
+  //         id: 2,
+  //         name: "Mike Chen",
+  //         email: "mike.chen@company.com",
+  //         department: "Marketing",
+  //         role: "Marketing Manager",
+  //         status: "active",
+  //         joinDate: "2023-03-22",
+  //         lastActive: "2024-01-19",
+  //         coursesCompleted: 6,
+  //         coursesInProgress: 1,
+  //         totalHours: 38,
+  //         certificates: 4,
+  //         avatar: "/avatar-placeholder.jpg",
+  //       },
+  //       {
+  //         id: 3,
+  //         name: "Emily Rodriguez",
+  //         email: "emily.rodriguez@company.com",
+  //         department: "Operations",
+  //         role: "Operations Lead",
+  //         status: "active",
+  //         joinDate: "2023-08-10",
+  //         lastActive: "2024-01-18",
+  //         coursesCompleted: 7,
+  //         coursesInProgress: 3,
+  //         totalHours: 42,
+  //         certificates: 5,
+  //         avatar: "/avatar-placeholder.jpg",
+  //       },
+  //       {
+  //         id: 4,
+  //         name: "David Kim",
+  //         email: "david.kim@company.com",
+  //         department: "Engineering",
+  //         role: "Senior Developer",
+  //         status: "active",
+  //         joinDate: "2023-01-05",
+  //         lastActive: "2024-01-17",
+  //         coursesCompleted: 12,
+  //         coursesInProgress: 1,
+  //         totalHours: 67,
+  //         certificates: 9,
+  //         avatar: "/avatar-placeholder.jpg",
+  //       },
+  //       {
+  //         id: 5,
+  //         name: "Lisa Park",
+  //         email: "lisa.park@company.com",
+  //         department: "Design",
+  //         role: "UX Designer",
+  //         status: "pending",
+  //         joinDate: null,
+  //         lastActive: null,
+  //         coursesCompleted: 0,
+  //         coursesInProgress: 0,
+  //         totalHours: 0,
+  //         certificates: 0,
+  //         avatar: "/avatar-placeholder.jpg",
+  //       },
+  //       {
+  //         id: 6,
+  //         name: "John Smith",
+  //         email: "john.smith@company.com",
+  //         department: "Sales",
+  //         role: "Sales Rep",
+  //         status: "inactive",
+  //         joinDate: "2023-05-12",
+  //         lastActive: "2023-12-15",
+  //         coursesCompleted: 3,
+  //         coursesInProgress: 0,
+  //         totalHours: 18,
+  //         certificates: 2,
+  //         avatar: "/avatar-placeholder.jpg",
+  //       },
+  //     ]);
 
-      setEmployees([
-        {
-          id: 1,
-          name: "Sarah Johnson",
-          email: "sarah.johnson@company.com",
-          department: "Engineering",
-          role: "Developer",
-          status: "active",
-          joinDate: "2023-06-15",
-          lastActive: "2024-01-20",
-          coursesCompleted: 8,
-          coursesInProgress: 2,
-          totalHours: 45,
-          certificates: 6,
-          avatar: "/avatar-placeholder.jpg",
-        },
-        {
-          id: 2,
-          name: "Mike Chen",
-          email: "mike.chen@company.com",
-          department: "Marketing",
-          role: "Marketing Manager",
-          status: "active",
-          joinDate: "2023-03-22",
-          lastActive: "2024-01-19",
-          coursesCompleted: 6,
-          coursesInProgress: 1,
-          totalHours: 38,
-          certificates: 4,
-          avatar: "/avatar-placeholder.jpg",
-        },
-        {
-          id: 3,
-          name: "Emily Rodriguez",
-          email: "emily.rodriguez@company.com",
-          department: "Operations",
-          role: "Operations Lead",
-          status: "active",
-          joinDate: "2023-08-10",
-          lastActive: "2024-01-18",
-          coursesCompleted: 7,
-          coursesInProgress: 3,
-          totalHours: 42,
-          certificates: 5,
-          avatar: "/avatar-placeholder.jpg",
-        },
-        {
-          id: 4,
-          name: "David Kim",
-          email: "david.kim@company.com",
-          department: "Engineering",
-          role: "Senior Developer",
-          status: "active",
-          joinDate: "2023-01-05",
-          lastActive: "2024-01-17",
-          coursesCompleted: 12,
-          coursesInProgress: 1,
-          totalHours: 67,
-          certificates: 9,
-          avatar: "/avatar-placeholder.jpg",
-        },
-        {
-          id: 5,
-          name: "Lisa Park",
-          email: "lisa.park@company.com",
-          department: "Design",
-          role: "UX Designer",
-          status: "pending",
-          joinDate: null,
-          lastActive: null,
-          coursesCompleted: 0,
-          coursesInProgress: 0,
-          totalHours: 0,
-          certificates: 0,
-          avatar: "/avatar-placeholder.jpg",
-        },
-        {
-          id: 6,
-          name: "John Smith",
-          email: "john.smith@company.com",
-          department: "Sales",
-          role: "Sales Rep",
-          status: "inactive",
-          joinDate: "2023-05-12",
-          lastActive: "2023-12-15",
-          coursesCompleted: 3,
-          coursesInProgress: 0,
-          totalHours: 18,
-          certificates: 2,
-          avatar: "/avatar-placeholder.jpg",
-        },
-      ]);
+  //     setLoading(false);
+  //   };
 
-      setLoading(false);
-    };
-
-    loadEmployees();
-  }, []);
-
+  //   loadEmployees();
+  // }, []);
+ useEffect(() => {
+    fetchEmployees();
+  }, [fetchEmployees]);
   const filteredEmployees = employees.filter((employee) => {
     const matchesSearch =
       employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

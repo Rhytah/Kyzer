@@ -495,7 +495,11 @@ import {
 import { navigationRoutes, getAvailableRoutes } from '@/router'
 import { useCorporatePermissions } from '@/hooks/corporate/useCorporatePermissions'
 import { useAuthStore } from '@/store/authStore'
-
+import { 
+  individualNavigation, 
+  corporateNavigation,
+  // getAvailableRoutes 
+} from '@/config/navigation';
 export default function Sidebar({ isCorporateRoute, company }) {
   const { user } = useAuthStore()
   const { permissions } = useCorporatePermissions()
@@ -515,7 +519,7 @@ console.log(corporateExpanded, 'Current User in Sidebar');
 console.log(user, 'Current User logged in Sidebar');
   const NavItem = ({ route, isNested = false }) => {
     const Icon = iconMap[route.icon] || LayoutDashboard
-    
+    console.log(route, 'Route')
     return (
       <NavLink
         to={route.path}

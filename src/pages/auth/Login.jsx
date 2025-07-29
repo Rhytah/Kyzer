@@ -1,6 +1,5 @@
 // src/pages/auth/Login.jsx
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useState } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import LoginForm from "@/components/auth/LoginForm";
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";

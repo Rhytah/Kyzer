@@ -24,6 +24,50 @@ export default function CompanyDashboard() {
   const { user } = useAuthStore()
   const currentCompany = useCurrentCompany()
   const companyStats = useCompanyStats()
+  console.log(currentCompany, 'Current Company in Dashboard')
+  const [initialized, setInitialized] = useState(false);
+  const [tabInitialized, setTabInitialized] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+        await fetchCurrentCompany();
+        await fetchCompanyStats();
+        setInitialized(true);
+        
+        // Load tab-specific data only when tab changes
+        if (activeTab === 'employees') await fetchEmployees();
+        if (activeTab === 'courses') await fetchCourseAssignments();
+        
+        setTabInitialized(true);
+      } catch (err) {
+        console.error("Initialization failed:", err);
+      }
+    };
+
+    initialize();
+  }, [activeTab]); // Re-run when tab changes
+
+  if (!initialized || !currentCompany) {
+    return (
+      <div className="flex justify-center items-center min-h-96">
+        <LoadingSpinner size="lg" />
+        <p className="ml-3">Loading company data...</p>
+      </div>
+    );
+  }
+
+  if (!tabInitialized) {
+    return (
+      <div className="flex justify-center items-center min-h-96">
+        <LoadingSpinner size="lg" />
+        <p className="ml-3">Loading {activeTab} data...</p>
+      </div>
+    );
+  }
+
+
   const { 
     fetchCurrentCompany,
     fetchCompanyStats,
@@ -33,17 +77,16 @@ export default function CompanyDashboard() {
     error 
   } = useCorporateStore()
 
-  const [activeTab, setActiveTab] = useState('overview')
 
-  useEffect(() => {
-    initializeDashboard()
-  }, [])
-  const initializeDashboard = async () => {
-    await fetchCurrentCompany()
-    await fetchCompanyStats()
-    await fetchEmployees()
-    await fetchCourseAssignments()
-  }
+  // useEffect(() => {
+  //   initializeDashboard()
+  // }, [])
+  // const initializeDashboard = async () => {
+  //   await fetchCurrentCompany()
+  //   await fetchCompanyStats()
+  //   await fetchEmployees()
+  //   await fetchCourseAssignments()
+  // }
 
   if (loading && !currentCompany) {
     return (
