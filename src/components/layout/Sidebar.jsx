@@ -1,484 +1,5 @@
-// // import { useState } from 'react';
-// // import { Link, useLocation } from 'react-router-dom';
-// // import { ChevronDown, ChevronRight } from 'lucide-react';
-// // import { useAuth } from '@hooks/auth/useAuth';
-// // import { individualNavigation, corporateNavigation } from '@/config/navigation';
-// // import clsx from 'clsx';
 
-// // export default function Sidebar({ isOpen, setIsOpen }) {
-// //   const location = useLocation();
-// //   const { user, userType } = useAuth();
-// //   const [expandedItems, setExpandedItems] = useState(new Set());
-
-// //   const navigation = userType === 'corporate' ? corporateNavigation : individualNavigation;
-
-// //   const toggleExpanded = (itemName) => {
-// //     const newExpanded = new Set(expandedItems);
-// //     if (newExpanded.has(itemName)) {
-// //       newExpanded.delete(itemName);
-// //     } else {
-// //       newExpanded.add(itemName);
-// //     }
-// //     setExpandedItems(newExpanded);
-// //   };
-
-// //   const isActive = (href) => {
-// //     if (href === '/app' || href === '/corporate') {
-// //       return location.pathname === href;
-// //     }
-// //     return location.pathname.startsWith(href);
-// //   };
-
-// //   const isChildActive = (children) => {
-// //     return children?.some(child => location.pathname.startsWith(child.href));
-// //   };
-
-// //   return (
-// //     <div className={clsx(
-// //       'bg-white border-r border-gray-200 flex flex-col',
-// //       'lg:w-64 lg:fixed lg:inset-y-0',
-// //       isOpen ? 'fixed inset-0 z-50' : 'hidden lg:flex'
-// //     )}>
-// //       {/* Mobile header */}
-// //       <div className="lg:hidden flex items-center justify-between p-4 border-b">
-// //         <h2 className="text-lg font-semibold text-gray-900">Navigation</h2>
-// //         <button
-// //           onClick={() => setIsOpen(false)}
-// //           className="p-2 rounded-md text-gray-500 hover:text-gray-600"
-// //         >
-// //           <X className="h-5 w-5" />
-// //         </button>
-// //       </div>
-
-// //       {/* Logo */}
-// //       <div className="hidden lg:flex items-center h-16 px-6 border-b">
-// //         <Link to={userType === 'corporate' ? '/corporate' : '/app'} className="flex items-center">
-// //           <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
-// //             <span className="text-white font-bold text-sm">K</span>
-// //           </div>
-// //           <span className="ml-3 text-lg font-semibold text-gray-900">Kyzer LMS</span>
-// //         </Link>
-// //       </div>
-
-// //       {/* Navigation */}
-// //       <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-// //         {navigation.map((item) => (
-// //           <div key={item.name}>
-// //             <div className="group">
-// //               {item.children ? (
-// //                 <button
-// //                   onClick={() => toggleExpanded(item.name)}
-// //                   className={clsx(
-// //                     'w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors',
-// //                     isActive(item.href) || isChildActive(item.children)
-// //                       ? 'bg-primary-light text-primary-dark'
-// //                       : 'text-text-medium hover:bg-background-light'
-// //                   )}
-// //                 >
-// //                   <div className="flex items-center">
-// //                     <item.icon className="h-5 w-5 mr-3" />
-// //                     {item.name}
-// //                   </div>
-// //                   {expandedItems.has(item.name) ? (
-// //                     <ChevronDown className="h-4 w-4" />
-// //                   ) : (
-// //                     <ChevronRight className="h-4 w-4" />
-// //                   )}
-// //                 </button>
-// //               ) : (
-// //                 <Link
-// //                   to={item.href}
-// //                   onClick={() => setIsOpen(false)}
-// //                   className={clsx(
-// //                     'flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors',
-// //                     isActive(item.href)
-// //                       ? 'bg-primary-light text-primary-dark'
-// //                       : 'text-text-medium hover:bg-background-light'
-// //                   )}
-// //                 >
-// //                   <item.icon className="h-5 w-5 mr-3" />
-// //                   {item.name}
-// //                 </Link>
-// //               )}
-// //             </div>
-
-// //             {/* Submenu */}
-// //             {item.children && expandedItems.has(item.name) && (
-// //               <div className="ml-6 mt-1 space-y-1">
-// //                 {item.children.map((child) => (
-// //                   <Link
-// //                     key={child.name}
-// //                     to={child.href}
-// //                     onClick={() => setIsOpen(false)}
-// //                     className={clsx(
-// //                       'block px-3 py-2 text-sm rounded-lg transition-colors',
-// //                       isActive(child.href)
-// //                         ? 'bg-primary-light text-primary-dark font-medium'
-// //                         : 'text-text-light hover:bg-background-light hover:text-text-medium'
-// //                     )}
-// //                   >
-// //                     {child.name}
-// //                   </Link>
-// //                 ))}
-// //               </div>
-// //             )}
-// //           </div>
-// //         ))}
-// //       </nav>
-
-// //       {/* User info */}
-// //       <div className="p-4 border-t">
-// //         <div className="flex items-center">
-// //           <div className="h-8 w-8 bg-primary rounded-full flex items-center justify-center">
-// //             <span className="text-white text-sm font-medium">
-// //               {user?.user_metadata?.first_name?.[0] || user?.email?.[0]?.toUpperCase()}
-// //             </span>
-// //           </div>
-// //           <div className="ml-3 flex-1 min-w-0">
-// //             <p className="text-sm font-medium text-gray-900 truncate">
-// //               {user?.user_metadata?.first_name || 'User'}
-// //             </p>
-// //             <p className="text-xs text-gray-500 truncate">
-// //               {userType === 'corporate' ? 'Corporate Account' : 'Individual Account'}
-// //             </p>
-// //           </div>
-// //         </div>
-// //       </div>
-// //     </div>
-// //   );
-// // }
-
-// // import { Link, useLocation } from 'react-router-dom';
-// // import { X } from 'lucide-react';
-// // import { useAuth } from '@hooks/auth/useAuth';
-// // import { individualNavigation, corporateNavigation } from '@/config/navigation';
-// // import kyzerLogo from "../../assets/images/Kyzerlogo.png";
-
-// // const Sidebar = ({ mobile = false, onClose }) => {
-// //   const location = useLocation();
-// //   const { user } = useAuth();
-// //    const isCorporateUser = user?.user_metadata?.account_type === 'corporate';
-
-// //   const isIndividualUser = user?.user_metadata?.account_type === 'individual';
-// //   // Get navigation based on user type
-// //   const navigation = isCorporateUser ? corporateNavigation : individualNavigation;
-// //   const homeRoute = isCorporateUser ? '/corporate/dashboard' : '/app/dashboard';
-
-// //   const isActive = (path) => {
-// //     if (path === '/app' || path === '/corporate') {
-// //       return location.pathname === path + '/dashboard';
-// //     }
-// //     return location.pathname === path || location.pathname.startsWith(path + '/');
-// //   };
-
-// //   const sidebarClasses = mobile
-// //     ? "w-64 bg-white h-full flex flex-col shadow-xl"
-// //     : "hidden lg:block w-64 bg-white border-r border-border min-h-screen fixed left-0 top-16 z-20";
-
-// //   return (
-// //     <nav className={sidebarClasses}>
-// //       {/* Mobile Header */}
-// //       {mobile && (
-// //         <div className="flex items-center justify-between p-4 border-b border-border">
-// //           <Link to={homeRoute} className="flex items-center space-x-2" onClick={onClose}>
-// //             <img src={kyzerLogo} alt="Kyzer Logo" className="h-6" />
-// //           </Link>
-// //           <button
-// //             onClick={onClose}
-// //             className="p-2 rounded-lg text-text-medium hover:text-text-dark hover:bg-background-light transition-colors"
-// //           >
-// //             <X size={20} />
-// //           </button>
-// //         </div>
-// //       )}
-
-// //       {/* Navigation Links */}
-// //       <div className="flex-1 p-4 space-y-2 overflow-y-auto">
-// //         {navigation.map((item) => {
-// //           const Icon = item.icon;
-// //           const active = isActive(item.href);
-
-// //           return (
-// //             <Link
-// //               key={item.name}
-// //               to={item.href}
-// //               onClick={mobile ? onClose : undefined}
-// //               className={`
-// //                 flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 group
-// //                 ${active
-// //                   ? 'bg-primary text-white shadow-sm'
-// //                   : 'text-text-medium hover:text-text-dark hover:bg-background-light'
-// //                 }
-// //               `}
-// //             >
-// //               <Icon
-// //                 size={20}
-// //                 className={`mr-3 transition-transform group-hover:scale-110 ${
-// //                   active ? 'text-white' : ''
-// //                 }`}
-// //               />
-// //               {item.name}
-// //               {active && (
-// //                 <div className="ml-auto w-2 h-2 bg-white rounded-full opacity-75"></div>
-// //               )}
-// //             </Link>
-// //           );
-// //         })}
-// //       </div>
-
-// //       {/* User Info (Mobile) */}
-// //       {mobile && (
-// //         <div className="p-4 border-t border-border">
-// //           <div className="flex items-center space-x-3">
-// //             <div className="w-10 h-10 bg-background-medium rounded-full flex items-center justify-center">
-// //               <span className="text-text-medium text-sm font-medium">
-// //                 {user?.user_metadata?.first_name?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
-// //               </span>
-// //             </div>
-// //             <div className="flex-1 min-w-0">
-// //               <p className="text-sm font-medium text-text-dark truncate">
-// //                 {user?.user_metadata?.first_name || 'User'}
-// //               </p>
-// //               <p className="text-xs text-text-muted truncate">
-// //                 {isCorporateUser ? 'Corporate Account' : 'Individual Account'}
-// //               </p>
-// //             </div>
-// //           </div>
-// //         </div>
-// //       )}
-// //     </nav>
-// //   );
-// // };
-
-// // export default Sidebar;
-
-// import { Link, useLocation } from 'react-router-dom';
-// import {
-//   Home,
-//   BookOpen,
-//   User,
-//   Building2,
-//   Users,
-//   BarChart,
-//   Settings,
-//   LogOut,
-//   GraduationCap,
-//   Award,
-//   Calendar,
-//   X
-// } from 'lucide-react';
-// import { useAuthStore } from '@/store/authStore';
-// import { useOrganization } from '@/hooks/corporate/useOrganization';
-// import kyzerLogo from "../../assets/images/Kyzerlogo.png";
-
-// // Navigation configurations
-// const individualNavigation = [
-//   { name: 'Dashboard', href: '/app/dashboard', icon: Home },
-//   { name: 'Browse Courses', href: '/app/courses', icon: BookOpen },
-//   { name: 'My Learning', href: '/app/my-courses', icon: GraduationCap },
-//   { name: 'Certificates', href: '/app/certificates', icon: Award },
-//   { name: 'Calendar', href: '/app/calendar', icon: Calendar },
-//   { name: 'Profile', href: '/app/profile', icon: User }
-// ];
-
-// const corporateNavigation = [
-//   { name: 'Dashboard', href: '/app/dashboard', icon: Home },
-//   { name: 'Browse Courses', href: '/app/courses', icon: BookOpen },
-//   { name: 'My Learning', href: '/app/my-courses', icon: GraduationCap },
-//   { name: 'Profile', href: '/app/profile', icon: User }
-// ];
-
-// export const Sidebar = ({ mobile = false, onClose }) => {
-//   const location = useLocation();
-//   const { user, logout } = useAuthStore();
-//   const { company } = useOrganization();
-
-//   // Determine user type from metadata
-//   const isCorporateUser = user?.user_metadata?.account_type === 'corporate';
-//   const isIndividualUser = user?.user_metadata?.account_type === 'individual';
-
-//   // Get navigation based on user type
-//   const navigation = isCorporateUser ? corporateNavigation : individualNavigation;
-//   const homeRoute = isCorporateUser ? '/corporate/dashboard' : '/app/dashboard';
-
-//   const isActive = (path) => {
-//     if (path === '/app' || path === '/corporate') {
-//       return location.pathname === path + '/dashboard';
-//     }
-//     return location.pathname === path || location.pathname.startsWith(path + '/');
-//   };
-
-//   const sidebarClasses = mobile
-//     ? "w-64 bg-white h-full flex flex-col shadow-xl"
-//     : "hidden lg:block w-64 bg-white border-r border-background-medium min-h-screen fixed left-0 top-16 z-20";
-
-//   const NavItem = ({ to, icon: Icon, label, badge = null, onClick }) => (
-//     <Link
-//       to={to}
-//       onClick={onClick}
-//       className={`flex items-center px-4 py-3 rounded-lg transition-all duration-200 group ${
-//         isActive(to)
-//           ? 'bg-primary text-white shadow-sm'
-//           : 'text-text-medium hover:bg-background-light hover:text-text-dark'
-//       }`}
-//     >
-//       <Icon
-//         className={`h-5 w-5 mr-3 transition-transform group-hover:scale-110 ${
-//           isActive(to) ? 'text-white' : ''
-//         }`}
-//       />
-//       <span>{label}</span>
-//       {badge && (
-//         <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-//           {badge}
-//         </span>
-//       )}
-//       {isActive(to) && (
-//         <div className="ml-auto w-2 h-2 bg-white rounded-full opacity-75"></div>
-//       )}
-//     </Link>
-//   );
-
-//   return (
-//     <nav className={sidebarClasses}>
-//       {/* Mobile Header */}
-//       {mobile && (
-//         <div className="flex items-center justify-between p-4 border-b border-background-medium">
-//           <Link to={homeRoute} className="flex items-center space-x-2" onClick={onClose}>
-//             <img src={kyzerLogo} alt="Kyzer Logo" className="h-6" />
-//           </Link>
-//           <button
-//             onClick={onClose}
-//             className="p-2 rounded-lg text-text-medium hover:text-text-dark hover:bg-background-light transition-colors"
-//           >
-//             <X size={20} />
-//           </button>
-//         </div>
-//       )}
-
-//       {/* Logo (Desktop) */}
-//       {!mobile && (
-//         <div className="p-6 border-b border-background-medium">
-//           <Link to={homeRoute} className="flex items-center space-x-2">
-//             <img src={kyzerLogo} alt="Kyzer Logo" className="h-8" />
-//             <h1 className="text-xl font-bold text-text-dark">Kyzer LMS</h1>
-//           </Link>
-//           {company && isCorporateUser && (
-//             <p className="text-sm text-text-light mt-1">{company.name}</p>
-//           )}
-//         </div>
-//       )}
-
-//       {/* Navigation Links */}
-//       <div className="flex-1 p-4 space-y-2 overflow-y-auto">
-//         {/* Personal/Individual Navigation */}
-//         <div className="mb-6">
-//           <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
-//             {isCorporateUser ? 'Personal' : 'Learning'}
-//           </h3>
-//           {navigation.map((item) => (
-//             <NavItem
-//               key={item.name}
-//               to={item.href}
-//               icon={item.icon}
-//               label={item.name}
-//               onClick={mobile ? onClose : undefined}
-//             />
-//           ))}
-//         </div>
-
-//         {/* Corporate Navigation (only for corporate users) */}
-//         {isCorporateUser && (
-//           <>
-//             {company ? (
-//               <div className="mb-6">
-//                 <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
-//                   Company
-//                 </h3>
-//                 <NavItem
-//                   to="/corporate"
-//                   icon={Building2}
-//                   label="Overview"
-//                   onClick={mobile ? onClose : undefined}
-//                 />
-//                 <NavItem
-//                   to="/corporate/employees"
-//                   icon={Users}
-//                   label="Employees"
-//                   onClick={mobile ? onClose : undefined}
-//                 />
-//                 <NavItem
-//                   to="/corporate/reports"
-//                   icon={BarChart}
-//                   label="Reports"
-//                   onClick={mobile ? onClose : undefined}
-//                 />
-//                 <NavItem
-//                   to="/corporate/settings"
-//                   icon={Settings}
-//                   label="Settings"
-//                   onClick={mobile ? onClose : undefined}
-//                 />
-//               </div>
-//             ) : (
-//               <div className="mb-6">
-//                 <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
-//                   Company
-//                 </h3>
-//                 <Link
-//                   to="/corporate"
-//                   onClick={mobile ? onClose : undefined}
-//                   className="flex items-center px-4 py-3 rounded-lg border-2 border-dashed border-background-dark text-text-light hover:border-primary hover:text-primary transition-colors"
-//                 >
-//                   <Building2 className="h-5 w-5 mr-3" />
-//                   <span>Set up Company</span>
-//                 </Link>
-//               </div>
-//             )}
-//           </>
-//         )}
-//       </div>
-
-//       {/* User Section */}
-//       <div className="p-4 border-t border-background-medium">
-//         <div className="flex items-center mb-3">
-//           <div className="h-8 w-8 bg-primary rounded-full flex items-center justify-center text-white text-sm font-medium">
-//             {user?.user_metadata?.first_name?.[0] ||
-//              user?.user_metadata?.full_name?.[0] ||
-//              user?.email?.[0]?.toUpperCase() || 'U'}
-//           </div>
-//           <div className="ml-3 flex-1 min-w-0">
-//             <p className="text-sm font-medium text-text-dark truncate">
-//               {user?.user_metadata?.first_name ||
-//                user?.user_metadata?.full_name ||
-//                'User'}
-//             </p>
-//             <p className="text-xs text-text-light truncate">
-//               {isCorporateUser
-//                 ? (company ? `${company.name}` : 'Corporate Account')
-//                 : 'Individual Account'
-//               }
-//             </p>
-//           </div>
-//         </div>
-//         <button
-//           onClick={() => {
-//             logout();
-//             if (mobile && onClose) onClose();
-//           }}
-//           className="flex items-center w-full px-4 py-2 text-sm text-text-light hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-//         >
-//           <LogOut className="h-4 w-4 mr-3" />
-//           Sign out
-//         </button>
-//       </div>
-//     </nav>
-//   );
-// };
-// export default Sidebar;
-// export { individualNavigation, corporateNavigation };
-
-// src/components/layout/Sidebar.jsx (Updated)
+// src/components/layout/Sidebar.jsx - Fixed version with working corporate routes
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -492,76 +13,155 @@ import {
   ChevronDown,
   ChevronRight,
   X,
+  Award,
+  TrendingUp
 } from "lucide-react";
-import { navigationRoutes, getAvailableRoutes } from "@/router";
-import { useCorporatePermissions } from "@/hooks/corporate/useCorporatePermissions";
-import { useAuthStore } from "@/store/authStore";
-import {
-  individualNavigation,
-  corporateNavigation,
-  // getAvailableRoutes
-} from "@/config/navigation";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useCorporate } from "@/hooks/corporate/useCorporate";
 import kyzerLogo from "../../assets/images/Kyzerlogo.png";
 
-export default function Sidebar({
-  isCorporateRoute,
-  company,
-  mobile = false,
-  onClose,
-}) {
-  const { permissions } = useCorporatePermissions();
+export default function Sidebar({ mobile = false, onClose }) {
+  const { user } = useAuth();
+  const { 
+    organization, 
+    isCorporateUser, 
+    hasPermission, 
+    role,
+    loading: corporateLoading 
+  } = useCorporate();
+  
   const location = useLocation();
-  const [corporateExpanded, setCorporateExpanded] = useState(isCorporateRoute);
+  const [corporateExpanded, setCorporateExpanded] = useState(
+    location.pathname.startsWith('/company')
+  );
 
-  const iconMap = {
-    LayoutDashboard,
-    BookOpen,
-    User,
-    Settings,
-    Building2,
-    Users,
-    BarChart3,
-  };
-  const NavItem = ({ route, isNested = false }) => {
-    const Icon = iconMap[route.icon] || LayoutDashboard;
+  // Define navigation items
+  const personalNavigation = [
+    { 
+      path: "/app/dashboard", 
+      label: "Dashboard", 
+      icon: LayoutDashboard 
+    },
+    { 
+      path: "/app/courses", 
+      label: "My Courses", 
+      icon: BookOpen 
+    },
+    { 
+      path: "/app/courses/catalog", 
+      label: "Browse Courses", 
+      icon: BookOpen 
+    },
+    { 
+      path: "/app/progress", 
+      label: "Progress", 
+      icon: TrendingUp 
+    },
+    { 
+      path: "/app/certificates", 
+      label: "Certificates", 
+      icon: Award 
+    },
+    { 
+      path: "/app/profile", 
+      label: "Profile", 
+      icon: User 
+    },
+    { 
+      path: "/app/settings", 
+      label: "Settings", 
+      icon: Settings 
+    }
+  ];
+
+  // Corporate navigation - only show if user has permissions
+  const corporateNavigation = [
+    { 
+      path: "/company/dashboard", 
+      label: "Company Dashboard", 
+      icon: Building2,
+      permission: null // Always visible to corporate users
+    },
+    { 
+      path: "/company/employees", 
+      label: "Employees", 
+      icon: Users,
+      permission: "invite_employees"
+    },
+    { 
+      path: "/company/reports", 
+      label: "Reports", 
+      icon: BarChart3,
+      permission: "view_reports"
+    },
+    { 
+      path: "/company/settings", 
+      label: "Settings", 
+      icon: Settings,
+      permission: "manage_settings"
+    }
+  ];
+
+  // Filter corporate navigation based on permissions
+  const availableCorporateNavigation = corporateNavigation.filter(item => {
+    if (!item.permission) return true; // Always show items without permission requirements
+    return hasPermission(item.permission);
+  });
+
+  const NavItem = ({ route, onClick }) => {
+    const Icon = route.icon;
+    const isActive = location.pathname === route.path || 
+                    location.pathname.startsWith(route.path + '/');
+    
     return (
       <NavLink
         to={route.path}
-        className={({ isActive }) =>
-          `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-            isNested ? "ml-4 pl-7" : ""
-          } ${
-            isActive
-              ? "bg-primary-light text-primary-default border-r-3 border-primary-default"
-              : "text-text-medium hover:bg-background-light hover:text-text-dark"
-          }`
-        }
+        onClick={onClick}
+        className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+          isActive
+            ? "bg-primary text-white"
+            : "text-text-medium hover:bg-background-light hover:text-text-dark"
+        }`}
       >
         <Icon className="w-5 h-5" />
         <span className="font-medium">{route.label}</span>
+        {isActive && (
+          <div className="ml-auto w-2 h-2 bg-white rounded-full opacity-75"></div>
+        )}
       </NavLink>
     );
   };
 
-  const personalRoutes = getAvailableRoutes("individual", permissions);
-  const corporateRoutes = getAvailableRoutes("corporate", permissions);
-  const userRoutes = getAvailableRoutes("user", permissions);
-  console.log(personalRoutes, userRoutes, "User Routes in Sidebar");
-  console.log(isCorporateRoute, corporateExpanded,"isCorporateRoute in Sidebar");
   const sidebarClasses = mobile
     ? "w-64 bg-white h-full flex flex-col shadow-xl"
     : "hidden lg:block w-64 bg-white border-r border-border min-h-screen fixed left-0 top-16 z-20";
+
+  if (corporateLoading) {
+    return (
+      <nav className={sidebarClasses}>
+        <div className="p-4">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-gray-200 rounded"></div>
+            <div className="h-4 bg-gray-200 rounded"></div>
+            <div className="h-4 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </nav>
+    );
+  }
+
   return (
     <nav className={sidebarClasses}>
       {/* Mobile Header */}
       {mobile && (
-        <div className="flex items-center justify-between p-4 border-b border-border p-4">
+        <div className="flex items-center justify-between p-4 border-b border-border">
           <NavLink
-            to={"/"}
+            to="/app/dashboard"
             className="flex items-center space-x-2"
             onClick={onClose}
           >
             <img src={kyzerLogo} alt="Kyzer Logo" className="h-6" />
+            <span className="font-semibold">Kyzer LMS</span>
           </NavLink>
           <button
             onClick={onClose}
@@ -572,92 +172,126 @@ export default function Sidebar({
         </div>
       )}
 
-      {company && (
-        <div className="mb-4 mt-4 p-4">
-          <button
-            onClick={() => setCorporateExpanded(!corporateExpanded)}
-            className="flex items-center justify-between w-full mb-3"
-          >
-            <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-              {company}
-            </h3>
-            {corporateExpanded ? (
-              <ChevronDown className="w-4 h-4 text-text-muted" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-text-muted" />
-            )}
-          </button>
+      {/* Desktop Logo */}
+    
 
-          {corporateExpanded && (
-            <nav className="space-y-1">
-              {corporateRoutes.map((route) => (
-                <NavItem key={route.path} route={route} />
-              ))}
-            </nav>
-          )}
-        </div>
-      )}
-      {company && (
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-background-dark bg-background-light">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary-light rounded-lg flex items-center justify-center">
-              {company.logo_url ? (
-                <img
-                  src={company.logo_url}
-                  alt="Company logo"
-                  className="w-full h-full object-cover rounded-lg"
-                />
+      <div className="flex-1 overflow-y-auto">
+        {/* Corporate Section */}
+        {isCorporateUser && organization && availableCorporateNavigation.length > 0 && (
+          <div className="p-8">
+            <button
+              onClick={() => setCorporateExpanded(!corporateExpanded)}
+              className="flex items-center justify-between w-full mb-3 text-left"
+            >
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold text-text-dark">
+                  {organization.name}
+                </h3>
+              </div>
+              {corporateExpanded ? (
+                <ChevronDown className="w-4 h-4 text-text-muted" />
               ) : (
-                <Building2 className="w-4 h-4 text-primary-default" />
+                <ChevronRight className="w-4 h-4 text-text-muted" />
               )}
-            </div>
-            <div>
-              <p className="text-sm font-medium text-text-dark truncate">
-                {company.name}
-              </p>
-              <p className="text-xs text-text-light">
-                {company.subscription_status === "trial"
-                  ? "Trial Account"
-                  : "Active"}
-              </p>
+            </button>
+
+            {corporateExpanded && (
+              <nav className="space-y-1 mb-6">
+                {availableCorporateNavigation.map((route) => (
+                  <NavItem 
+                    key={route.path} 
+                    route={route} 
+                    onClick={mobile ? onClose : undefined}
+                  />
+                ))}
+              </nav>
+            )}
+
+            {/* Organization info */}
+            <div className="mt-4 p-3 bg-background-light rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
+                  <Building2 className="w-3 h-3 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-text-dark truncate">
+                    {organization.name}
+                  </p>
+                  <p className="text-xs text-text-light">
+                    {role} • {organization.subscription_status}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
+        )}
+
+        {/* Show setup prompt if corporate user has no organization */}
+        {user && !organization && (
+          <div className="p-4">
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Building2 className="w-4 h-4 text-yellow-600" />
+                <h3 className="text-sm font-semibold text-yellow-800">
+                  Setup Required
+                </h3>
+              </div>
+              <p className="text-xs text-yellow-700 mb-3">
+                Join or create an organization to access corporate features.
+              </p>
+              <NavLink
+                to="/company/dashboard"
+                onClick={mobile ? onClose : undefined}
+                className="block w-full text-center bg-yellow-600 text-white text-xs py-2 px-3 rounded hover:bg-yellow-700 transition-colors"
+              >
+                Get Started
+              </NavLink>
+            </div>
+          </div>
+        )}
+
+        {/* Personal Navigation */}
+        <div className="p-4">
+          <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
+            Personal Learning
+          </h3>
+          <nav className="space-y-1">
+            {personalNavigation.map((route) => (
+              <NavItem 
+                key={route.path} 
+                route={route} 
+                onClick={mobile ? onClose : undefined}
+              />
+            ))}
+          </nav>
         </div>
-      )}
-      <div className="mb-8 mt-2 p-4">
-        <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
-          Personal
-        </h3>
-        <nav className="space-y-1">
-          {personalRoutes.map((route) => (
-            <NavItem key={route.path} route={route} />
-          ))}
-        </nav>
       </div>
-      {/* User Info (Mobile) */}
-      {mobile && (
-        <div className="p-4 border-t border-border">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-background-medium rounded-full flex items-center justify-center">
-              <span className="text-text-medium text-sm font-medium">
-                {isCorporateRoute?.first_name?.[0] ||
-                  isCorporateRoute?.email?.[0]?.toUpperCase() ||
-                  "U"}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-text-dark truncate">
-                {isCorporateRoute?.first_name || "User"}
-              </p>
-              <p className="text-xs text-text-muted truncate">
-                {/* {isCorporateUser ? 'Corporate Account' : 'Individual Account'} */}
-              </p>
-            </div>
+
+      {/* User Info */}
+      <div className="p-4 border-t border-border">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+            <span className="text-white text-sm font-medium">
+              {user?.user_metadata?.first_name?.[0] || 
+               user?.email?.[0]?.toUpperCase() || 
+               'U'}
+            </span>
           </div>
-         
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-text-dark truncate">
+              {user?.user_metadata?.first_name || 
+               user?.email?.split('@')[0] || 
+               'User'}
+            </p>
+            <p className="text-xs text-text-muted truncate">
+              {isCorporateUser && organization 
+                ? `${role} at ${organization.name}` 
+                : 'Individual Account'}
+            </p>
+          </div>
         </div>
-      )}
-      <div></div>
+      </div>
     </nav>
   );
 }
