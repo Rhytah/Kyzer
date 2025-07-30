@@ -655,6 +655,12 @@ export default function Home() {
                   <Play className="w-5 h-5 mr-2" />
                   Watch Demo
                 </Button>
+                 <Link to="/about">
+                  <Button size="lg" className="bg-white text-primary-default hover:bg-gray-100">
+                    Start Free Trial
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </Link>
               </div>
 
               <div className="flex items-center gap-6 text-sm text-gray-300">

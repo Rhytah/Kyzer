@@ -22,7 +22,7 @@ export default function ForgotPassword() {
   const onSubmit = async (data) => {
     try {
       const result = await resetPassword(data.email);
-
+console.log("forgot password result", result);
       if (result.error) {
         toast.error(result.error.message || "Failed to send reset email");
         return;

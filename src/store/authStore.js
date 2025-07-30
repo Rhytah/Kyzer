@@ -133,13 +133,16 @@ export const useAuthStore = create(
                 const { profile } = get();
                 return profile && profile.role === role;
             },
+            
         }), {
             name: "kyzer-auth-storage",
             partialize: (state) => ({
-                user: state.user,
+                user: state?.user,
                 profile: state.profile,
                 initialized: state.initialized, // Add this to persist
             }),
+            
         },
+        
     ),
 );

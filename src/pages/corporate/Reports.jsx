@@ -202,7 +202,7 @@ const Reports = () => {
     loadReportData();
   }, [selectedReport, dateRange, selectedDepartment]);
 
-  const exportReport = async (format) => {
+   const exportReport = async (format) => {
     try {
       // Simulate export
       await new Promise((resolve) => setTimeout(resolve, 1000));

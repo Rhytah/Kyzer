@@ -1,12 +1,34 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Breadcrumbs from './Breadcrumbs';
-
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import useCorporate from '@/hooks/corporate/useCorporate';
 const CorporateLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { isLoading, isCorporateUser } = useCorporate();
+  // In CorporateLayout
+const previousPath = useRef(location.pathname);
 
+useEffect(() => {
+  if (location.pathname === previousPath.current) {
+    console.error('Redirect loop detected at', location.pathname);
+    return <Navigate to="/error" state={{ error: 'Redirect loop' }} replace />;
+  }
+  previousPath.current = location.pathname;
+}, [location]);
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+    if (!isCorporateUser) {
+    return <Navigate to="/app/dashboard" replace />;
+  }
   return (
     <div className="min-h-screen bg-background-light">
       {/* Corporate indicator */}

@@ -171,7 +171,7 @@
 // //     return location.pathname === path || location.pathname.startsWith(path + '/');
 // //   };
 
-// //   const sidebarClasses = mobile 
+// //   const sidebarClasses = mobile
 // //     ? "w-64 bg-white h-full flex flex-col shadow-xl"
 // //     : "hidden lg:block w-64 bg-white border-r border-border min-h-screen fixed left-0 top-16 z-20";
 
@@ -197,7 +197,7 @@
 // //         {navigation.map((item) => {
 // //           const Icon = item.icon;
 // //           const active = isActive(item.href);
-          
+
 // //           return (
 // //             <Link
 // //               key={item.name}
@@ -206,16 +206,16 @@
 // //               className={`
 // //                 flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all duration-200 group
 // //                 ${active
-// //                   ? 'bg-primary text-white shadow-sm' 
+// //                   ? 'bg-primary text-white shadow-sm'
 // //                   : 'text-text-medium hover:text-text-dark hover:bg-background-light'
 // //                 }
 // //               `}
 // //             >
-// //               <Icon 
-// //                 size={20} 
+// //               <Icon
+// //                 size={20}
 // //                 className={`mr-3 transition-transform group-hover:scale-110 ${
 // //                   active ? 'text-white' : ''
-// //                 }`} 
+// //                 }`}
 // //               />
 // //               {item.name}
 // //               {active && (
@@ -253,13 +253,13 @@
 // // export default Sidebar;
 
 // import { Link, useLocation } from 'react-router-dom';
-// import { 
-//   Home, 
-//   BookOpen, 
-//   User, 
-//   Building2, 
-//   Users, 
-//   BarChart, 
+// import {
+//   Home,
+//   BookOpen,
+//   User,
+//   Building2,
+//   Users,
+//   BarChart,
 //   Settings,
 //   LogOut,
 //   GraduationCap,
@@ -296,7 +296,7 @@
 //   // Determine user type from metadata
 //   const isCorporateUser = user?.user_metadata?.account_type === 'corporate';
 //   const isIndividualUser = user?.user_metadata?.account_type === 'individual';
-  
+
 //   // Get navigation based on user type
 //   const navigation = isCorporateUser ? corporateNavigation : individualNavigation;
 //   const homeRoute = isCorporateUser ? '/corporate/dashboard' : '/app/dashboard';
@@ -308,7 +308,7 @@
 //     return location.pathname === path || location.pathname.startsWith(path + '/');
 //   };
 
-//   const sidebarClasses = mobile 
+//   const sidebarClasses = mobile
 //     ? "w-64 bg-white h-full flex flex-col shadow-xl"
 //     : "hidden lg:block w-64 bg-white border-r border-background-medium min-h-screen fixed left-0 top-16 z-20";
 
@@ -322,10 +322,10 @@
 //           : 'text-text-medium hover:bg-background-light hover:text-text-dark'
 //       }`}
 //     >
-//       <Icon 
+//       <Icon
 //         className={`h-5 w-5 mr-3 transition-transform group-hover:scale-110 ${
 //           isActive(to) ? 'text-white' : ''
-//         }`} 
+//         }`}
 //       />
 //       <span>{label}</span>
 //       {badge && (
@@ -395,28 +395,28 @@
 //                 <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
 //                   Company
 //                 </h3>
-//                 <NavItem 
-//                   to="/corporate" 
-//                   icon={Building2} 
-//                   label="Overview" 
+//                 <NavItem
+//                   to="/corporate"
+//                   icon={Building2}
+//                   label="Overview"
 //                   onClick={mobile ? onClose : undefined}
 //                 />
-//                 <NavItem 
-//                   to="/corporate/employees" 
-//                   icon={Users} 
-//                   label="Employees" 
+//                 <NavItem
+//                   to="/corporate/employees"
+//                   icon={Users}
+//                   label="Employees"
 //                   onClick={mobile ? onClose : undefined}
 //                 />
-//                 <NavItem 
-//                   to="/corporate/reports" 
-//                   icon={BarChart} 
-//                   label="Reports" 
+//                 <NavItem
+//                   to="/corporate/reports"
+//                   icon={BarChart}
+//                   label="Reports"
 //                   onClick={mobile ? onClose : undefined}
 //                 />
-//                 <NavItem 
-//                   to="/corporate/settings" 
-//                   icon={Settings} 
-//                   label="Settings" 
+//                 <NavItem
+//                   to="/corporate/settings"
+//                   icon={Settings}
+//                   label="Settings"
 //                   onClick={mobile ? onClose : undefined}
 //                 />
 //               </div>
@@ -443,18 +443,18 @@
 //       <div className="p-4 border-t border-background-medium">
 //         <div className="flex items-center mb-3">
 //           <div className="h-8 w-8 bg-primary rounded-full flex items-center justify-center text-white text-sm font-medium">
-//             {user?.user_metadata?.first_name?.[0] || 
-//              user?.user_metadata?.full_name?.[0] || 
+//             {user?.user_metadata?.first_name?.[0] ||
+//              user?.user_metadata?.full_name?.[0] ||
 //              user?.email?.[0]?.toUpperCase() || 'U'}
 //           </div>
 //           <div className="ml-3 flex-1 min-w-0">
 //             <p className="text-sm font-medium text-text-dark truncate">
-//               {user?.user_metadata?.first_name || 
-//                user?.user_metadata?.full_name || 
+//               {user?.user_metadata?.first_name ||
+//                user?.user_metadata?.full_name ||
 //                'User'}
 //             </p>
 //             <p className="text-xs text-text-light truncate">
-//               {isCorporateUser 
+//               {isCorporateUser
 //                 ? (company ? `${company.name}` : 'Corporate Account')
 //                 : 'Individual Account'
 //               }
@@ -479,28 +479,39 @@
 // export { individualNavigation, corporateNavigation };
 
 // src/components/layout/Sidebar.jsx (Updated)
-import { useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
-import { 
-  LayoutDashboard, 
-  BookOpen, 
-  User, 
+import { useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
+import {
+  LayoutDashboard,
+  BookOpen,
+  User,
   Settings,
   Building2,
   Users,
   BarChart3,
   ChevronDown,
-  ChevronRight
-} from 'lucide-react'
-import { navigationRoutes, getAvailableRoutes } from '@/router'
-import { useCorporatePermissions } from '@/hooks/corporate/useCorporatePermissions'
-import { useAuthStore } from '@/store/authStore'
+  ChevronRight,
+  X,
+} from "lucide-react";
+import { navigationRoutes, getAvailableRoutes } from "@/router";
+import { useCorporatePermissions } from "@/hooks/corporate/useCorporatePermissions";
+import { useAuthStore } from "@/store/authStore";
+import {
+  individualNavigation,
+  corporateNavigation,
+  // getAvailableRoutes
+} from "@/config/navigation";
+import kyzerLogo from "../../assets/images/Kyzerlogo.png";
 
-export default function Sidebar({ isCorporateRoute, company }) {
-  const { user } = useAuthStore()
-  const { permissions } = useCorporatePermissions()
-  const location = useLocation()
-  const [corporateExpanded, setCorporateExpanded] = useState(isCorporateRoute)
+export default function Sidebar({
+  isCorporateRoute,
+  company,
+  mobile = false,
+  onClose,
+}) {
+  const { permissions } = useCorporatePermissions();
+  const location = useLocation();
+  const [corporateExpanded, setCorporateExpanded] = useState(isCorporateRoute);
 
   const iconMap = {
     LayoutDashboard,
@@ -509,100 +520,91 @@ export default function Sidebar({ isCorporateRoute, company }) {
     Settings,
     Building2,
     Users,
-    BarChart3
-  }
-console.log(corporateExpanded, 'Current User in Sidebar');
-console.log(user, 'Current User logged in Sidebar');
+    BarChart3,
+  };
   const NavItem = ({ route, isNested = false }) => {
-    const Icon = iconMap[route.icon] || LayoutDashboard
-    
+    const Icon = iconMap[route.icon] || LayoutDashboard;
     return (
       <NavLink
         to={route.path}
         className={({ isActive }) =>
           `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-            isNested ? 'ml-4 pl-7' : ''
+            isNested ? "ml-4 pl-7" : ""
           } ${
             isActive
-              ? 'bg-primary-light text-primary-default border-r-3 border-primary-default'
-              : 'text-text-medium hover:bg-background-light hover:text-text-dark'
+              ? "bg-primary-light text-primary-default border-r-3 border-primary-default"
+              : "text-text-medium hover:bg-background-light hover:text-text-dark"
           }`
         }
       >
         <Icon className="w-5 h-5" />
         <span className="font-medium">{route.label}</span>
       </NavLink>
-    )
-  }
+    );
+  };
 
-  const personalRoutes = getAvailableRoutes('authenticated', permissions)
-  const corporateRoutes = getAvailableRoutes('corporate', permissions)
-  const userRoutes = getAvailableRoutes('user', permissions)
-
+  const personalRoutes = getAvailableRoutes("individual", permissions);
+  const corporateRoutes = getAvailableRoutes("corporate", permissions);
+  const userRoutes = getAvailableRoutes("user", permissions);
+  console.log(personalRoutes, userRoutes, "User Routes in Sidebar");
+  console.log(isCorporateRoute, corporateExpanded,"isCorporateRoute in Sidebar");
+  const sidebarClasses = mobile
+    ? "w-64 bg-white h-full flex flex-col shadow-xl"
+    : "hidden lg:block w-64 bg-white border-r border-border min-h-screen fixed left-0 top-16 z-20";
   return (
-    <div className="w-64 h-screen bg-white border-r border-background-dark fixed left-0 top-16 overflow-y-auto">
-      <div className="p-4">
-        {/* Personal Dashboard */}
-        <div className="mb-6">
-          <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
-            Personal
-          </h3>
-          <nav className="space-y-1">
-            {personalRoutes.map((route) => (
-              <NavItem key={route.path} route={route} />
-            ))}
-          </nav>
+    <nav className={sidebarClasses}>
+      {/* Mobile Header */}
+      {mobile && (
+        <div className="flex items-center justify-between p-4 border-b border-border p-4">
+          <NavLink
+            to={"/"}
+            className="flex items-center space-x-2"
+            onClick={onClose}
+          >
+            <img src={kyzerLogo} alt="Kyzer Logo" className="h-6" />
+          </NavLink>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg text-text-medium hover:text-text-dark hover:bg-background-light transition-colors"
+          >
+            <X size={20} />
+          </button>
         </div>
+      )}
 
-        {/* Corporate Section - only show if user has company */}
-        {!!company && (
-          <div className="mb-6">
-            <button
-              onClick={() => setCorporateExpanded(!corporateExpanded)}
-              className="flex items-center justify-between w-full mb-3"
-            >
-              <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-                {company}
-              </h3>
-              {corporateExpanded ? (
-                <ChevronDown className="w-4 h-4 text-text-muted" />
-              ) : (
-                <ChevronRight className="w-4 h-4 text-text-muted" />
-              )}
-            </button>
-            
-            {corporateExpanded && (
-              <nav className="space-y-1">
-                {corporateRoutes.map((route) => (
-                  <NavItem key={route.path} route={route} />
-                ))}
-              </nav>
+      {company && (
+        <div className="mb-4 mt-4 p-4">
+          <button
+            onClick={() => setCorporateExpanded(!corporateExpanded)}
+            className="flex items-center justify-between w-full mb-3"
+          >
+            <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+              {company}
+            </h3>
+            {corporateExpanded ? (
+              <ChevronDown className="w-4 h-4 text-text-muted" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-text-muted" />
             )}
-          </div>
-        )}
+          </button>
 
-        {/* User Settings */}
-        <div>
-          <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
-            Account
-          </h3>
-          <nav className="space-y-1">
-            {userRoutes.map((route) => (
-              <NavItem key={route.path} route={route} />
-            ))}
-          </nav>
+          {corporateExpanded && (
+            <nav className="space-y-1">
+              {corporateRoutes.map((route) => (
+                <NavItem key={route.path} route={route} />
+              ))}
+            </nav>
+          )}
         </div>
-      </div>
-
-      {/* Company Status Footer */}
+      )}
       {company && (
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-background-dark bg-background-light">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-primary-light rounded-lg flex items-center justify-center">
               {company.logo_url ? (
-                <img 
-                  src={company.logo_url} 
-                  alt="Company logo" 
+                <img
+                  src={company.logo_url}
+                  alt="Company logo"
                   className="w-full h-full object-cover rounded-lg"
                 />
               ) : (
@@ -614,12 +616,48 @@ console.log(user, 'Current User logged in Sidebar');
                 {company.name}
               </p>
               <p className="text-xs text-text-light">
-                {company.subscription_status === 'trial' ? 'Trial Account' : 'Active'}
+                {company.subscription_status === "trial"
+                  ? "Trial Account"
+                  : "Active"}
               </p>
             </div>
           </div>
         </div>
       )}
-    </div>
-  )
+      <div className="mb-8 mt-2 p-4">
+        <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
+          Personal
+        </h3>
+        <nav className="space-y-1">
+          {personalRoutes.map((route) => (
+            <NavItem key={route.path} route={route} />
+          ))}
+        </nav>
+      </div>
+      {/* User Info (Mobile) */}
+      {mobile && (
+        <div className="p-4 border-t border-border">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-background-medium rounded-full flex items-center justify-center">
+              <span className="text-text-medium text-sm font-medium">
+                {isCorporateRoute?.first_name?.[0] ||
+                  isCorporateRoute?.email?.[0]?.toUpperCase() ||
+                  "U"}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-text-dark truncate">
+                {isCorporateRoute?.first_name || "User"}
+              </p>
+              <p className="text-xs text-text-muted truncate">
+                {/* {isCorporateUser ? 'Corporate Account' : 'Individual Account'} */}
+              </p>
+            </div>
+          </div>
+         
+        </div>
+      )}
+      <div></div>
+    </nav>
+  );
 }
