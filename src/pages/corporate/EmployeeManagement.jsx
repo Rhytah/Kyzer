@@ -19,6 +19,7 @@ import {
 import Button from "../../components/ui/Button";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import toast from "react-hot-toast";
+import useCorporateStore from "../../store/corporateStore";
 
 const EmployeeManagement = () => {
   // const [employees, setEmployees] = useState([]);

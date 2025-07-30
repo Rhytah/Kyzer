@@ -71,24 +71,41 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Signup function
-  const signup = async (email, password) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+  // // Signup function
+  // const signup = async (email, password) => {
+  //   try {
+  //     const { data, error } = await supabase.auth.signUp({
+  //       email,
+  //       password,
+  //     });
 
-      if (error) {
-        return { error };
-      }
+  //     if (error) {
+  //       return { error };
+  //     }
 
-      return { data };
-    } catch (error) {
+  //     return { data };
+  //   } catch (error) {
+  //     return { error };
+  //   }
+  // };
+// src/hooks/auth/useAuth.jsx - Update the signup function
+const signup = async (userData) => {
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email: userData.email,
+      password: userData.password,
+      options: userData.options // This includes the additional user metadata
+    });
+
+    if (error) {
       return { error };
     }
-  };
 
+    return { data };
+  } catch (error) {
+    return { error };
+  }
+};
   // Sign out function
   const signOut = async () => {
     try {

@@ -565,7 +565,7 @@ function App() {
           </Route>
 
           {/* Corporate Routes */}
-          <Route path="/corporate" element={
+          <Route path="/company" element={
             <ProtectedRoute>
               <CorporateGuard>
                 <Layout corporateLayout />

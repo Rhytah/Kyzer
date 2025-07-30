@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Mail, CheckCircle, RefreshCw, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import toast from "react-hot-toast";
+import { supabase } from "../../lib/supabase";
 
 export default function VerifyEmail() {
   const [isResending, setIsResending] = useState(false);

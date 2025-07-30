@@ -1,228 +1,120 @@
-import { useState, useEffect } from "react";
-import { Link, useSearchParams, useNavigate } from "react-router-dom";
-import { BookOpen, CheckCircle, XCircle, RefreshCw, Mail } from "lucide-react";
-import { supabase } from "../../lib/supabase";
-import Button from "../../components/ui/Button";
-import LoadingSpinner from "../../components/ui/LoadingSpinner";
+// src/pages/auth/VerifyEmail.jsx - Fixed email verification component
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/hooks/auth/useAuth";
+// import { supabase } from "@/lib/supabase";
+import { LoadingSpinner } from "@/components/ui";
 import toast from "react-hot-toast";
+import { supabase } from "../../lib/supabase";
 
-const VerifyEmail = () => {
+export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState("verifying"); // verifying, success, error, expired
-  const [loading, setLoading] = useState(true);
-  const [resendLoading, setResendLoading] = useState(false);
-
-  const token = searchParams.get("token");
-  const type = searchParams.get("type");
-  const email = searchParams.get("email");
+  const { refreshUser } = useAuth();
+  const [verifying, setVerifying] = useState(true);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const verifyEmail = async () => {
-      if (!token || !type) {
-        setStatus("error");
-        setLoading(false);
-        return;
-      }
-
+    const handleAuthCallback = async () => {
       try {
-        if (type === "signup") {
-          const { error } = await supabase.auth.verifyOtp({
-            token_hash: token,
-            type: "signup",
+        const accessToken = searchParams.get('access_token');
+        const refreshToken = searchParams.get('refresh_token');
+        const type = searchParams.get('type');
+
+        if (type === 'signup' && accessToken && refreshToken) {
+          // Set the session with the tokens from URL
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
           });
 
           if (error) {
-            if (error.message.includes("expired")) {
-              setStatus("expired");
-            } else {
-              setStatus("error");
-            }
-          } else {
-            setStatus("success");
-            toast.success("Email verified successfully!");
-            // Redirect to dashboard after success
+            console.error('Verification error:', error);
+            setMessage('Email verification failed. Please try again.');
+            toast.error('Email verification failed');
+            return;
+          }
+
+          if (data.user) {
+            // Refresh the user in our auth context
+            await refreshUser();
+            
+            setMessage('Email verified successfully! Redirecting...');
+            toast.success('Email verified successfully!');
+            
+            // Redirect to dashboard after a short delay
             setTimeout(() => {
-              navigate("/dashboard");
+              navigate('/dashboard', { replace: true });
             }, 2000);
           }
+        } else if (type === 'recovery') {
+          // Handle password recovery
+          setMessage('Please enter your new password.');
+          navigate('/reset-password', { replace: true });
         } else {
-          setStatus("error");
+          // No valid tokens found
+          setMessage('Invalid verification link. Please check your email or request a new verification.');
+          toast.error('Invalid verification link');
         }
       } catch (error) {
-        console.error("Verification error:", error);
-        setStatus("error");
+        console.error('Auth callback error:', error);
+        setMessage('An error occurred during verification. Please try again.');
+        toast.error('Verification failed');
       } finally {
-        setLoading(false);
+        setVerifying(false);
       }
     };
 
-    verifyEmail();
-  }, [token, type, navigate]);
-
-  const handleResendVerification = async () => {
-    if (!email) {
-      toast.error("Email address not found. Please sign up again.");
-      return;
-    }
-
-    setResendLoading(true);
-    try {
-      const { error } = await supabase.auth.resend({
-        type: "signup",
-        email: email,
-      });
-
-      if (error) throw error;
-
-      toast.success("Verification email sent! Please check your inbox.");
-    } catch (error) {
-      toast.error("Failed to resend verification email");
-      console.error("Resend error:", error);
-    } finally {
-      setResendLoading(false);
-    }
-  };
-
-  const renderContent = () => {
-    switch (status) {
-      case "verifying":
-        return (
-          <div className="text-center">
-            <LoadingSpinner size="xl" className="mb-6" />
-            <h2 className="text-2xl font-bold text-text-dark mb-4">
-              Verifying your email...
-            </h2>
-            <p className="text-text-medium">
-              Please wait while we verify your email address.
-            </p>
-          </div>
-        );
-
-      case "success":
-        return (
-          <div className="text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="h-8 w-8 text-green-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-text-dark mb-4">
-              Email verified successfully!
-            </h2>
-            <p className="text-text-medium mb-6">
-              Your account has been activated. You'll be redirected to your
-              dashboard shortly.
-            </p>
-            <Link to="/dashboard">
-              <Button>Go to Dashboard</Button>
-            </Link>
-          </div>
-        );
-
-      case "expired":
-        return (
-          <div className="text-center">
-            <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <RefreshCw className="h-8 w-8 text-yellow-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-text-dark mb-4">
-              Verification link expired
-            </h2>
-            <p className="text-text-medium mb-6">
-              The verification link has expired. Please request a new one to
-              verify your email address.
-            </p>
-            <div className="space-y-4">
-              <Button
-                onClick={handleResendVerification}
-                loading={resendLoading}
-                className="w-full"
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                Send new verification email
-              </Button>
-              <Link to="/auth/login">
-                <Button variant="ghost" className="w-full">
-                  Back to sign in
-                </Button>
-              </Link>
-            </div>
-          </div>
-        );
-
-      case "error":
-      default:
-        return (
-          <div className="text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <XCircle className="h-8 w-8 text-red-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-text-dark mb-4">
-              Verification failed
-            </h2>
-            <p className="text-text-medium mb-6">
-              We couldn't verify your email address. The link may be invalid or
-              expired.
-            </p>
-            <div className="space-y-4">
-              {email && (
-                <Button
-                  onClick={handleResendVerification}
-                  loading={resendLoading}
-                  className="w-full"
-                >
-                  <Mail className="h-4 w-4 mr-2" />
-                  Send new verification email
-                </Button>
-              )}
-              <Link to="/auth/signup">
-                <Button variant="secondary" className="w-full">
-                  Sign up again
-                </Button>
-              </Link>
-              <Link to="/auth/login">
-                <Button variant="ghost" className="w-full">
-                  Already verified? Sign in
-                </Button>
-              </Link>
-            </div>
-          </div>
-        );
-    }
-  };
+    handleAuthCallback();
+  }, [searchParams, navigate, refreshUser]);
 
   return (
-    <div className="min-h-screen bg-background-light flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        {/* Header */}
-        <div className="text-center">
-          <div className="flex justify-center">
-            <div className="flex items-center space-x-2">
-              <BookOpen className="h-8 w-8 text-primary" />
-              <span className="text-2xl font-bold text-text-dark">
-                Kyzer LMS
-              </span>
+    <div className="min-h-screen flex items-center justify-center bg-background-light">
+      <div className="max-w-md w-full mx-4">
+        <div className="bg-white rounded-lg shadow-medium p-8 text-center">
+          <div className="mb-6">
+            <div className="mx-auto w-16 h-16 bg-primary-light rounded-full flex items-center justify-center mb-4">
+              {verifying ? (
+                <LoadingSpinner className="w-8 h-8 text-primary" />
+              ) : (
+                <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
             </div>
+            
+            <h1 className="text-2xl font-bold text-text-dark mb-2">
+              {verifying ? 'Verifying Email' : 'Email Verification'}
+            </h1>
+            
+            <p className="text-text-medium">
+              {verifying 
+                ? 'Please wait while we verify your email address...'
+                : message
+              }
+            </p>
           </div>
-        </div>
 
-        {/* Content */}
-        <div className="bg-white rounded-lg shadow p-8">{renderContent()}</div>
-
-        {/* Help text */}
-        <div className="text-center">
-          <p className="text-sm text-text-medium">
-            Need help?{" "}
-            <a
-              href="mailto:support@kyzer.com"
-              className="text-primary hover:text-primary-dark"
-            >
-              Contact support
-            </a>
-          </p>
+          {!verifying && (
+            <div className="space-y-4">
+              <button
+                onClick={() => navigate('/login')}
+                className="w-full bg-primary text-white py-2 px-4 rounded-lg hover:bg-primary-dark transition-colors"
+              >
+                Go to Login
+              </button>
+              
+              <button
+                onClick={() => navigate('/')}
+                className="w-full bg-transparent text-primary py-2 px-4 rounded-lg border border-primary hover:bg-primary-light transition-colors"
+              >
+                Back to Home
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
-};
-
-export default VerifyEmail;
+}
+export { VerifyEmail };

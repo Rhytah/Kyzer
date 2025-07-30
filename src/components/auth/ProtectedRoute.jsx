@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from "react-router-dom";
+// import { Navigate, useLocation } from "react-router-dom";
 // import { useAuth } from "../../hooks/auth/useAuth";
 // import LoadingSpinner from "../ui/LoadingSpinner";
 
@@ -28,26 +28,36 @@ import { Navigate, useLocation } from "react-router-dom";
 // };
 
 // export default ProtectedRoute;
+// src/components/auth/ProtectedRoute.jsx
+import { Navigate, useLocation, Outlet } from "react-router-dom";
+import { useAuth } from "@/hooks/auth/useAuth";
 
-function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth();
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
   const location = useLocation();
 
+  // Show loading spinner while checking authentication
   if (loading) {
-    return <FullPageLoader />;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
-  if (!isAuthenticated) {
+  // Not authenticated - redirect to login with return path
+  if (!user) {
     return (
       <Navigate 
-        to="/auth/login" 
+        to="/login" 
+        state={{ from: location.pathname }} 
         replace 
-        state={{ from: location.pathname }}
       />
     );
   }
 
-  return children;
-}
+  // User is authenticated - render children or outlet for nested routes
+  return children || <Outlet />;
+};
 
 export default ProtectedRoute;

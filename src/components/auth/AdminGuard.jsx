@@ -1,38 +1,45 @@
-import { Navigate, useLocation } from 'react-router-dom';
-import { useCorporatePermissions } from '@/store/corporateStore';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { toast } from 'react-hot-toast';
+// src/components/auth/AdminGuard.jsx
+import { Navigate } from "react-router-dom";
+import { useAuth } from "@/hooks/auth/useAuth";
+import { useCorporate } from "@/hooks/corporate/useCorporate";
 
-export default function AdminGuard({ 
-  children, 
-  requirePermission = null,
-  redirectTo = '/corporate/dashboard'
-}) {
-  const location = useLocation();
-  const { permissions, isLoading } = useCorporatePermissions();
+const AdminGuard = ({ children, requirePermission, fallbackComponent = null }) => {
+  const { user, loading } = useAuth();
+  const { permissions, loading: corpLoading } = useCorporate();
 
-  if (isLoading) {
+  // Show loading spinner while checking auth
+  if (loading || corpLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
-  // If no specific permission required, just check for admin access
-  if (!requirePermission) {
-    if (permissions?.isAdmin) {
-      return children;
+  // Not logged in - redirect to login
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Check if user has the required permission
+  if (requirePermission && !permissions?.[requirePermission]) {
+    // Show fallback component or access denied message
+    if (fallbackComponent) {
+      return fallbackComponent;
     }
-    toast.error('Admin access required');
-    return <Navigate to={redirectTo} state={{ from: location }} replace />;
+    
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600">You don't have permission to access this page.</p>
+        </div>
+      </div>
+    );
   }
 
-  // Check specific permission
-  if (permissions?.[requirePermission] !== true) {
-    toast.error(`You need "${requirePermission}" permission`);
-    return <Navigate to={redirectTo} state={{ from: location }} replace />;
-  }
-
+  // User has required permissions - render children
   return children;
-}
+};
+
+export default AdminGuard;

@@ -2,7 +2,7 @@
 import { Link } from "react-router-dom";
 import { Play, Clock, BookOpen, CheckCircle } from "lucide-react";
 
-export default function EnrolledCourses({
+export  function EnrolledCourses({
   enrollments = [],
   loading = false,
   showAll = false,
@@ -180,3 +180,5 @@ export default function EnrolledCourses({
     </div>
   );
 }
+
+export default EnrolledCourses;
