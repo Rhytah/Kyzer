@@ -30,35 +30,35 @@ export const corporateNavItems = [
     id: "dashboard",
     label: "Dashboard",
     icon: Building2,
-    path: "/corporate/dashboard",
+    path: "/company/dashboard",
     permission: null,
   },
   {
     id: "employees",
     label: "Employees",
     icon: Users,
-    path: "/corporate/employees",
+    path: "/company/employees",
     permission: "invite_employees",
   },
   {
     id: "courses",
     label: "Course Assignment",
     icon: BookOpen,
-    path: "/corporate/courses",
+    path: "/company/courses",
     permission: "assign_courses",
   },
   {
     id: "reports",
     label: "Reports",
     icon: BarChart3,
-    path: "/corporate/reports",
+    path: "/company/reports",
     permission: "view_reports",
   },
   {
     id: "settings",
     label: "Settings",
     icon: Settings,
-    path: "/corporate/settings",
+    path: "/company/settings",
     permission: "manage_settings",
   },
 ];
@@ -69,22 +69,22 @@ export const CorporateRoutes = () => {
     <Routes>
       {/* Public corporate routes */}
       {/* <Route path="/corporate/create" element={<CreateOrganization />} /> */}
-      <Route path="/corporate/invite/:token" element={<AcceptInvitation />} />
+      <Route path="/company/invite/:token" element={<AcceptInvitation />} />
 
-      {/* Protected corporate routes */}
+      {/* Protected company routes */}
       <Route element={<CorporateGuard />}>
         <Route element={<CorporateLayout />}>
-          <Route path="/corporate/dashboard" element={<CompanyDashboard />} />
+          <Route path="/company/dashboard" element={<CompanyDashboard />} />
 
           {/* Employee Management */}
-          {/* <Route
-            path="/corporate/employees"
+          <Route
+            path="/company/employees"
             element={
               <AdminGuard requiredPermission="invite_employees">
                 <EmployeeManagement />
               </AdminGuard>
             }
-          /> */}
+          />
 
           {/* Course Assignment */}
           {/* <Route
@@ -98,7 +98,7 @@ export const CorporateRoutes = () => {
 
           {/* Reports */}
           <Route
-            path="/corporate/reports"
+            path="/company/reports"
             element={
               <AdminGuard requiredPermission="view_reports">
                 <Reports />
@@ -108,7 +108,7 @@ export const CorporateRoutes = () => {
 
           {/* Settings */}
           <Route
-            path="/corporate/settings"
+            path="/company/settings"
             element={
               <AdminGuard requiredPermission="manage_settings">
                 <CompanySettings />
@@ -118,12 +118,12 @@ export const CorporateRoutes = () => {
 
           {/* Default redirects */}
           <Route
-            path="/corporate"
-            element={<Navigate to="/corporate/dashboard" replace />}
+            path="/company"
+            element={<Navigate to="/company/dashboard" replace />}
           />
           <Route
-            path="/corporate/*"
-            element={<Navigate to="/corporate/dashboard" replace />}
+            path="/company/*"
+            element={<Navigate to="/company/dashboard" replace />}
           />
         </Route>
       </Route>
