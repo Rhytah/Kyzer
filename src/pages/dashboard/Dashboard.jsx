@@ -8,6 +8,7 @@ import  RecentActivity  from '@/components/dashboard/RecentActivity';
 import EnrolledCourses from '@/components/dashboard/EnrolledCourses';
 import  Recommendations  from '@/components/dashboard/Recommendations';
 import  LoadingSpinner  from '@/components/ui/LoadingSpinner';
+
 import { 
   BookOpen, 
   Trophy, 
@@ -16,6 +17,7 @@ import {
   User,
   Building
 } from 'lucide-react';
+
 
 export const Dashboard = () => {
   const { user, profile } = useAuth();

@@ -4,6 +4,7 @@ import Layout from "@/components/layout/Layout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import CorporateGuard from "@/components/auth/CorporateGuard";
 import AdminGuard from "@/components/auth/AdminGuard";
+import AuthCallback from "@/pages/auth/AuthCallback";
 
 // Public Pages
 import Home from "@/pages/public/Home";
@@ -65,9 +66,12 @@ export const router = createBrowserRouter([
           <ProtectedRoute>
             <AcceptInvitation />
           </ProtectedRoute>
-        )
+        ),
       },
-
+      {
+        path: "/auth/callback",
+        element: <AuthCallback />,
+      },
       // Individual User Routes
       {
         path: "app",
@@ -84,12 +88,12 @@ export const router = createBrowserRouter([
               { path: "catalog", element: <CourseCatalog /> },
               { path: ":courseId", element: <CourseDetail /> },
               { path: ":courseId/lesson/:lessonId", element: <LessonView /> },
-              { path: ":courseId/completion", element: <CourseCompletion /> }
-            ]
+              { path: ":courseId/completion", element: <CourseCompletion /> },
+            ],
           },
           { path: "progress", element: <div>Progress Page</div> },
-          { path: "certificates", element: <div>Certificates</div> }
-        ]
+          { path: "certificates", element: <div>Certificates</div> },
+        ],
       },
 
       // Corporate Routes
@@ -104,53 +108,57 @@ export const router = createBrowserRouter([
         ),
         children: [
           { index: true, element: <Navigate to="dashboard" replace /> },
-          { path: "dashboard", element: <CompanyDashboard />, description: "Company Dashboard" },
+          {
+            path: "dashboard",
+            element: <CompanyDashboard />,
+            description: "Company Dashboard",
+          },
           {
             path: "employees",
             children: [
-              { 
-                index: true, 
+              {
+                index: true,
                 element: (
                   <AdminGuard requirePermission="invite_employees">
                     <EmployeeManagement />
                   </AdminGuard>
-                ) 
-              }
-            ]
+                ),
+              },
+            ],
           },
           {
             path: "reports",
             children: [
-              { 
-                index: true, 
+              {
+                index: true,
                 element: (
                   <AdminGuard requirePermission="view_reports">
                     <Reports />
                   </AdminGuard>
-                ) 
-              }
-            ]
+                ),
+              },
+            ],
           },
           {
             path: "settings",
             children: [
-              { 
-                index: true, 
+              {
+                index: true,
                 element: (
                   <AdminGuard requirePermission="manage_settings">
                     <CompanySettings />
                   </AdminGuard>
-                ) 
-              }
-            ]
-          }
-        ]
+                ),
+              },
+            ],
+          },
+        ],
       },
 
       // Catch-all route
-      { path: "*", element: <NotFound /> }
-    ]
-  }
+      { path: "*", element: <NotFound /> },
+    ],
+  },
 ]);
 
 // Basic navigation configuration
@@ -160,26 +168,43 @@ export const navigationRoutes = {
     { path: "/app/courses", label: "My Courses", icon: "BookOpen" },
     { path: "/app/courses/catalog", label: "Course Catalog", icon: "Search" },
     { path: "/app/progress", label: "Progress", icon: "TrendingUp" },
-    { path: "/app/certificates", label: "Certificates", icon: "Award" }
+    { path: "/app/certificates", label: "Certificates", icon: "Award" },
   ],
   corporate: [
     { path: "/company/dashboard", label: "Dashboard", icon: "Building2" },
-    { path: "/company/employees", label: "Employees", icon: "Users", permission: "invite_employees" },
-    { path: "/company/reports", label: "Reports", icon: "BarChart3", permission: "view_reports" },
-    { path: "/company/settings", label: "Settings", icon: "Settings", permission: "manage_settings" }
+    {
+      path: "/company/employees",
+      label: "Employees",
+      icon: "Users",
+      permission: "invite_employees",
+    },
+    {
+      path: "/company/reports",
+      label: "Reports",
+      icon: "BarChart3",
+      permission: "view_reports",
+    },
+    {
+      path: "/company/settings",
+      label: "Settings",
+      icon: "Settings",
+      permission: "manage_settings",
+    },
   ],
   user: [
     { path: "/app/profile", label: "Profile", icon: "User" },
-    { path: "/app/settings", label: "Settings", icon: "Settings" }
-  ]
+    { path: "/app/settings", label: "Settings", icon: "Settings" },
+  ],
 };
 
 // Helper functions
 export const getAvailableRoutes = (routeGroup, permissions = {}) => {
-  return navigationRoutes[routeGroup]?.filter(route => {
-    if (!route.permission) return true;
-    return permissions[route.permission] || false;
-  }) || [];
+  return (
+    navigationRoutes[routeGroup]?.filter((route) => {
+      if (!route.permission) return true;
+      return permissions[route.permission] || false;
+    }) || []
+  );
 };
 
 export const getBreadcrumbs = (pathname) => {
@@ -188,22 +213,22 @@ export const getBreadcrumbs = (pathname) => {
     "/app/courses": [{ label: "My Courses" }],
     "/app/courses/catalog": [
       { label: "Courses", path: "/app/courses" },
-      { label: "Catalog" }
+      { label: "Catalog" },
     ],
     "/company/dashboard": [{ label: "Company Dashboard" }],
     "/company/employees": [
       { label: "Company", path: "/company/dashboard" },
-      { label: "Employees" }
+      { label: "Employees" },
     ],
     "/company/reports": [
       { label: "Company", path: "/company/dashboard" },
-      { label: "Reports" }
+      { label: "Reports" },
     ],
     "/company/settings": [
       { label: "Company", path: "/company/dashboard" },
-      { label: "Settings" }
-    ]
+      { label: "Settings" },
+    ],
   };
-  
+
   return breadcrumbConfig[pathname] || [];
 };

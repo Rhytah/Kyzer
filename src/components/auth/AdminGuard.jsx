@@ -23,7 +23,6 @@ const AdminGuard = ({ children, requirePermission, fallbackComponent = null }) =
 
   // Check if user has the required permission
   if (requirePermission && !permissions?.[requirePermission]) {
-    // Show fallback component or access denied message
     if (fallbackComponent) {
       return fallbackComponent;
     }

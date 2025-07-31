@@ -1,4 +1,4 @@
-// src/hooks/auth/useAuth.jsx - FIXED VERSION (No premature profile creation)
+// src/hooks/auth/useAuth.jsx - UPDATED with Email Validation & Enhanced Error Handling
 import { useState, useEffect, createContext, useContext, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
@@ -141,13 +141,13 @@ export function AuthProvider({ children }) {
 
   // Login function
   const login = useCallback(async (email, password) => {
-    console.log('🔵 Login started for:', email);
     
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+
 
       if (error) {
         console.error('🔴 Login error:', error);
@@ -156,6 +156,8 @@ export function AuthProvider({ children }) {
       }
 
       console.log('🟢 Login successful:', data.user?.email);
+                console.log('🔵 Login started for:', data);
+
       return { data };
       
     } catch (error) {
@@ -164,87 +166,33 @@ export function AuthProvider({ children }) {
       return { error: handledError };
     }
   }, [handleError]);
-
-  // ✅ FIXED SIGNUP - No immediate profile creation
-  const signup = useCallback(async (userData) => {
-    try {
-      console.log('🔵 Starting signup process...', {
-        email: userData.email,
-        account_type: userData.options?.data?.account_type
-      });
-
-      const redirectURL = getAuthRedirectURL('/auth/callback');
-      console.log('📧 Email verification will redirect to:', redirectURL);
-
-      // ✅ ONLY create auth user, let database trigger handle profile
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: userData.email,
-        password: userData.password,
-        options: {
-          emailRedirectTo: redirectURL,
-          data: {
-            first_name: userData.options?.data?.first_name || '',
-            last_name: userData.options?.data?.last_name || '',
-            account_type: userData.options?.data?.account_type || 'individual',
-            job_title: userData.options?.data?.job_title || '',
-            company_name: userData.options?.data?.company_name || '',
-            employee_count: userData.options?.data?.employee_count || '',
-          }
-        }
-      });
-
-      if (authError) {
-        console.error('🔴 Auth signup error:', authError);
-        const handledError = handleError(authError, 'signup');
-        return { error: handledError };
-      }
-
-      console.log('🟢 Auth user created:', {
-        id: authData.user?.id,
-        email: authData.user?.email,
-        emailConfirmed: authData.user?.email_confirmed_at !== null,
-        needsConfirmation: authData.user && !authData.user.email_confirmed_at
-      });
-
-      // ✅ NO PROFILE CREATION HERE - Let triggers or callback handle it
-      if (authData.user && !authData.user.email_confirmed_at) {
-        console.log('📧 User needs email confirmation. Profile will be created after verification.');
-      } else if (authData.user && authData.user.email_confirmed_at) {
-        console.log('🟡 Email already confirmed (rare case)');
-        // If somehow email is already confirmed, profile will be created by trigger
-      }
-
-      return { 
-        data: authData,
-        message: 'Account created! Please check your email to verify your account.'
-      };
-
-    } catch (error) {
-      console.error('🔴 Signup error:', error);
-      const handledError = handleError(error, 'signup');
-      return { error: handledError };
-    }
-  }, [handleError]);
-
-  // ✅ NEW: Create user profile (for auth callback use)
+ // ✅ ENHANCED: Create user profile with better account_type handling
   const createUserProfile = useCallback(async (user, userData = {}) => {
     try {
       console.log('🔵 Creating user profile for:', user.id);
+      console.log('🔍 UserData received:', userData);
+      console.log('🔍 User metadata:', user.user_metadata);
+
+      // ✅ CRITICAL: Proper account_type resolution
+      const accountType = userData.account_type || user.user_metadata?.account_type || 'individual';
+      console.log('🔍 Resolved account_type:', accountType);
 
       const profileData = {
         id: user.id, // ✅ CRITICAL: This must be the auth user ID
         email: user.email,
         first_name: userData.first_name || user.user_metadata?.first_name || '',
         last_name: userData.last_name || user.user_metadata?.last_name || '',
-        account_type: userData.account_type || user.user_metadata?.account_type || 'individual',
+        account_type: accountType, // ✅ Use resolved account type
         job_title: userData.job_title || user.user_metadata?.job_title || '',
         company_name: userData.company_name || user.user_metadata?.company_name || '',
-        role: (userData.account_type || user.user_metadata?.account_type) === 'corporate' ? 'admin' : 'learner',
+        role: accountType === 'corporate' ? 'admin' : 'learner', // ✅ Set role based on account type
         status: 'active',
         auth_user_id: user.id // ✅ CRITICAL: Explicit auth user reference
       };
 
-      console.log('Creating profile with data:', profileData);
+      console.log('🔍 Profile data to be inserted:', JSON.stringify(profileData, null, 2));
+      console.log('🔍 Final account_type in profile:', profileData.account_type);
+      console.log('🔍 Final role in profile:', profileData.role);
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -257,10 +205,12 @@ export function AuthProvider({ children }) {
         throw profileError;
       }
 
-      console.log('🟢 Profile created successfully:', profile.id);
+      console.log('🟢 Profile created successfully:', profile);
+      console.log('🔍 Created profile account_type:', profile.account_type);
 
       // Handle corporate organization creation if needed
       if (profileData.account_type === 'corporate') {
+        console.log('🏢 Creating organization for corporate account...');
         await createOrganizationForUser(user.id, {
           ...userData,
           ...user.user_metadata,
@@ -276,6 +226,161 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+// Fixed signup function - replace the one in your useAuth.jsx
+const signup = useCallback(async (userData) => {
+  try {
+    console.log('🔵 Starting signup process...', {
+      email: userData.email,
+      account_type: userData.options?.data?.account_type
+    });
+
+    const redirectURL = getAuthRedirectURL('/auth/callback');
+    console.log('📧 Email verification will redirect to:', redirectURL);
+
+    const signupData = {
+      email: userData.email,
+      password: userData.password,
+      options: {
+        emailRedirectTo: redirectURL,
+        data: {
+          first_name: userData.options?.data?.first_name || '',
+          last_name: userData.options?.data?.last_name || '',
+          account_type: userData.options?.data?.account_type || 'individual',
+          job_title: userData.options?.data?.job_title || '',
+          company_name: userData.options?.data?.company_name || '',
+          employee_count: userData.options?.data?.employee_count || '',
+        }
+      }
+    };
+
+    console.log('🔍 Final signup data:', JSON.stringify(signupData, null, 2));
+    console.log('🔍 Account type being sent:', signupData.options.data.account_type);
+
+    const { data: authData, error: authError } = await supabase.auth.signUp(signupData);
+
+    if (authError) {
+      console.error('🔴 Auth signup error:', authError);
+      
+      // ✅ FIXED: Proper error handling
+      const errorMessage = authError.message?.toLowerCase() || '';
+      const errorCode = authError.code || '';
+
+      // Check for duplicate email errors
+      if (
+        errorMessage.includes('already registered') ||
+        errorMessage.includes('already been registered') ||
+        errorMessage.includes('user already registered') ||
+        errorMessage.includes('email address not authorized') ||
+        errorMessage.includes('email not confirmed') ||
+        errorCode === 'email_address_already_registered' ||
+        errorCode === 'user_already_registered' ||
+        errorCode === 'signup_disabled'
+      ) {
+        return { 
+          error: {
+            type: 'EMAIL_ALREADY_EXISTS',
+            message: 'This email address is already registered. Please sign in instead or use a different email.',
+            code: 'EMAIL_DUPLICATE'
+          }
+        };
+      }
+
+      // Check for rate limiting
+      if (
+        errorMessage.includes('rate') || 
+        errorMessage.includes('limit') ||
+        errorMessage.includes('quota') ||
+        errorMessage.includes('too many requests') ||
+        errorCode === 'over_email_send_rate_limit'
+      ) {
+        return { 
+          error: {
+            type: 'RATE_LIMITED',
+            message: 'Too many signup attempts. Please wait 1 hour or contact support.',
+            code: 'RATE_LIMITED'
+          }
+        };
+      }
+
+      // Check for invalid email format
+      if (
+        errorMessage.includes('invalid email') ||
+        errorMessage.includes('email format') ||
+        errorCode === 'invalid_email'
+      ) {
+        return { 
+          error: {
+            type: 'INVALID_EMAIL',
+            message: 'Please enter a valid email address.',
+            code: 'INVALID_EMAIL'
+          }
+        };
+      }
+
+      // Check for weak password
+      if (
+        errorMessage.includes('password') ||
+        errorMessage.includes('weak') ||
+        errorCode === 'weak_password'
+      ) {
+        return { 
+          error: {
+            type: 'WEAK_PASSWORD',
+            message: 'Password is too weak. Please choose a stronger password.',
+            code: 'WEAK_PASSWORD'
+          }
+        };
+      }
+
+      // Generic error handling
+      const handledError = handleError(authError, 'signup');
+      return { error: handledError };
+    }
+
+    console.log('🟢 Auth user created:', {
+      id: authData.user?.id,
+      email: authData.user?.email,
+      user_metadata: authData.user?.user_metadata,
+      emailConfirmed: authData.user?.email_confirmed_at !== null,
+      needsConfirmation: authData.user && !authData.user.email_confirmed_at
+    });
+
+    // ✅ DEBUG: Verify user metadata contains account_type
+    console.log('🔍 User metadata from Supabase:', authData.user?.user_metadata);
+    console.log('🔍 Account type in user metadata:', authData.user?.user_metadata?.account_type);
+
+    // 🚀 Create profile immediately if email is confirmed (instant confirmation)
+    if (authData.user && authData.user.email_confirmed_at) {
+      console.log('🔵 Email confirmed instantly, creating profile...');
+      
+      try {
+        const profile = await createUserProfile(authData.user, signupData.options.data);
+        console.log('🟢 Profile created during signup:', profile);
+        
+        return { 
+          data: authData,
+          profile: profile,
+          message: 'Account created and profile set up successfully!'
+        };
+      } catch (profileError) {
+        console.error('🔴 Profile creation during signup failed:', profileError);
+        // Continue with signup success even if profile creation fails
+        // Profile will be created later in auth callback
+      }
+    }
+
+    return { 
+      data: authData,
+      message: 'Account created! Please check your email to verify your account.'
+    };
+
+  } catch (error) {
+    console.error('🔴 Signup error:', error);
+    const handledError = handleError(error, 'signup');
+    return { error: handledError };
+  }
+}, [handleError, createUserProfile]);
+ 
   // Organization creation helper
   const createOrganizationForUser = async (userId, userData) => {
     try {
@@ -336,6 +441,33 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // ✅ NEW: Email checking function
+  const checkEmailExists = useCallback(async (email) => {
+    try {
+      // Try to use the database function first
+      const { data, error } = await supabase.rpc('check_email_exists', { 
+        email_to_check: email 
+      });
+
+      if (error) {
+        console.error('Email check error:', error);
+        
+        // If function doesn't exist, return graceful fallback
+        if (error.message?.includes('function') || error.code === '42883') {
+          console.warn('check_email_exists function not found - email checking disabled');
+          return { exists: false, functionMissing: true };
+        }
+        
+        return { error: 'Failed to check email availability' };
+      }
+
+      return { exists: data === true };
+    } catch (error) {
+      console.error('Email availability check failed:', error);
+      return { error: 'Failed to check email availability' };
+    }
+  }, []);
+
   // Password reset function
   const resetPassword = useCallback(async (email) => {
     try {
@@ -358,7 +490,7 @@ export function AuthProvider({ children }) {
     }
   }, [handleError]);
 
-  // ✅ NEW: Resend verification email
+  // Resend verification email
   const resendVerification = useCallback(async (email) => {
     try {
       const redirectURL = getAuthRedirectURL('/auth/callback');
@@ -428,7 +560,8 @@ export function AuthProvider({ children }) {
     refreshUser,
     loadUserProfile,
     resendVerification,
-    createUserProfile, // ✅ For auth callback use
+    createUserProfile,
+    checkEmailExists, // ✅ NEW: Email checking function
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

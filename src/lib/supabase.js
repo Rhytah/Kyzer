@@ -151,7 +151,7 @@ export const getCurrentUser = async (timeoutMs = 5000) => {
     );
 
     const { data: { user }, error } = await Promise.race([authPromise, timeoutPromise]);
-    
+    console.log("fefrvewg============>", user);
     if (error) {
       console.error('Auth error:', error);
       return null;

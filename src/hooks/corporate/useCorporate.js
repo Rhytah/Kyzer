@@ -1,8 +1,7 @@
-// src/hooks/corporate/useCorporate.js - Fixed to prevent PGRST116 error
+// src/hooks/corporate/useCorporate.js - Fixed to properly detect corporate accounts
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { supabase } from "@/lib/supabase";
-import { Navigate } from "react-router-dom";
 
 export const useCorporate = () => {
   const { user } = useAuth();
@@ -12,6 +11,11 @@ export const useCorporate = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [initialized, setInitialized] = useState(false);
+
+  // 🔥 NEW: Check if user is corporate based on metadata
+  const isCorporateFromMetadata = useCallback(() => {
+    return user?.user_metadata?.account_type === 'corporate';
+  }, [user?.user_metadata?.account_type]);
 
   // Helper function to get default permissions based on role
   const getDefaultPermissions = useCallback((userRole) => {
@@ -60,7 +64,128 @@ export const useCorporate = () => {
     return rolePermissions[userRole] || rolePermissions['member'];
   }, []);
 
-  // Safe corporate data loading - FIXES PGRST116 ISSUE
+  // 🔥 NEW: Create organization record for corporate users without one
+  const ensureOrganizationExists = useCallback(async () => {
+    if (!user?.id || !isCorporateFromMetadata()) {
+      return null;
+    }
+
+    const companyName = user.user_metadata?.company_name;
+    if (!companyName) {
+      console.warn('Corporate user missing company_name in metadata');
+      return null;
+    }
+
+    try {
+      // First, check if organization already exists
+      const { data: existingOrg, error: existingOrgError } = await supabase
+        .from('organizations')
+        .select('id, name, slug')
+        .eq('name', companyName)
+        .maybeSingle();
+
+      if (existingOrgError) {
+        console.error('Error checking existing organization:', existingOrgError);
+        return null;
+      }
+
+      if (existingOrg) {
+        console.log('Organization already exists:', existingOrg.name);
+        return existingOrg;
+      }
+
+      // Create new organization
+      const orgSlug = companyName.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+      const orgData = {
+        name: companyName,
+        slug: orgSlug,
+        email: user.email,
+        max_employees: parseInt(user.user_metadata?.employee_count?.split('-')[1]) || 50,
+        subscription_status: 'active',
+        subscription_end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
+        created_by: user.id
+      };
+
+      const { data: newOrg, error: createOrgError } = await supabase
+        .from('organizations')
+        .insert([orgData])
+        .select()
+        .single();
+
+      if (createOrgError) {
+        console.error('Error creating organization:', createOrgError);
+        return null;
+      }
+
+      console.log('Created new organization:', newOrg.name);
+      return newOrg;
+
+    } catch (error) {
+      console.error('Error in ensureOrganizationExists:', error);
+      return null;
+    }
+  }, [user, isCorporateFromMetadata]);
+
+  // 🔥 NEW: Ensure user is member of their organization
+  const ensureMembershipExists = useCallback(async (organizationId) => {
+    if (!user?.id || !organizationId) {
+      return null;
+    }
+
+    try {
+      // Check if membership already exists
+      const { data: existingMembership, error: membershipError } = await supabase
+        .from('organization_members')
+        .select('id, role, status')
+        .eq('user_id', user.id)
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+
+      if (membershipError) {
+        console.error('Error checking existing membership:', membershipError);
+        return null;
+      }
+
+      if (existingMembership) {
+        console.log('Membership already exists with role:', existingMembership.role);
+        return existingMembership;
+      }
+
+      // Create new membership - determine role from metadata
+      const userRole = user.user_metadata?.role || 'admin'; // Default first user to admin
+      
+      const membershipData = {
+        user_id: user.id,
+        organization_id: organizationId,
+        role: userRole,
+        status: 'active',
+        joined_at: new Date().toISOString()
+      };
+
+      const { data: newMembership, error: createMembershipError } = await supabase
+        .from('organization_members')
+        .insert([membershipData])
+        .select()
+        .single();
+
+      if (createMembershipError) {
+        console.error('Error creating membership:', createMembershipError);
+        return null;
+      }
+
+      console.log('Created new membership with role:', newMembership.role);
+      return newMembership;
+
+    } catch (error) {
+      console.error('Error in ensureMembershipExists:', error);
+      return null;
+    }
+  }, [user]);
+
+  // Updated corporate data loading with auto-creation
   const loadCorporateData = useCallback(async () => {
     if (!user?.id) {
       console.log('No user ID, setting defaults');
@@ -75,10 +200,11 @@ export const useCorporate = () => {
 
     try {
       console.log('Loading corporate data for user:', user.id);
+      console.log('Is corporate from metadata:', isCorporateFromMetadata());
       setLoading(true);
       setError(null);
 
-      // CRITICAL FIX: Use maybeSingle() instead of single() to prevent PGRST116
+      // First, try to load existing membership
       const { data: membershipData, error: membershipError } = await supabase
         .from('organization_members')
         .select(`
@@ -98,12 +224,11 @@ export const useCorporate = () => {
         `)
         .eq('user_id', user.id)
         .eq('status', 'active')
-        .maybeSingle(); // ✅ This prevents PGRST116 - returns null instead of error
+        .maybeSingle();
 
-      console.log('Corporate query result:', { membershipData, membershipError });
+      console.log('Existing membership query result:', { membershipData, membershipError });
 
       if (membershipError) {
-        // Should not get PGRST116 with maybeSingle(), but handle other errors
         console.error("Error loading corporate data:", membershipError);
         setError({
           type: 'CORPORATE_DATA_ERROR',
@@ -111,16 +236,14 @@ export const useCorporate = () => {
           code: membershipError.code,
           originalError: membershipError
         });
-        setOrganization(null);
-        setPermissions(getDefaultPermissions('member'));
-        setRole(null);
-      } else if (membershipData && membershipData.organization) {
-        // User is part of an organization
-        console.log('User is part of organization:', membershipData.organization.name);
+      }
+
+      if (membershipData && membershipData.organization) {
+        // User has existing membership - use it
+        console.log('User has existing organization membership:', membershipData.organization.name);
         setOrganization(membershipData.organization);
         setRole(membershipData.role);
         
-        // Set permissions (custom overrides default)
         const defaultPermissions = getDefaultPermissions(membershipData.role);
         const customPermissions = membershipData.permissions || {};
         
@@ -129,9 +252,58 @@ export const useCorporate = () => {
           ...customPermissions
         });
         setError(null);
+
+      } else if (isCorporateFromMetadata()) {
+        // 🔥 NEW: Corporate user without organization - create it
+        console.log('Corporate user without organization, creating...');
+        
+        const org = await ensureOrganizationExists();
+        if (org) {
+          const membership = await ensureMembershipExists(org.id);
+          if (membership) {
+            // Load the full organization data
+            const { data: fullOrgData, error: fullOrgError } = await supabase
+              .from('organizations')
+              .select('*')
+              .eq('id', org.id)
+              .single();
+
+            if (!fullOrgError && fullOrgData) {
+              setOrganization(fullOrgData);
+              setRole(membership.role);
+              setPermissions(getDefaultPermissions(membership.role));
+              setError(null);
+              console.log('Successfully created and loaded organization data');
+            } else {
+              console.error('Error loading full organization data:', fullOrgError);
+              setError({
+                type: 'ORG_LOAD_ERROR',
+                message: 'Failed to load organization after creation'
+              });
+            }
+          } else {
+            setError({
+              type: 'MEMBERSHIP_CREATE_ERROR',
+              message: 'Failed to create organization membership'
+            });
+          }
+        } else {
+          setError({
+            type: 'ORG_CREATE_ERROR',
+            message: 'Failed to create organization'
+          });
+        }
+
+        // Set safe defaults if creation failed
+        if (!organization) {
+          setOrganization(null);
+          setPermissions(getDefaultPermissions('member'));
+          setRole(null);
+        }
+
       } else {
-        // User is not part of any organization - this is NORMAL, not an error
-        console.log('User is not part of any organization');
+        // Regular individual user
+        console.log('Individual user (not corporate)');
         setOrganization(null);
         setPermissions(getDefaultPermissions('member'));
         setRole(null);
@@ -155,7 +327,7 @@ export const useCorporate = () => {
       setLoading(false);
       setInitialized(true);
     }
-  }, [user?.id, getDefaultPermissions]);
+  }, [user, isCorporateFromMetadata, getDefaultPermissions, ensureOrganizationExists, ensureMembershipExists]);
 
   // Initialize corporate data when user changes
   useEffect(() => {
@@ -172,7 +344,7 @@ export const useCorporate = () => {
           message: 'Loading organization data timed out'
         });
       }
-    }, 10000); // 10 seconds
+    }, 15000); // Increased to 15 seconds for org creation
 
     const initializeCorporateData = async () => {
       if (!mounted) return;
@@ -309,11 +481,15 @@ export const useCorporate = () => {
     error,
     initialized,
     
-    // Computed properties
-    isCorporateUser: Boolean(organization),
+    // 🔥 UPDATED: Now checks BOTH metadata AND organization membership
+    isCorporateUser: isCorporateFromMetadata() || Boolean(organization),
     isAdmin: isAdmin(),
     isManagerOrAdmin: isManagerOrAdmin(),
     isMember: isMember(),
+    
+    // 🔥 NEW: Expose company info from metadata for corporate users without orgs
+    companyName: user?.user_metadata?.company_name,
+    employeeCount: user?.user_metadata?.employee_count,
     
     // Functions
     hasPermission,

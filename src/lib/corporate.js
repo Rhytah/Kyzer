@@ -6,7 +6,7 @@ export const corporateAPI = {
   // Company operations
   async createCompany(companyData, userId) {
     const { data, error } = await supabase
-      .from('companies')
+      .from('organizations')
       .insert({
         ...companyData,
         admin_user_id: userId,
@@ -32,7 +32,7 @@ export const corporateAPI = {
 
     // Check if user is employee of a company
     const { data: employeeRecord, error: empError } = await supabase
-      .from('company_employees')
+      .from('organization_employees')
       .select(`
         *,
         companies (*)
@@ -64,7 +64,7 @@ export const corporateAPI = {
   // Employee operations
   async getCompanyEmployees(companyId) {
     const { data, error } = await supabase
-      .from('company_employees')
+      .from('organization_employees')
       .select(`
         *,
         users:user_id (
@@ -77,7 +77,7 @@ export const corporateAPI = {
           user_metadata
         )
       `)
-      .eq('company_id', companyId)
+      .eq('organization_id', companyId)
       .order('joined_at', { ascending: false })
 
     if (error) throw error
@@ -92,7 +92,7 @@ export const corporateAPI = {
     const { data, error } = await supabase
       .from('employee_invitations')
       .insert({
-        company_id: companyId,
+        organization_id: companyId,
         email,
         token,
         role,
@@ -122,9 +122,9 @@ export const corporateAPI = {
 
     // Create employee record
     const { error: empError } = await supabase
-      .from('company_employees')
+      .from('organization_employees')
       .insert({
-        company_id: invitation.company_id,
+        organization_id: invitation.organization_id,
         user_id: userId,
         role: invitation.role,
         status: 'active',
@@ -146,7 +146,7 @@ export const corporateAPI = {
 
   async updateEmployeeRole(employeeId, role) {
     const { data, error } = await supabase
-      .from('company_employees')
+      .from('organization_employees')
       .update({ role })
       .eq('id', employeeId)
       .select()
@@ -158,7 +158,7 @@ export const corporateAPI = {
 
   async removeEmployee(employeeId) {
     const { error } = await supabase
-      .from('company_employees')
+      .from('organization_employees')
       .delete()
       .eq('id', employeeId)
 
@@ -169,7 +169,7 @@ export const corporateAPI = {
   // Course assignment operations
   async getCompanyCourseAssignments(companyId) {
     const { data, error } = await supabase
-      .from('company_course_assignments')
+      .from('organization_course_assignments')
       .select(`
         *,
         courses (*),
@@ -178,7 +178,7 @@ export const corporateAPI = {
           user_metadata
         )
       `)
-      .eq('company_id', companyId)
+      .eq('organization_id', companyId)
       .order('assigned_at', { ascending: false })
 
     if (error) throw error
@@ -187,9 +187,9 @@ export const corporateAPI = {
 
   async assignCourseToCompany(companyId, courseId, assignedBy, options = {}) {
     const { data, error } = await supabase
-      .from('company_course_assignments')
+      .from('organization_course_assignments')
       .insert({
-        company_id: companyId,
+        organization_id: companyId,
         course_id: courseId,
         assigned_by: assignedBy,
         due_date: options.dueDate,
@@ -205,7 +205,7 @@ export const corporateAPI = {
   // Department operations
   async getCompanyDepartments(companyId) {
     const { data, error } = await supabase
-      .from('company_departments')
+      .from('organization_departments')
       .select(`
         *,
         manager:manager_id (
@@ -214,7 +214,7 @@ export const corporateAPI = {
         ),
         employee_count:employee_departments(count)
       `)
-      .eq('company_id', companyId)
+      .eq('organization_id', companyId)
 
     if (error) throw error
     return data || []
@@ -222,10 +222,10 @@ export const corporateAPI = {
 
   async createDepartment(companyId, departmentData) {
     const { data, error } = await supabase
-      .from('company_departments')
+      .from('organization_departments')
       .insert({
         ...departmentData,
-        company_id: companyId
+        organization_id: companyId
       })
       .select()
       .single()
@@ -245,7 +245,7 @@ export const corporateAPI = {
           user_metadata
         )
       `)
-      .eq('company_id', companyId)
+      .eq('organization_id', companyId)
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -281,15 +281,15 @@ export const corporateAPI = {
     try {
       // Get employee stats
       const { count: totalEmployees } = await supabase
-        .from('company_employees')
+        .from('organization_employees')
         .select('*', { count: 'exact', head: true })
-        .eq('company_id', companyId)
+        .eq('organization_id', companyId)
         .eq('status', 'active')
 
       const { count: pendingInvites } = await supabase
         .from('employee_invitations')
         .select('*', { count: 'exact', head: true })
-        .eq('company_id', companyId)
+        .eq('organization_id', companyId)
         .is('used_at', null)
         .gt('expires_at', new Date().toISOString())
 
@@ -549,7 +549,7 @@ export const corporateUtils = {
 
 // Error handling utilities
 export const corporateErrors = {
-  COMPANY_NOT_FOUND: 'Company not found',
+  ORGANIZATION_NOT_FOUND: 'Company not found',
   EMPLOYEE_LIMIT_REACHED: 'Employee limit reached',
   INVALID_INVITATION: 'Invalid or expired invitation',
   INSUFFICIENT_PERMISSIONS: 'Insufficient permissions',
@@ -609,7 +609,7 @@ export const corporateConstants = {
     'Other'
   ],
   
-  COMPANY_SIZES: [
+  ORGANIZATION_SIZES: [
     '1-10',
     '11-50', 
     '51-200',
