@@ -7,13 +7,7 @@ const AuthContext = createContext();
 
 // Helper function to get the correct redirect URL for current environment
 const getAuthRedirectURL = (path = '/auth/callback') => {
-  // For development
-  if (import.meta.env.DEV) {
-    return `http://localhost:${window.location.port || 5173}${path}`;
-  }
-  
-  // For production/staging - use environment variable or current origin
-  const baseURL = import.meta.env.VITE_APP_URL || window.location.origin;
+    const baseURL = import.meta.env.VITE_APP_URL || window.location.origin;
   return `${baseURL}${path}`;
 };
 

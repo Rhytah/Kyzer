@@ -13,7 +13,8 @@ useEffect(() => {
   // Handle email verification callback
   const handleAuthCallback = async () => {
     const { data, error } = await supabase.auth.getSession();
-    
+        console.log("Resending verification email.data..", data);
+
     if (data.session && data.session.user) {
       navigate('/dashboard');
     }
