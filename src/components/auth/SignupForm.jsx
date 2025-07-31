@@ -118,7 +118,6 @@ export default function SignupForm({ accountType, onSuccess }) {
   };
 
   const onSubmit = async (formData) => {
-    console.log('🔵 Form submitted:', { email: formData.email, accountType });
     
     // ✅ BLOCK SUBMISSION if email is taken
     if (emailCheckStatus === 'taken') {
@@ -145,7 +144,6 @@ export default function SignupForm({ accountType, onSuccess }) {
         }
       };
 
-      console.log('🔵 Calling signup with:', signupData);
       const result = await signup(signupData);
 
       if (result.error) {
@@ -191,7 +189,6 @@ export default function SignupForm({ accountType, onSuccess }) {
         return;
       }
 
-      console.log('🟢 Signup successful:', result.data?.user?.email);
       
       if (result.skipVerification) {
         toast.success('Account created successfully! (Development mode)');

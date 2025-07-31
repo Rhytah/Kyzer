@@ -151,7 +151,6 @@ export const getCurrentUser = async (timeoutMs = 5000) => {
     );
 
     const { data: { user }, error } = await Promise.race([authPromise, timeoutPromise]);
-    console.log("fefrvewg============>", user);
     if (error) {
       console.error('Auth error:', error);
       return null;
@@ -197,7 +196,6 @@ export const getUserProfile = async (userId = null, timeoutMs = 8000) => {
 
     if (error) {
       if (error.code === 'PGRST116') {
-        console.log('No profile found for user:', targetUserId);
         return null;
       }
       console.error('Profile query error:', error);
@@ -438,7 +436,6 @@ export const signOut = async () => {
 export const resetPassword = async (email) => {
   try {
     const redirectTo = getAuthRedirectURL('/auth/callback?type=recovery');
-    console.log('Password reset will redirect to:', redirectTo);
     
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo

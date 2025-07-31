@@ -44,7 +44,6 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    console.log('Loading profile for user:', userId);
     setProfileLoading(true);
 
     try {
@@ -67,7 +66,6 @@ export function AuthProvider({ children }) {
         console.error('Profile loading error:', error);
         setProfile(null);
       } else {
-        console.log('Profile loaded:', data?.email || 'No profile');
         setProfile(data);
       }
     } catch (error) {
@@ -84,7 +82,6 @@ export function AuthProvider({ children }) {
 
     const initializeAuth = async () => {
       try {
-        console.log('🔵 Initializing auth...');
         
         const { data: { session }, error } = await supabase.auth.getSession();
         
@@ -94,7 +91,6 @@ export function AuthProvider({ children }) {
           console.error("🔴 Session error:", error);
         }
         
-        console.log('🟢 Session loaded:', session?.user?.email || 'No user');
         
         setSession(session);
         setUser(session?.user || null);
@@ -118,7 +114,6 @@ export function AuthProvider({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('🟡 Auth state changed:', event, session?.user?.email || 'No user');
         
         if (!mounted) return;
 
@@ -155,8 +150,6 @@ export function AuthProvider({ children }) {
         return { error: handledError };
       }
 
-      console.log('🟢 Login successful:', data.user?.email);
-                console.log('🔵 Login started for:', data);
 
       return { data };
       
@@ -169,13 +162,9 @@ export function AuthProvider({ children }) {
  // ✅ ENHANCED: Create user profile with better account_type handling
   const createUserProfile = useCallback(async (user, userData = {}) => {
     try {
-      console.log('🔵 Creating user profile for:', user.id);
-      console.log('🔍 UserData received:', userData);
-      console.log('🔍 User metadata:', user.user_metadata);
 
       // ✅ CRITICAL: Proper account_type resolution
       const accountType = userData.account_type || user.user_metadata?.account_type || 'individual';
-      console.log('🔍 Resolved account_type:', accountType);
 
       const profileData = {
         id: user.id, // ✅ CRITICAL: This must be the auth user ID
@@ -190,9 +179,6 @@ export function AuthProvider({ children }) {
         auth_user_id: user.id // ✅ CRITICAL: Explicit auth user reference
       };
 
-      console.log('🔍 Profile data to be inserted:', JSON.stringify(profileData, null, 2));
-      console.log('🔍 Final account_type in profile:', profileData.account_type);
-      console.log('🔍 Final role in profile:', profileData.role);
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -205,12 +191,9 @@ export function AuthProvider({ children }) {
         throw profileError;
       }
 
-      console.log('🟢 Profile created successfully:', profile);
-      console.log('🔍 Created profile account_type:', profile.account_type);
 
       // Handle corporate organization creation if needed
       if (profileData.account_type === 'corporate') {
-        console.log('🏢 Creating organization for corporate account...');
         await createOrganizationForUser(user.id, {
           ...userData,
           ...user.user_metadata,
@@ -229,13 +212,9 @@ export function AuthProvider({ children }) {
 // Fixed signup function - replace the one in your useAuth.jsx
 const signup = useCallback(async (userData) => {
   try {
-    console.log('🔵 Starting signup process...', {
-      email: userData.email,
-      account_type: userData.options?.data?.account_type
-    });
+   
 
     const redirectURL = getAuthRedirectURL('/auth/callback');
-    console.log('📧 Email verification will redirect to:', redirectURL);
 
     const signupData = {
       email: userData.email,
@@ -253,8 +232,6 @@ const signup = useCallback(async (userData) => {
       }
     };
 
-    console.log('🔍 Final signup data:', JSON.stringify(signupData, null, 2));
-    console.log('🔍 Account type being sent:', signupData.options.data.account_type);
 
     const { data: authData, error: authError } = await supabase.auth.signUp(signupData);
 
@@ -337,25 +314,15 @@ const signup = useCallback(async (userData) => {
       return { error: handledError };
     }
 
-    console.log('🟢 Auth user created:', {
-      id: authData.user?.id,
-      email: authData.user?.email,
-      user_metadata: authData.user?.user_metadata,
-      emailConfirmed: authData.user?.email_confirmed_at !== null,
-      needsConfirmation: authData.user && !authData.user.email_confirmed_at
-    });
+   
 
     // ✅ DEBUG: Verify user metadata contains account_type
-    console.log('🔍 User metadata from Supabase:', authData.user?.user_metadata);
-    console.log('🔍 Account type in user metadata:', authData.user?.user_metadata?.account_type);
 
     // 🚀 Create profile immediately if email is confirmed (instant confirmation)
     if (authData.user && authData.user.email_confirmed_at) {
-      console.log('🔵 Email confirmed instantly, creating profile...');
       
       try {
         const profile = await createUserProfile(authData.user, signupData.options.data);
-        console.log('🟢 Profile created during signup:', profile);
         
         return { 
           data: authData,
@@ -384,7 +351,6 @@ const signup = useCallback(async (userData) => {
   // Organization creation helper
   const createOrganizationForUser = async (userId, userData) => {
     try {
-      console.log('🏢 Creating organization for user:', userId);
 
       const companyName = userData.company_name || 'Unnamed Company';
       const slug = companyName
@@ -432,7 +398,6 @@ const signup = useCallback(async (userData) => {
           joined_at: new Date().toISOString()
         }]);
 
-      console.log('🟢 Organization created successfully:', orgResult.id);
       return orgResult;
 
     } catch (error) {
@@ -472,7 +437,6 @@ const signup = useCallback(async (userData) => {
   const resetPassword = useCallback(async (email) => {
     try {
       const redirectURL = getAuthRedirectURL('/auth/callback?type=recovery');
-      console.log('🔑 Password reset will redirect to:', redirectURL);
       
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectURL
@@ -518,7 +482,6 @@ const signup = useCallback(async (userData) => {
   // Sign out function
   const signOut = useCallback(async () => {
     try {
-      console.log('🔵 Signing out...');
       
       const { error } = await supabase.auth.signOut();
       
@@ -530,7 +493,6 @@ const signup = useCallback(async (userData) => {
 
       setProfile(null);
       
-      console.log('🟢 Signed out successfully');
       return { success: true };
     } catch (error) {
       console.error('🔴 Signout exception:', error);

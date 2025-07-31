@@ -722,7 +722,6 @@ function DeleteCompanyModal({ isOpen, onClose, company }) {
     setDeleting(true)
     try {
       // Implementation for deleting company
-      console.log('Deleting company...')
       await new Promise(resolve => setTimeout(resolve, 2000))
       // Redirect to home or signup
     } catch (error) {

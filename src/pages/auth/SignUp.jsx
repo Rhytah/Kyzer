@@ -13,11 +13,9 @@ export default function Signup() {
 
   // 🔍 DEBUG: Track account type changes
   useEffect(() => {
-    console.log('🔍 Account type changed to:', accountType);
   }, [accountType]);
 
   const handleSignupSuccess = (data) => {
-    console.log('🟢 Signup success, navigating to verify-email with:', data);
     navigate(`/verify-email?email=${encodeURIComponent(data.email)}`, { 
       replace: true,
       state: { email: data.email, accountType }
@@ -26,7 +24,6 @@ export default function Signup() {
 
   // 🔍 DEBUG: Log accountType when buttons are clicked
   const handleAccountTypeChange = (type) => {
-    console.log('🔍 Changing account type to:', type);
     setAccountType(type);
   };
 

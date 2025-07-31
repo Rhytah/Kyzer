@@ -16,8 +16,6 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        console.log('🔵 Handling auth callback...');
-        console.log('🔍 URL search params:', Object.fromEntries(searchParams.entries()));
         
         // Handle the auth callback (email verification or password reset)
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -35,7 +33,6 @@ export default function AuthCallback() {
         }
 
         if (!session?.user) {
-          console.log('🟡 No session found, redirecting to login');
           setStatus('error');
           setError('No authentication session found.');
           
@@ -45,17 +42,10 @@ export default function AuthCallback() {
           return;
         }
 
-        console.log('🟢 Session found:', {
-          email: session.user.email,
-          id: session.user.id,
-          metadata: session.user.user_metadata,
-          emailConfirmed: session.user.email_confirmed_at !== null
-        });
-
+         
         // Check if this is a password reset
         const type = searchParams.get('type');
         if (type === 'recovery') {
-          console.log('🔑 Password recovery flow detected');
           toast.success('Please set your new password');
           navigate('/reset-password', { replace: true });
           return;
@@ -75,7 +65,6 @@ export default function AuthCallback() {
         }
 
         if (existingProfile) {
-          console.log('🟢 User already has profile:', existingProfile);
           
           // Refresh user data and navigate to dashboard
           await refreshUser();
@@ -86,18 +75,11 @@ export default function AuthCallback() {
         }
 
         // Create profile for new user
-        console.log('🔵 Creating new user profile...');
-        console.log('🔍 User metadata for profile creation:', session.user.user_metadata);
         setStatus('creating-profile');
         
         const profile = await createUserProfile(session.user, session.user.user_metadata);
         
         if (profile) {
-          console.log('🟢 Profile created successfully:', {
-            id: profile.id,
-            account_type: profile.account_type,
-            organization_id: profile.organization_id
-          });
           
           // Refresh user data
           await refreshUser();

@@ -43,11 +43,8 @@ export default function AuthDebug() {
     
     setLoading(true);
     try {
-      console.log('🔵 Creating missing profile for:', user.email);
-      console.log('🔍 User metadata:', user.user_metadata);
       
       const result = await createUserProfile(user, user.user_metadata);
-      console.log('🟢 Profile created:', result);
       
       alert('Profile created successfully! Check console for details.');
       window.location.reload();
@@ -77,9 +74,7 @@ export default function AuthDebug() {
         employee_count: '11-50'
       };
       
-      console.log('🔵 Testing corporate profile creation...');
       const result = await createUserProfile(user, testCorporateData);
-      console.log('🟢 Corporate profile created:', result);
       
       alert('Corporate profile created successfully! Check console for details.');
       window.location.reload();

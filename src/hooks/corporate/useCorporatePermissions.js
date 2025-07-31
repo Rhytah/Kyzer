@@ -7,7 +7,6 @@
 // export function useCorporatePermissions() {
 //   const { user } = useAuthStore()
 //   const { currentCompany, employees } = useCorporateStore()
-// console.log('useCorporatePermissions', { user, currentCompany, employees }, useEmployees())
 //   const userRole = useMemo(() => {
 //     if (!currentCompany || !user) return null;
     

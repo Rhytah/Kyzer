@@ -31,9 +31,7 @@
 //         .select('*')
 //         .eq('admin_user_id', user?.id)
 //         .single()
-//         console.log(data, 'Current User in Corporate Store')
 
-//         console.log(adminCompany, 'Current User in Corporate Store')
 
 //       if (adminCompany) {
 //         set({ currentCompany: adminCompany })
@@ -568,7 +566,6 @@
 //     // This would integrate with your email service
 //     // For now, just log the invitation URL
 //     const inviteUrl = `${window.location.origin}/accept-invitation?token=${token}`
-//     console.log(`Send invitation to ${email}: ${inviteUrl}`)
 
 //     // TODO: Implement actual email sending via Supabase Edge Functions or external service
 //     return true

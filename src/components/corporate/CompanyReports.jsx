@@ -50,7 +50,6 @@ export default function CompanyReports() {
 
   const handleExport = (reportType) => {
     // Implementation for exporting reports
-    console.log(`Exporting ${reportType} report for ${dateRange}`)
   }
 
   return (

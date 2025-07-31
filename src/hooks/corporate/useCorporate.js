@@ -90,7 +90,6 @@ export const useCorporate = () => {
       }
 
       if (existingOrg) {
-        console.log('Organization already exists:', existingOrg.name);
         return existingOrg;
       }
 
@@ -120,7 +119,6 @@ export const useCorporate = () => {
         return null;
       }
 
-      console.log('Created new organization:', newOrg.name);
       return newOrg;
 
     } catch (error) {
@@ -150,7 +148,6 @@ export const useCorporate = () => {
       }
 
       if (existingMembership) {
-        console.log('Membership already exists with role:', existingMembership.role);
         return existingMembership;
       }
 
@@ -176,7 +173,6 @@ export const useCorporate = () => {
         return null;
       }
 
-      console.log('Created new membership with role:', newMembership.role);
       return newMembership;
 
     } catch (error) {
@@ -188,7 +184,6 @@ export const useCorporate = () => {
   // Updated corporate data loading with auto-creation
   const loadCorporateData = useCallback(async () => {
     if (!user?.id) {
-      console.log('No user ID, setting defaults');
       setOrganization(null);
       setPermissions(getDefaultPermissions('member'));
       setRole(null);
@@ -199,8 +194,6 @@ export const useCorporate = () => {
     }
 
     try {
-      console.log('Loading corporate data for user:', user.id);
-      console.log('Is corporate from metadata:', isCorporateFromMetadata());
       setLoading(true);
       setError(null);
 
@@ -226,7 +219,6 @@ export const useCorporate = () => {
         .eq('status', 'active')
         .maybeSingle();
 
-      console.log('Existing membership query result:', { membershipData, membershipError });
 
       if (membershipError) {
         console.error("Error loading corporate data:", membershipError);
@@ -240,7 +232,6 @@ export const useCorporate = () => {
 
       if (membershipData && membershipData.organization) {
         // User has existing membership - use it
-        console.log('User has existing organization membership:', membershipData.organization.name);
         setOrganization(membershipData.organization);
         setRole(membershipData.role);
         
@@ -255,7 +246,6 @@ export const useCorporate = () => {
 
       } else if (isCorporateFromMetadata()) {
         // 🔥 NEW: Corporate user without organization - create it
-        console.log('Corporate user without organization, creating...');
         
         const org = await ensureOrganizationExists();
         if (org) {
@@ -273,7 +263,6 @@ export const useCorporate = () => {
               setRole(membership.role);
               setPermissions(getDefaultPermissions(membership.role));
               setError(null);
-              console.log('Successfully created and loaded organization data');
             } else {
               console.error('Error loading full organization data:', fullOrgError);
               setError({
@@ -303,7 +292,6 @@ export const useCorporate = () => {
 
       } else {
         // Regular individual user
-        console.log('Individual user (not corporate)');
         setOrganization(null);
         setPermissions(getDefaultPermissions('member'));
         setRole(null);

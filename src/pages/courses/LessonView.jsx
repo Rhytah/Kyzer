@@ -118,7 +118,6 @@ Let's start by looking at the useState hook...`,
 
   const saveProgress = () => {
     // Save progress to backend
-    console.log('Saving progress:', { lessonId, currentTime, completed: isCompleted })
   }
 
   const markAsCompleted = () => {

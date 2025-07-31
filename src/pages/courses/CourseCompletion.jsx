@@ -563,7 +563,6 @@ export default function CourseCompletion() {
     if (rating === 0) return
     
     // Submit review to backend
-    console.log('Submitting review:', { rating, review })
     setShowReviewForm(false)
     
     // Show success message
