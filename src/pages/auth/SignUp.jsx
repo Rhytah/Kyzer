@@ -1,5 +1,5 @@
 // src/pages/auth/Signup.jsx
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import SignupForm from "@/components/auth/SignupForm";
@@ -9,10 +9,14 @@ import kyzerLogo from "../../assets/images/Kyzerlogo.png";
 export default function Signup() {
   const navigate = useNavigate();
   const [accountType, setAccountType] = useState("individual"); // 'individual' or 'corporate'
+  const { isAuthenticated } = useAuth();
 
   const handleSignupSuccess = () => {
     navigate("/verify-email", { replace: true });
   };
+  if(isAuthenticated) {
+return <Navigate to="/app/dashboard" replace />;     // Prevent rendering the login page if already authenticated
+  }
 
   return (
     <div className="min-h-screen bg-background-light flex">

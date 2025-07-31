@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { supabase } from "@/lib/supabase";
+import { Navigate } from "react-router-dom";
 
 export const useCorporate = () => {
   const { user } = useAuth();

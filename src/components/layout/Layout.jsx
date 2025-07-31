@@ -24,13 +24,13 @@ const currentUser = user?.user_metadata;
   return (
     <div className="min-h-screen bg-background-light">
       {/* Header */}
-      <Header 
+     {user && <Header 
         onMenuClick={toggleMobileSidebar} 
         showMenuButton={!!user}
         onDesktopToggleClick={toggleDesktopSidebar}
         isDesktopSidebarCollapsed={desktopSidebarCollapsed}
       />
-
+}
       <div className="flex">
         {/* Desktop Sidebar - only visible when signed in */}
         {user && (

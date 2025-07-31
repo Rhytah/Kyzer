@@ -1,4 +1,4 @@
-// export default App;
+// App.jsx - Refactored with no loading blocks and clean routing structure
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
@@ -25,10 +25,13 @@ import Reports from '@/pages/corporate/Reports';
 import AcceptInvitation from '@/pages/corporate/AcceptInvitation';
 import NotFound from '@/components/common/NotFound';
 
-// Components
-import Layout from '@/components/layout/Layout';
+// Layout Components
+import PublicLayout from '@/components/layout/PublicLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import CorporateLayout from '@/components/layout/CorporateLayout';
 import FullPageLoader from '@/components/ui/FullPageLoader';
+
+// Guards
 import CorporateGuard from '@/components/auth/CorporateGuard';
 import AdminGuard from './components/auth/AdminGuard';
 
@@ -36,6 +39,11 @@ import AdminGuard from './components/auth/AdminGuard';
 import { AuthProvider } from '@/hooks/auth/useAuth';
 import { useAuth } from '@/hooks/auth/useAuth';
 
+// ===========================================
+// ROUTE WRAPPER COMPONENTS
+// ===========================================
+
+// Protected Route - requires authentication
 function ProtectedRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth();
   
@@ -50,97 +58,177 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
-function PublicRoute({ children }) {
+// Public Route - shows forms immediately, redirects authenticated users
+function PublicRoute({ children, redirectTo = "/app/dashboard" }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  // Only redirect if we're certain user is authenticated (no loading block!)
+  if (!isLoading && isAuthenticated) {
+    return <Navigate to={redirectTo} replace />;
+  }
+  
+  // Always show login/signup forms immediately, even while auth is loading
+  return children;
+}
+
+// Guest Route - accessible to everyone, no redirects
+function GuestRoute({ children }) {
+  const { isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <FullPageLoader />;
+  }
+  
+  return children;
+}
+
+// Root redirect component
+function RootRedirect() {
   const { isAuthenticated, isLoading } = useAuth();
   
   if (isLoading) {
     return <FullPageLoader />;
   }
   
-  return !isAuthenticated ? children : <Navigate to="/app/dashboard" replace />;
+  // Redirect based on auth status
+  return isAuthenticated 
+    ? <Navigate to="/app/dashboard" replace />
+    : <Navigate to="/" replace />;
 }
+
+// ===========================================
+// MAIN APP COMPONENT
+// ===========================================
 
 function App() {
   return (
     <AuthProvider>
       <Router>
         <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Layout publicLayout />}>
+          {/* ===== PUBLIC MARKETING ROUTES ===== */}
+          <Route path="/" element={<PublicLayout />}>
             <Route index element={<Home />} />
             <Route path="about" element={<About />} />
             <Route path="pricing" element={<Pricing />} />
             <Route path="contact" element={<Contact />} />
           </Route>
 
-          {/* Auth Routes */}
-          <Route path="/auth" element={<Layout authLayout />}>
-            <Route path="login" element={<PublicRoute><Login /></PublicRoute>} />
-            <Route path="signup" element={<PublicRoute><Signup /></PublicRoute>} />
-            <Route path="forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
-            <Route path="reset-password" element={<PublicRoute><ResetPassword /></PublicRoute>} />
-            <Route index element={<Navigate to="/auth/login" replace />} />
-          </Route>
+          {/* ===== AUTHENTICATION ROUTES ===== */}
+          <Route 
+            path="/login" 
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            } 
+          />
+          <Route 
+            path="/signup" 
+            element={
+              <PublicRoute>
+                <Signup />
+              </PublicRoute>
+            } 
+          />
+          <Route 
+            path="/forgot-password" 
+            element={
+              <PublicRoute>
+                <ForgotPassword />
+              </PublicRoute>
+            } 
+          />
+          <Route 
+            path="/reset-password" 
+            element={
+              <GuestRoute>
+                <ResetPassword />
+              </GuestRoute>
+            } 
+          />
 
-          {/* Individual User Routes */}
-          <Route path="/app" element={<ProtectedRoute><Layout userLayout /></ProtectedRoute>}>
-            <Route index element={<Navigate to="/app/dashboard" replace />} />
+          {/* ===== INDIVIDUAL USER ROUTES ===== */}
+          <Route 
+            path="/app" 
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          >
+            {/* Dashboard Routes */}
+            <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
             
-            <Route path="courses">
-              <Route index element={<MyCourses />} />
-              <Route path="catalog" element={<CourseCatalog />} />
-              <Route path=":courseId" element={<CourseDetail />} />
-              <Route path=":courseId/lesson/:lessonId" element={<LessonView />} />
-              <Route path=":courseId/completion" element={<CourseCompletion />} />
-            </Route>
+            {/* Course Routes */}
+            <Route path="courses" element={<MyCourses />} />
+            <Route path="courses/catalog" element={<CourseCatalog />} />
+            <Route path="courses/:courseId" element={<CourseDetail />} />
+            <Route path="courses/:courseId/lesson/:lessonId" element={<LessonView />} />
+            <Route path="courses/:courseId/completion" element={<CourseCompletion />} />
           </Route>
 
-          {/* Corporate Routes */}
-          <Route path="/company" element={
-            <ProtectedRoute>
-              <CorporateGuard>
-                <Layout corporateLayout />
-              </CorporateGuard>
-            </ProtectedRoute>
-          }>
-            <Route index element={<Navigate to="/company/dashboard" replace />} />
+          {/* ===== CORPORATE ROUTES ===== */}
+          <Route 
+            path="/company" 
+            element={
+              <ProtectedRoute>
+                <CorporateGuard>
+                  <CorporateLayout />
+                </CorporateGuard>
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<CompanyDashboard />} />
             
-            <Route path="employees">
-              <Route index element={
+            <Route 
+              path="employees" 
+              element={
                 <AdminGuard requirePermission="invite_employees">
                   <EmployeeManagement />
                 </AdminGuard>
-              } />
-            </Route>
+              } 
+            />
             
-            <Route path="reports">
-              <Route index element={
+            <Route 
+              path="reports" 
+              element={
                 <AdminGuard requirePermission="view_reports">
                   <Reports />
                 </AdminGuard>
-              } />
-            </Route>
+              } 
+            />
           </Route>
 
-          {/* Special Routes */}
-          <Route path="/accept-invitation" element={<ProtectedRoute><AcceptInvitation /></ProtectedRoute>} />
+          {/* ===== SPECIAL ROUTES ===== */}
+          <Route 
+            path="/accept-invitation" 
+            element={
+              <ProtectedRoute>
+                <AcceptInvitation />
+              </ProtectedRoute>
+            } 
+          />
 
-          {/* Redirect old routes */}
+          {/* ===== LEGACY REDIRECTS ===== */}
+          <Route path="/login" element={<Navigate to="/auth/login" replace />} />
+          <Route path="/signup" element={<Navigate to="/auth/signup" replace />} />
           <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />
           <Route path="/profile" element={<Navigate to="/app/profile" replace />} />
           <Route path="/settings" element={<Navigate to="/app/settings" replace />} />
           <Route path="/courses" element={<Navigate to="/app/courses" replace />} />
-          <Route path="/login" element={<Navigate to="/auth/login" replace />} />
-          <Route path="/signup" element={<Navigate to="/auth/signup" replace />} />
 
-          {/* Catch all route */}
+          {/* ===== ROOT REDIRECT ===== */}
+          <Route path="/root" element={<RootRedirect />} />
+
+          {/* ===== 404 CATCH ALL ===== */}
           <Route path="*" element={<NotFound />} />
         </Routes>
         
+        {/* Toast Notifications */}
         <Toaster
           position="top-right"
           toastOptions={{
@@ -148,6 +236,20 @@ function App() {
             style: {
               background: '#374151',
               color: '#fff',
+            },
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: '#059669',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              duration: 5000,
+              iconTheme: {
+                primary: '#DC2626',
+                secondary: '#fff',
+              },
             },
           }}
         />

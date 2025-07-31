@@ -1,4 +1,4 @@
-// src/lib/supabase.js - Updated to fix loading issues and match your schema
+// src/lib/supabase.js - Updated with environment-aware redirects for email verification
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -8,21 +8,45 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Please check your .env file.');
 }
 
+// ==========================================
+// 🚀 NEW: ENVIRONMENT DETECTION HELPERS
+// ==========================================
+
+// Get the correct base URL for current environment
+export const getBaseURL = () => {
+  // For development
+  if (import.meta.env.DEV) {
+    return `http://localhost:${window.location.port || 5173}`;
+  }
+  
+  // For production/staging - use environment variable or current origin
+  return import.meta.env.VITE_APP_URL || window.location.origin;
+};
+
+// Generate environment-aware auth redirect URLs
+export const getAuthRedirectURL = (path = '/auth/callback') => {
+  const baseURL = getBaseURL();
+  return `${baseURL}${path}`;
+};
+
+// ==========================================
+// 🔧 UPDATED: Enhanced Supabase Client Config
+// ==========================================
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    // Add timeout to prevent hanging
-    flowType: 'pkce'
+    flowType: 'pkce',
+    // 🆕 Add default redirect configuration
+    redirectTo: getAuthRedirectURL('/auth/callback')
   },
-  // Add global timeout to prevent hanging requests
   global: {
     headers: {
       'X-Client-Info': 'kyzer-lms@1.0.0',
     },
   },
-  // Add request timeout
   db: {
     schema: 'public',
   },
@@ -34,7 +58,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 // ==========================================
-// TABLE CONSTANTS - Updated to match your schema
+// TABLE CONSTANTS - Keep your existing ones
 // ==========================================
 export const TABLES = {
   // User and Auth related
@@ -45,7 +69,7 @@ export const TABLES = {
   COURSE_MODULES: 'course_modules',
   LESSONS: 'lessons',
   COURSE_ENROLLMENTS: 'course_enrollments',
-  ENROLLMENTS: 'enrollments', // You have both tables
+  ENROLLMENTS: 'enrollments',
   LESSON_PROGRESS: 'lesson_progress',
   
   // Quiz and Assessment
@@ -53,7 +77,7 @@ export const TABLES = {
   QUIZ_QUESTIONS: 'quiz_questions',
   QUIZ_ATTEMPTS: 'quiz_attempts',
   
-  // Corporate/Organization - Updated to match your actual tables
+  // Corporate/Organization
   ORGANIZATIONS: 'organizations',
   ORGANIZATION_MEMBERS: 'organization_members',
   COMPANIES: 'companies',
@@ -70,20 +94,18 @@ export const TABLES = {
   // Certificates
   CERTIFICATES: 'certificates',
   
-  // Profile views (if you have them)
+  // Profile views
   USER_PROFILES: 'user_profiles',
   COMPANY_MEMBERSHIPS: 'company_memberships',
 };
 
 // ==========================================
-// SAFE QUERY HELPERS - Prevent hanging
+// SAFE QUERY HELPERS - Keep your existing timeout logic
 // ==========================================
 
-// Create query with timeout
 export const createSafeQuery = (table, timeoutMs = 10000) => {
   const query = supabase.from(table);
   
-  // Add timeout wrapper
   const executeWithTimeout = async (queryPromise) => {
     const timeoutPromise = new Promise((_, reject) => 
       setTimeout(() => reject(new Error(`Query timeout after ${timeoutMs}ms`)), timeoutMs)
@@ -97,7 +119,6 @@ export const createSafeQuery = (table, timeoutMs = 10000) => {
     }
   };
 
-  // Override query methods to include timeout
   const originalSelect = query.select.bind(query);
   query.select = function(...args) {
     const selectQuery = originalSelect(...args);
@@ -123,10 +144,9 @@ export const createSafeQuery = (table, timeoutMs = 10000) => {
 };
 
 // ==========================================
-// UPDATED AUTH HELPERS - With timeouts
+// UPDATED AUTH HELPERS - Keep your timeout logic
 // ==========================================
 
-// Get current user with timeout
 export const getCurrentUser = async (timeoutMs = 5000) => {
   try {
     const authPromise = supabase.auth.getUser();
@@ -138,17 +158,16 @@ export const getCurrentUser = async (timeoutMs = 5000) => {
     
     if (error) {
       console.error('Auth error:', error);
-      return null; // Return null instead of throwing
+      return null;
     }
     
     return user;
   } catch (error) {
     console.error('Error getting current user:', error);
-    return null; // Don't throw, return null
+    return null;
   }
 };
 
-// Get user profile - Updated to match your actual schema
 export const getUserProfile = async (userId = null, timeoutMs = 8000) => {
   try {
     let targetUserId = userId;
@@ -171,7 +190,7 @@ export const getUserProfile = async (userId = null, timeoutMs = 8000) => {
           max_employees
         )
       `)
-      .eq('id', targetUserId) // Your profiles table uses 'id' not 'auth_user_id'
+      .eq('id', targetUserId)
       .single();
 
     const timeoutPromise = new Promise((_, reject) => 
@@ -183,7 +202,7 @@ export const getUserProfile = async (userId = null, timeoutMs = 8000) => {
     if (error) {
       if (error.code === 'PGRST116') {
         console.log('No profile found for user:', targetUserId);
-        return null; // Return null, don't throw
+        return null;
       }
       console.error('Profile query error:', error);
       return null;
@@ -192,11 +211,10 @@ export const getUserProfile = async (userId = null, timeoutMs = 8000) => {
     return data;
   } catch (error) {
     console.error('Error getting user profile:', error);
-    return null; // Always return null on error, never throw
+    return null;
   }
 };
 
-// Safe session check
 export const getSession = async (timeoutMs = 5000) => {
   try {
     const sessionPromise = supabase.auth.getSession();
@@ -219,13 +237,12 @@ export const getSession = async (timeoutMs = 5000) => {
 };
 
 // ==========================================
-// IMPROVED ERROR HANDLING
+// IMPROVED ERROR HANDLING - Keep your existing logic
 // ==========================================
 
 export const handleSupabaseError = (error, context = '') => {
   console.error(`Supabase error ${context}:`, error);
   
-  // Handle timeout errors
   if (error?.message?.includes('timeout')) {
     return {
       type: 'TIMEOUT',
@@ -281,10 +298,6 @@ export const handleSupabaseError = (error, context = '') => {
   };
 };
 
-// ==========================================
-// SAFE QUERY WRAPPER
-// ==========================================
-
 export const safeQuery = async (queryPromise, context = '', timeoutMs = 10000) => {
   try {
     const timeoutPromise = new Promise((_, reject) => 
@@ -306,7 +319,7 @@ export const safeQuery = async (queryPromise, context = '', timeoutMs = 10000) =
 };
 
 // ==========================================
-// KEEP YOUR EXISTING HELPERS (they're good!)
+// STORAGE AND OTHER HELPERS - Keep as-is
 // ==========================================
 
 export const STORAGE_BUCKETS = {
@@ -347,7 +360,7 @@ export const validateFileSize = (file, maxSizeInMB) => {
 };
 
 // ==========================================
-// FILE UPLOAD HELPERS (keep as-is, they're good)
+// FILE UPLOAD HELPERS - Keep as-is
 // ==========================================
 
 export const uploadFile = async (bucket, path, file, options = {}) => {
@@ -391,7 +404,7 @@ export const deleteFile = async (bucket, path) => {
 };
 
 // ==========================================
-// PAGINATION HELPERS (keep as-is)
+// PAGINATION HELPERS - Keep as-is
 // ==========================================
 
 export const createPaginatedQuery = (table, {
@@ -412,7 +425,7 @@ export const createPaginatedQuery = (table, {
 };
 
 // ==========================================
-// AUTH HELPERS (keep existing ones)
+// 🔧 UPDATED: Auth helpers with dynamic redirects
 // ==========================================
 
 export const signOut = async () => {
@@ -425,14 +438,39 @@ export const signOut = async () => {
   }
 };
 
+// 🚀 FIXED: Now uses environment-aware redirect URL
 export const resetPassword = async (email) => {
   try {
+    const redirectTo = getAuthRedirectURL('/auth/callback?type=recovery');
+    console.log('Password reset will redirect to:', redirectTo);
+    
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
+      redirectTo
     });
+    
     if (error) throw error;
   } catch (error) {
     console.error('Error resetting password:', error);
+    throw error;
+  }
+};
+
+// 🆕 NEW: Additional auth helpers for email verification
+export const resendConfirmation = async (email) => {
+  try {
+    const redirectTo = getAuthRedirectURL('/auth/callback?type=signup');
+    
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: redirectTo
+      }
+    });
+    
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error resending confirmation:', error);
     throw error;
   }
 };

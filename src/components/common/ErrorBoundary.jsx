@@ -1,15 +1,10 @@
-// src/components/common/ErrorBoundary.jsx - Catches PGRST116 and other errors
-import React from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+// components/common/ErrorBoundary.jsx
+import { Component } from 'react';
 
-class ErrorBoundary extends React.Component {
+class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { 
-      hasError: false, 
-      error: null, 
-      errorInfo: null 
-    };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error) {
@@ -18,117 +13,99 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
+    // Log error details
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     
     this.setState({
-      error,
-      errorInfo
+      error: error,
+      errorInfo: errorInfo
     });
 
-    // Log to your error reporting service here
-    // logErrorToService(error, errorInfo);
+    // You can also log the error to an error reporting service here
+    // Example: logErrorToService(error, errorInfo);
   }
 
-  handleRetry = () => {
-    this.setState({ 
-      hasError: false, 
-      error: null, 
-      errorInfo: null 
-    });
+  handleReload = () => {
+    window.location.reload();
+  };
+
+  handleGoHome = () => {
+    window.location.href = '/';
   };
 
   render() {
     if (this.state.hasError) {
-      const isPGRST116 = this.state.error?.message?.includes('PGRST116') || 
-                         this.state.error?.code === 'PGRST116';
-
+      // Fallback UI
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-          <div className="max-w-md w-full">
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <div className="flex items-center mb-4">
-                <AlertCircle className="h-8 w-8 text-red-500 mr-3" />
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {isPGRST116 ? 'Setup Required' : 'Something Went Wrong'}
-                </h2>
-              </div>
-              
-              {isPGRST116 ? (
-                <div>
-                  <p className="text-gray-600 mb-4">
-                    It looks like you haven't set up your organization yet. This is normal for new users.
-                  </p>
-                  <div className="space-y-3">
-                    <button
-                      onClick={() => window.location.href = '/company/setup'}
-                      className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                    >
-                      Set Up Organization
-                    </button>
-                    <button
-                      onClick={() => window.location.href = '/dashboard'}
-                      className="w-full bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
-                    >
-                      Go to Personal Dashboard
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-gray-600 mb-4">
-                    We encountered an unexpected error. Please try refreshing the page.
-                  </p>
-                  
-                  {process.env.NODE_ENV === 'development' && (
-                    <div className="mb-4 p-3 bg-gray-100 rounded text-xs">
-                      <strong>Error:</strong> {this.state.error?.message}
-                      <br />
-                      <strong>Code:</strong> {this.state.error?.code}
-                    </div>
-                  )}
-                  
-                  <div className="space-y-3">
-                    <button
-                      onClick={this.handleRetry}
-                      className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Try Again
-                    </button>
-                    <button
-                      onClick={() => window.location.reload()}
-                      className="w-full bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
-                    >
-                      Refresh Page
-                    </button>
-                  </div>
-                </div>
-              )}
-              
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <p className="text-xs text-gray-500">
-                  If this problem persists, please contact support.
-                </p>
-              </div>
+        <div className="min-h-screen flex items-center justify-center bg-background-light px-4">
+          <div className="max-w-md w-full text-center">
+            <div className="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-red-100 mb-6">
+              <svg
+                className="h-8 w-8 text-red-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
+              </svg>
             </div>
+            
+            <h1 className="text-2xl font-bold text-text-dark mb-4">
+              Something went wrong
+            </h1>
+            
+            <p className="text-text-light mb-6">
+              We're sorry, but something unexpected happened. Please try refreshing the page or go back to the home page.
+            </p>
+
+            <div className="space-y-3">
+              <button
+                onClick={this.handleReload}
+                className="w-full px-4 py-2 bg-primary-DEFAULT text-white rounded-lg hover:bg-primary-dark transition-colors"
+              >
+                Refresh Page
+              </button>
+              
+              <button
+                onClick={this.handleGoHome}
+                className="w-full px-4 py-2 bg-background-white text-text-medium border border-background-dark rounded-lg hover:bg-background-light transition-colors"
+              >
+                Go to Home
+              </button>
+            </div>
+
+            {/* Show error details in development */}
+            {process.env.NODE_ENV === 'development' && this.state.error && (
+              <details className="mt-6 text-left">
+                <summary className="cursor-pointer text-sm text-text-light hover:text-text-medium">
+                  Error Details (Development Only)
+                </summary>
+                <div className="mt-2 p-4 bg-red-50 rounded-lg text-xs text-red-700 overflow-auto">
+                  <div className="font-semibold mb-2">Error:</div>
+                  <pre className="whitespace-pre-wrap mb-4">
+                    {this.state.error && this.state.error.toString()}
+                  </pre>
+                  
+                  <div className="font-semibold mb-2">Component Stack:</div>
+                  <pre className="whitespace-pre-wrap">
+                    {this.state.errorInfo.componentStack}
+                  </pre>
+                </div>
+              </details>
+            )}
           </div>
         </div>
       );
     }
 
+    // No error, render children normally
     return this.props.children;
   }
 }
-
-// Functional component wrapper for easier use
-export const withErrorBoundary = (Component) => {
-  return function WrappedComponent(props) {
-    return (
-      <ErrorBoundary>
-        <Component {...props} />
-      </ErrorBoundary>
-    );
-  };
-};
 
 export default ErrorBoundary;

@@ -175,17 +175,20 @@ export default function Sidebar({ mobile = false, onClose }) {
       {/* Desktop Logo */}
     
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto p-6" >
         {/* Corporate Section */}
         {isCorporateUser && organization && availableCorporateNavigation.length > 0 && (
-          <div className="p-8">
+          <div className="p-4">
+               <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
+            Corporate Learning
+          </h3>
             <button
               onClick={() => setCorporateExpanded(!corporateExpanded)}
               className="flex items-center justify-between w-full mb-3 text-left"
             >
               <div className="flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-primary" />
-                <h3 className="text-sm font-semibold text-text-dark">
+                <h3 className="text-lg font-semibold text-text-dark">
                   {organization.name}
                 </h3>
               </div>
@@ -209,16 +212,16 @@ export default function Sidebar({ mobile = false, onClose }) {
             )}
 
             {/* Organization info */}
-            <div className="mt-4 p-3 bg-background-light rounded-lg">
+            <div className="mt-4 p-3 bg-background-dark rounded-lg">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
                   <Building2 className="w-3 h-3 text-white" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-text-dark truncate">
+                <div className="flex-1 min-w-0 ">
+                  <p className="text-m font-medium text-text-dark truncate ">
                     {organization.name}
                   </p>
-                  <p className="text-xs text-text-light">
+                  <p className="text-sky-800 text-xs truncate">
                     {role} • {organization.subscription_status}
                   </p>
                 </div>

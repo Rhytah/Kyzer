@@ -10,7 +10,7 @@ const Header = ({ onMenuClick }) => {
   const { isCorporateUser } = useAuth();
 
   // Determine home route based on user type
-  const homeRoute = isCorporateUser ? '/corporate/dashboard' : '/app/dashboard';
+  const homeRoute = '/';
 
   return (
     <header className="bg-white border-b border-border shadow-sm sticky top-0 z-30">

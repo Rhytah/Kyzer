@@ -1,5 +1,5 @@
 // src/pages/auth/Login.jsx
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/auth/useAuth";
 import LoginForm from "@/components/auth/LoginForm";
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
@@ -7,13 +7,17 @@ import kyzerLogo from "../../assets/images/Kyzerlogo.png";
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, loading } = useAuth();
+  const { login, loading,user,isAuthenticated } = useAuth();
 
-  const from = location.state?.from?.pathname || "/dashboard";
+  const from = location.state?.from?.pathname || "/app/dashboard";
 
   const handleLoginSuccess = () => {
     navigate(from, { replace: true });
   };
+  if(isAuthenticated) {
+return <Navigate to="/app/dashboard" replace />;     // Prevent rendering the login page if already authenticated
+  }
+
 
   return (
     <div className="min-h-screen bg-background-light flex">
