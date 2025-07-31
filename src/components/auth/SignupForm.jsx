@@ -1,496 +1,321 @@
-// src/components/auth/SignupForm.jsx (Simple validation)
+// src/components/auth/SignupForm.jsx - MISSING COMPONENT
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import {
-  Eye,
-  EyeOff,
-  Mail,
-  Lock,
-  User,
-  Building,
-  Users,
-  Loader2,
-} from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useAuth } from "@/hooks/auth/useAuth";
+import { Button, Input } from "@/components/ui";
+import { Eye, EyeOff, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
+// Validation schemas
+const individualSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
+  confirmPassword: z.string()
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+const corporateSchema = individualSchema.extend({
+  jobTitle: z.string().min(1, "Job title is required"),
+  companyName: z.string().min(1, "Company name is required"),
+  employeeCount: z.string().min(1, "Please select company size"),
+});
+
 export default function SignupForm({ accountType, onSuccess }) {
+  const { signup } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { signup, loading } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const schema = accountType === 'corporate' ? corporateSchema : individualSchema;
 
   const {
     register,
     handleSubmit,
+    formState: { errors },
     watch,
-    formState: { errors, isSubmitting },
+    setError
   } = useForm({
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-      ...(accountType === "corporate" && {
-        companyName: "",
-        jobTitle: "",
-        employeeCount: "",
-      }),
-    },
+    resolver: zodResolver(schema),
+    mode: "onBlur"
   });
 
-  // Watch password for confirmation validation
-  const watchPassword = watch("password");
+  const password = watch("password", "");
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (formData) => {
+    console.log('🔵 Form submitted:', { email: formData.email, accountType });
+    setIsLoading(true);
+
     try {
-      const userData = {
-        email: data.email,
-        password: data.password,
+      const signupData = {
+        email: formData.email,
+        password: formData.password,
         options: {
           data: {
-            first_name: data.firstName,
-            last_name: data.lastName,
+            first_name: formData.firstName,
+            last_name: formData.lastName,
             account_type: accountType,
-            ...(accountType === "corporate" && {
-              company_name: data.companyName,
-              job_title: data.jobTitle,
-              employee_count: data.employeeCount,
-            }),
-          },
-        },
+            job_title: formData.jobTitle || '',
+            company_name: formData.companyName || '',
+            employee_count: formData.employeeCount || '',
+          }
+        }
       };
 
-      const result = await signup(userData);
+      console.log('🔵 Calling signup with:', signupData);
+      const result = await signup(signupData);
 
       if (result.error) {
-        toast.error(result.error.message || "Signup failed");
+        console.error('🔴 Signup error:', result.error);
+        
+        // Handle specific error types
+        if (result.error.message?.includes('already registered')) {
+          setError('email', { 
+            type: 'manual', 
+            message: 'This email is already registered. Try signing in instead.' 
+          });
+          toast.error('Email already registered');
+        } else if (result.error.message?.includes('weak password')) {
+          setError('password', { 
+            type: 'manual', 
+            message: 'Password is too weak. Please choose a stronger password.' 
+          });
+          toast.error('Password is too weak');
+        } else {
+          toast.error(result.error.message || 'Signup failed');
+        }
         return;
       }
 
-      toast.success(
-        "Account created! Please check your email to verify your account.",
-      );
-      onSuccess?.();
+      console.log('🟢 Signup successful:', result.data?.user?.email);
+      
+      toast.success('Account created! Please check your email to verify your account.');
+      
+      // Call success callback with email for verification page
+      if (onSuccess) {
+        onSuccess({ email: formData.email });
+      }
+
     } catch (error) {
-      console.error("Signup error:", error);
-      toast.error("An unexpected error occurred");
+      console.error('🔴 Signup exception:', error);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const isLoading = loading || isSubmitting;
+  const getPasswordStrength = (password) => {
+    if (!password) return { strength: 0, label: '', color: '' };
+    
+    let strength = 0;
+    if (password.length >= 8) strength++;
+    if (/[A-Z]/.test(password)) strength++;
+    if (/[a-z]/.test(password)) strength++;
+    if (/[0-9]/.test(password)) strength++;
+    if (/[^A-Za-z0-9]/.test(password)) strength++;
+
+    const levels = [
+      { label: 'Very Weak', color: 'bg-red-500' },
+      { label: 'Weak', color: 'bg-orange-500' },
+      { label: 'Fair', color: 'bg-yellow-500' },
+      { label: 'Good', color: 'bg-blue-500' },
+      { label: 'Strong', color: 'bg-green-500' }
+    ];
+
+    return { strength, ...levels[Math.min(strength, 4)] };
+  };
+
+  const passwordStrength = getPasswordStrength(password);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Name Fields */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label
-            htmlFor="firstName"
-            className="block text-sm font-medium text-text-dark mb-2"
-          >
-            First name
+          <label className="block text-sm font-medium text-text-dark mb-2">
+            First Name
           </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <User className="h-5 w-5 text-text-light" />
-            </div>
-            <input
-              {...register("firstName", {
-                required: "First name is required",
-                minLength: {
-                  value: 2,
-                  message: "First name must be at least 2 characters",
-                },
-              })}
-              type="text"
-              id="firstName"
-              autoComplete="given-name"
-              disabled={isLoading}
-              className={`
-                block w-full pl-10 pr-3 py-3 border rounded-lg 
-                placeholder-text-muted text-text-dark
-                focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
-                disabled:bg-background-medium disabled:cursor-not-allowed
-                transition-colors
-                ${
-                  errors.firstName
-                    ? "border-red-300 bg-red-50"
-                    : "border-background-dark bg-white hover:border-primary-light"
-                }
-              `}
-              placeholder="First name"
-            />
-          </div>
-          {errors.firstName && (
-            <p className="mt-2 text-sm text-red-600">
-              {errors.firstName.message}
-            </p>
-          )}
-        </div>
-
-        <div>
-          <label
-            htmlFor="lastName"
-            className="block text-sm font-medium text-text-dark mb-2"
-          >
-            Last name
-          </label>
-          <input
-            {...register("lastName", {
-              required: "Last name is required",
-              minLength: {
-                value: 2,
-                message: "Last name must be at least 2 characters",
-              },
-            })}
-            type="text"
-            id="lastName"
-            autoComplete="family-name"
+          <Input
+            {...register("firstName")}
+            placeholder="John"
+            error={errors.firstName?.message}
             disabled={isLoading}
-            className={`
-              block w-full px-3 py-3 border rounded-lg 
-              placeholder-text-muted text-text-dark
-              focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
-              disabled:bg-background-medium disabled:cursor-not-allowed
-              transition-colors
-              ${
-                errors.lastName
-                  ? "border-red-300 bg-red-50"
-                  : "border-background-dark bg-white hover:border-primary-light"
-              }
-            `}
-            placeholder="Last name"
           />
-          {errors.lastName && (
-            <p className="mt-2 text-sm text-red-600">
-              {errors.lastName.message}
-            </p>
-          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-text-dark mb-2">
+            Last Name
+          </label>
+          <Input
+            {...register("lastName")}
+            placeholder="Doe"
+            error={errors.lastName?.message}
+            disabled={isLoading}
+          />
         </div>
       </div>
 
+      {/* Email */}
+      <div>
+        <label className="block text-sm font-medium text-text-dark mb-2">
+          Email Address
+        </label>
+        <Input
+          type="email"
+          {...register("email")}
+          placeholder="john@example.com"
+          error={errors.email?.message}
+          disabled={isLoading}
+        />
+      </div>
+
       {/* Corporate Fields */}
-      {accountType === "corporate" && (
+      {accountType === 'corporate' && (
         <>
           <div>
-            <label
-              htmlFor="companyName"
-              className="block text-sm font-medium text-text-dark mb-2"
-            >
-              Company name
+            <label className="block text-sm font-medium text-text-dark mb-2">
+              Job Title
             </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Building className="h-5 w-5 text-text-light" />
-              </div>
-              <input
-                {...register("companyName", {
-                  required: "Company name is required",
-                  minLength: {
-                    value: 2,
-                    message: "Company name must be at least 2 characters",
-                  },
-                })}
-                type="text"
-                id="companyName"
-                autoComplete="organization"
-                disabled={isLoading}
-                className={`
-                  block w-full pl-10 pr-3 py-3 border rounded-lg 
-                  placeholder-text-muted text-text-dark
-                  focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
-                  disabled:bg-background-medium disabled:cursor-not-allowed
-                  transition-colors
-                  ${
-                    errors.companyName
-                      ? "border-red-300 bg-red-50"
-                      : "border-background-dark bg-white hover:border-primary-light"
-                  }
-                `}
-                placeholder="Your company name"
-              />
-            </div>
-            {errors.companyName && (
-              <p className="mt-2 text-sm text-red-600">
-                {errors.companyName.message}
-              </p>
-            )}
+            <Input
+              {...register("jobTitle")}
+              placeholder="CEO, Manager, Developer, etc."
+              error={errors.jobTitle?.message}
+              disabled={isLoading}
+            />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label
-                htmlFor="jobTitle"
-                className="block text-sm font-medium text-text-dark mb-2"
-              >
-                Job title
-              </label>
-              <input
-                {...register("jobTitle", {
-                  required: "Job title is required",
-                })}
-                type="text"
-                id="jobTitle"
-                autoComplete="organization-title"
-                disabled={isLoading}
-                className={`
-                  block w-full px-3 py-3 border rounded-lg 
-                  placeholder-text-muted text-text-dark
-                  focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
-                  disabled:bg-background-medium disabled:cursor-not-allowed
-                  transition-colors
-                  ${
-                    errors.jobTitle
-                      ? "border-red-300 bg-red-50"
-                      : "border-background-dark bg-white hover:border-primary-light"
-                  }
-                `}
-                placeholder="Your job title"
-              />
-              {errors.jobTitle && (
-                <p className="mt-2 text-sm text-red-600">
-                  {errors.jobTitle.message}
-                </p>
-              )}
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-text-dark mb-2">
+              Company Name
+            </label>
+            <Input
+              {...register("companyName")}
+              placeholder="Acme Corporation"
+              error={errors.companyName?.message}
+              disabled={isLoading}
+            />
+          </div>
 
-            <div>
-              <label
-                htmlFor="employeeCount"
-                className="block text-sm font-medium text-text-dark mb-2"
-              >
-                Company size
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Users className="h-5 w-5 text-text-light" />
-                </div>
-                <select
-                  {...register("employeeCount", {
-                    required: "Please select employee count",
-                  })}
-                  id="employeeCount"
-                  disabled={isLoading}
-                  className={`
-                    block w-full pl-10 pr-8 py-3 border rounded-lg 
-                    text-text-dark bg-white
-                    focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
-                    disabled:bg-background-medium disabled:cursor-not-allowed
-                    transition-colors
-                    ${
-                      errors.employeeCount
-                        ? "border-red-300 bg-red-50"
-                        : "border-background-dark hover:border-primary-light"
-                    }
-                  `}
-                >
-                  <option value="">Select size</option>
-                  <option value="1-10">1-10 employees</option>
-                  <option value="11-50">11-50 employees</option>
-                  <option value="51-100">51-100 employees</option>
-                  <option value="101-200">101-200 employees</option>
-                </select>
-              </div>
-              {errors.employeeCount && (
-                <p className="mt-2 text-sm text-red-600">
-                  {errors.employeeCount.message}
-                </p>
-              )}
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-text-dark mb-2">
+              Company Size
+            </label>
+            <select
+              {...register("employeeCount")}
+              className="w-full px-3 py-2 border border-background-dark rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              disabled={isLoading}
+            >
+              <option value="">Select company size</option>
+              <option value="1-10">1-10 employees</option>
+              <option value="11-50">11-50 employees</option>
+              <option value="51-200">51-200 employees</option>
+            </select>
+            {errors.employeeCount && (
+              <p className="mt-1 text-sm text-red-600 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                {errors.employeeCount.message}
+              </p>
+            )}
           </div>
         </>
       )}
 
-      {/* Email Field */}
+      {/* Password */}
       <div>
-        <label
-          htmlFor="email"
-          className="block text-sm font-medium text-text-dark mb-2"
-        >
-          Email address
+        <label className="block text-sm font-medium text-text-dark mb-2">
+          Password
         </label>
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Mail className="h-5 w-5 text-text-light" />
-          </div>
-          <input
-            {...register("email", {
-              required: "Email is required",
-              pattern: {
-                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                message: "Please enter a valid email address",
-              },
-            })}
-            type="email"
-            id="email"
-            autoComplete="email"
+          <Input
+            type={showPassword ? "text" : "password"}
+            {...register("password")}
+            placeholder="Create a strong password"
+            error={errors.password?.message}
             disabled={isLoading}
-            className={`
-              block w-full pl-10 pr-3 py-3 border rounded-lg 
-              placeholder-text-muted text-text-dark
-              focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
-              disabled:bg-background-medium disabled:cursor-not-allowed
-              transition-colors
-              ${
-                errors.email
-                  ? "border-red-300 bg-red-50"
-                  : "border-background-dark bg-white hover:border-primary-light"
-              }
-            `}
-            placeholder="Enter your email"
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-light hover:text-text-dark"
+            disabled={isLoading}
+          >
+            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+          </button>
         </div>
-        {errors.email && (
-          <p className="mt-2 text-sm text-red-600">{errors.email.message}</p>
+
+        {/* Password Strength Indicator */}
+        {password && (
+          <div className="mt-2">
+            <div className="flex items-center space-x-2">
+              <div className="flex-1 h-2 bg-background-medium rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-300 ${passwordStrength.color}`}
+                  style={{ width: `${(passwordStrength.strength / 4) * 100}%` }}
+                />
+              </div>
+              <span className="text-xs text-text-light font-medium">
+                {passwordStrength.label}
+              </span>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Password Fields */}
-      <div className="grid grid-cols-1 gap-4">
-        <div>
-          <label
-            htmlFor="password"
-            className="block text-sm font-medium text-text-dark mb-2"
+      {/* Confirm Password */}
+      <div>
+        <label className="block text-sm font-medium text-text-dark mb-2">
+          Confirm Password
+        </label>
+        <div className="relative">
+          <Input
+            type={showConfirmPassword ? "text" : "password"}
+            {...register("confirmPassword")}
+            placeholder="Confirm your password"
+            error={errors.confirmPassword?.message}
+            disabled={isLoading}
+          />
+          <button
+            type="button"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-light hover:text-text-dark"
+            disabled={isLoading}
           >
-            Password
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-text-light" />
-            </div>
-            <input
-              {...register("password", {
-                required: "Password is required",
-                minLength: {
-                  value: 8,
-                  message: "Password must be at least 8 characters",
-                },
-                pattern: {
-                  value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-                  message:
-                    "Password must contain at least one uppercase letter, one lowercase letter, and one number",
-                },
-              })}
-              type={showPassword ? "text" : "password"}
-              id="password"
-              autoComplete="new-password"
-              disabled={isLoading}
-              className={`
-                block w-full pl-10 pr-12 py-3 border rounded-lg 
-                placeholder-text-muted text-text-dark
-                focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
-                disabled:bg-background-medium disabled:cursor-not-allowed
-                transition-colors
-                ${
-                  errors.password
-                    ? "border-red-300 bg-red-50"
-                    : "border-background-dark bg-white hover:border-primary-light"
-                }
-              `}
-              placeholder="Create a password"
-            />
-            <button
-              type="button"
-              disabled={isLoading}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center"
-              onClick={() => setShowPassword(!showPassword)}
-            >
-              {showPassword ? (
-                <EyeOff className="h-5 w-5 text-text-light hover:text-text-medium transition-colors" />
-              ) : (
-                <Eye className="h-5 w-5 text-text-light hover:text-text-medium transition-colors" />
-              )}
-            </button>
-          </div>
-          {errors.password && (
-            <p className="mt-2 text-sm text-red-600">
-              {errors.password.message}
-            </p>
-          )}
-        </div>
-
-        <div>
-          <label
-            htmlFor="confirmPassword"
-            className="block text-sm font-medium text-text-dark mb-2"
-          >
-            Confirm password
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="h-5 w-5 text-text-light" />
-            </div>
-            <input
-              {...register("confirmPassword", {
-                required: "Please confirm your password",
-                validate: (value) =>
-                  value === watchPassword || "Passwords don't match",
-              })}
-              type={showConfirmPassword ? "text" : "password"}
-              id="confirmPassword"
-              autoComplete="new-password"
-              disabled={isLoading}
-              className={`
-                block w-full pl-10 pr-12 py-3 border rounded-lg 
-                placeholder-text-muted text-text-dark
-                focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
-                disabled:bg-background-medium disabled:cursor-not-allowed
-                transition-colors
-                ${
-                  errors.confirmPassword
-                    ? "border-red-300 bg-red-50"
-                    : "border-background-dark bg-white hover:border-primary-light"
-                }
-              `}
-              placeholder="Confirm your password"
-            />
-            <button
-              type="button"
-              disabled={isLoading}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            >
-              {showConfirmPassword ? (
-                <EyeOff className="h-5 w-5 text-text-light hover:text-text-medium transition-colors" />
-              ) : (
-                <Eye className="h-5 w-5 text-text-light hover:text-text-medium transition-colors" />
-              )}
-            </button>
-          </div>
-          {errors.confirmPassword && (
-            <p className="mt-2 text-sm text-red-600">
-              {errors.confirmPassword.message}
-            </p>
-          )}
+            {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+          </button>
         </div>
       </div>
 
       {/* Submit Button */}
-      <button
+      <Button
         type="submit"
+        className="w-full"
+        loading={isLoading}
         disabled={isLoading}
-        className={`
-          w-full flex justify-center items-center py-3 px-4 border border-transparent 
-          rounded-lg shadow-sm text-sm font-medium text-white 
-          focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/20
-          transition-all duration-200
-          ${
-            isLoading
-              ? "bg-primary/70 cursor-not-allowed"
-              : "bg-primary hover:bg-primary-dark hover:shadow-md transform hover:-translate-y-0.5"
-          }
-        `}
       >
-        {isLoading ? (
-          <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Creating account...
-          </>
-        ) : (
-          `Create ${accountType} account`
-        )}
-      </button>
+        {isLoading ? 'Creating Account...' : 'Create Account'}
+      </Button>
+
+      {/* Additional Info for Corporate */}
+      {accountType === 'corporate' && (
+        <div className="text-xs text-text-light bg-background-medium rounded-lg p-3">
+          <p className="font-medium mb-1">Corporate Account Benefits:</p>
+          <ul className="space-y-1">
+            <li>• Manage up to 200 employees</li>
+            <li>• Advanced reporting and analytics</li>
+            <li>• Bulk course assignments</li>
+            <li>• Priority support</li>
+          </ul>
+        </div>
+      )}
     </form>
   );
 }

@@ -1,4 +1,4 @@
-// src/hooks/auth/useAuth.jsx - FIXED to prevent infinite loading on login
+// src/hooks/auth/useAuth.jsx - FIXED VERSION (No premature profile creation)
 import { useState, useEffect, createContext, useContext, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
@@ -7,18 +7,18 @@ const AuthContext = createContext();
 
 // Helper function to get the correct redirect URL for current environment
 const getAuthRedirectURL = (path = '/auth/callback') => {
-    const baseURL = import.meta.env.VITE_APP_URL || window.location.origin;
+  const baseURL = import.meta.env.VITE_APP_URL || window.location.origin;
   return `${baseURL}${path}`;
 };
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // Auth loading
+  const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [profileLoading, setProfileLoading] = useState(false); // Separate profile loading
+  const [profileLoading, setProfileLoading] = useState(false);
 
-  // Safe error handler that doesn't cause infinite loops
+  // Safe error handler
   const handleError = useCallback((error, context = '') => {
     console.error(`Error in ${context}:`, error);
     
@@ -37,7 +37,7 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  // Load user profile - NON-BLOCKING and separate from auth loading
+  // Load user profile
   const loadUserProfile = useCallback(async (userId) => {
     if (!userId) {
       setProfile(null);
@@ -50,14 +50,24 @@ export function AuthProvider({ children }) {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select(`
+          *,
+          organization:organization_id(
+            id,
+            name,
+            slug,
+            subscription_status,
+            max_employees
+          )
+        `)
         .eq('id', userId)
-        .maybeSingle(); // Use maybeSingle to prevent PGRST116
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
         console.error('Profile loading error:', error);
         setProfile(null);
       } else {
+        console.log('Profile loaded:', data?.email || 'No profile');
         setProfile(data);
       }
     } catch (error) {
@@ -68,7 +78,7 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // SIMPLIFIED auth initialization - CRITICAL FIX
+  // Auth initialization
   useEffect(() => {
     let mounted = true;
 
@@ -76,7 +86,6 @@ export function AuthProvider({ children }) {
       try {
         console.log('🔵 Initializing auth...');
         
-        // Get current session
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (!mounted) return;
@@ -87,12 +96,10 @@ export function AuthProvider({ children }) {
         
         console.log('🟢 Session loaded:', session?.user?.email || 'No user');
         
-        // Set auth state immediately
         setSession(session);
         setUser(session?.user || null);
-        setLoading(false); // CRITICAL: Always set loading to false here
+        setLoading(false);
         
-        // Load profile in background (non-blocking)
         if (session?.user) {
           loadUserProfile(session.user.id);
         }
@@ -102,14 +109,13 @@ export function AuthProvider({ children }) {
         if (mounted) {
           setUser(null);
           setSession(null);
-          setLoading(false); // CRITICAL: Always set loading to false
+          setLoading(false);
         }
       }
     };
 
     initializeAuth();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🟡 Auth state changed:', event, session?.user?.email || 'No user');
@@ -119,7 +125,6 @@ export function AuthProvider({ children }) {
         setSession(session);
         setUser(session?.user || null);
         
-        // Load profile for new user (non-blocking)
         if (session?.user) {
           loadUserProfile(session.user.id);
         } else {
@@ -132,9 +137,9 @@ export function AuthProvider({ children }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []); // Empty dependency - only run once
+  }, []);
 
-  // FIXED login function - proper loading management
+  // Login function
   const login = useCallback(async (email, password) => {
     console.log('🔵 Login started for:', email);
     
@@ -151,10 +156,6 @@ export function AuthProvider({ children }) {
       }
 
       console.log('🟢 Login successful:', data.user?.email);
-      
-      // The auth state change listener will handle updating user/session
-      // Don't manually set loading states here
-      
       return { data };
       
     } catch (error) {
@@ -164,14 +165,18 @@ export function AuthProvider({ children }) {
     }
   }, [handleError]);
 
-  // Signup function with proper email redirect configuration
+  // ✅ FIXED SIGNUP - No immediate profile creation
   const signup = useCallback(async (userData) => {
     try {
-      console.log('🔵 Starting signup process...');
+      console.log('🔵 Starting signup process...', {
+        email: userData.email,
+        account_type: userData.options?.data?.account_type
+      });
 
-      const redirectURL = getAuthRedirectURL('/auth/callback?type=signup');
+      const redirectURL = getAuthRedirectURL('/auth/callback');
       console.log('📧 Email verification will redirect to:', redirectURL);
 
+      // ✅ ONLY create auth user, let database trigger handle profile
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
@@ -183,54 +188,36 @@ export function AuthProvider({ children }) {
             account_type: userData.options?.data?.account_type || 'individual',
             job_title: userData.options?.data?.job_title || '',
             company_name: userData.options?.data?.company_name || '',
+            employee_count: userData.options?.data?.employee_count || '',
           }
         }
       });
 
       if (authError) {
+        console.error('🔴 Auth signup error:', authError);
         const handledError = handleError(authError, 'signup');
         return { error: handledError };
       }
 
-      console.log('🟢 Auth user created:', authData.user?.id);
+      console.log('🟢 Auth user created:', {
+        id: authData.user?.id,
+        email: authData.user?.email,
+        emailConfirmed: authData.user?.email_confirmed_at !== null,
+        needsConfirmation: authData.user && !authData.user.email_confirmed_at
+      });
 
-      // Create profile if user needs email confirmation
-      if (authData.user && authData.user.email_confirmed_at === null) {
-        try {
-          const profileData = {
-            id: authData.user.id,
-            email: userData.email,
-            first_name: userData.options?.data?.first_name || '',
-            last_name: userData.options?.data?.last_name || '',
-            account_type: userData.options?.data?.account_type || 'individual',
-            job_title: userData.options?.data?.job_title || '',
-            company_name: userData.options?.data?.company_name || '',
-            role: userData.options?.data?.account_type === 'corporate' ? 'admin' : 'learner',
-            status: 'active'
-          };
-
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([profileData]);
-
-          if (profileError) {
-            console.error('🔴 Profile creation error:', profileError);
-          } else {
-            console.log('🟢 Profile created successfully');
-          }
-
-          // Handle corporate organization creation (non-blocking)
-          if (userData.options?.data?.account_type === 'corporate') {
-            createOrganizationAsync(authData.user.id, userData.options.data)
-              .catch(error => console.error('🔴 Organization creation failed:', error));
-          }
-
-        } catch (profileError) {
-          console.error('🔴 Profile creation failed:', profileError);
-        }
+      // ✅ NO PROFILE CREATION HERE - Let triggers or callback handle it
+      if (authData.user && !authData.user.email_confirmed_at) {
+        console.log('📧 User needs email confirmation. Profile will be created after verification.');
+      } else if (authData.user && authData.user.email_confirmed_at) {
+        console.log('🟡 Email already confirmed (rare case)');
+        // If somehow email is already confirmed, profile will be created by trigger
       }
 
-      return { data: authData };
+      return { 
+        data: authData,
+        message: 'Account created! Please check your email to verify your account.'
+      };
 
     } catch (error) {
       console.error('🔴 Signup error:', error);
@@ -239,31 +226,61 @@ export function AuthProvider({ children }) {
     }
   }, [handleError]);
 
-  // Password reset function with environment-aware redirect
-  const resetPassword = useCallback(async (email) => {
+  // ✅ NEW: Create user profile (for auth callback use)
+  const createUserProfile = useCallback(async (user, userData = {}) => {
     try {
-      const redirectURL = getAuthRedirectURL('/auth/callback?type=recovery');
-      console.log('🔑 Password reset will redirect to:', redirectURL);
-      
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectURL
-      });
-      
-      if (error) {
-        const handledError = handleError(error, 'password-reset');
-        return { error: handledError };
-      }
-      
-      return { data };
-    } catch (error) {
-      const handledError = handleError(error, 'password-reset');
-      return { error: handledError };
-    }
-  }, [handleError]);
+      console.log('🔵 Creating user profile for:', user.id);
 
-  // Non-blocking organization creation
-  const createOrganizationAsync = async (userId, userData) => {
+      const profileData = {
+        id: user.id, // ✅ CRITICAL: This must be the auth user ID
+        email: user.email,
+        first_name: userData.first_name || user.user_metadata?.first_name || '',
+        last_name: userData.last_name || user.user_metadata?.last_name || '',
+        account_type: userData.account_type || user.user_metadata?.account_type || 'individual',
+        job_title: userData.job_title || user.user_metadata?.job_title || '',
+        company_name: userData.company_name || user.user_metadata?.company_name || '',
+        role: (userData.account_type || user.user_metadata?.account_type) === 'corporate' ? 'admin' : 'learner',
+        status: 'active',
+        auth_user_id: user.id // ✅ CRITICAL: Explicit auth user reference
+      };
+
+      console.log('Creating profile with data:', profileData);
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .insert([profileData])
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error('🔴 Profile creation error:', profileError);
+        throw profileError;
+      }
+
+      console.log('🟢 Profile created successfully:', profile.id);
+
+      // Handle corporate organization creation if needed
+      if (profileData.account_type === 'corporate') {
+        await createOrganizationForUser(user.id, {
+          ...userData,
+          ...user.user_metadata,
+          email: user.email
+        });
+      }
+
+      return profile;
+
+    } catch (error) {
+      console.error('🔴 Profile creation failed:', error);
+      throw error;
+    }
+  }, []);
+
+  // Organization creation helper
+  const createOrganizationForUser = async (userId, userData) => {
     try {
+      console.log('🏢 Creating organization for user:', userId);
+
       const companyName = userData.company_name || 'Unnamed Company';
       const slug = companyName
         .toLowerCase()
@@ -277,7 +294,7 @@ export function AuthProvider({ children }) {
         max_employees: userData.employee_count === '1-10' ? 10 :
                      userData.employee_count === '11-50' ? 50 :
                      userData.employee_count === '51-200' ? 200 : 10,
-        subscription_status: 'active'
+        subscription_status: 'trial'
       };
 
       const { data: orgResult, error: orgError } = await supabase
@@ -310,11 +327,61 @@ export function AuthProvider({ children }) {
           joined_at: new Date().toISOString()
         }]);
 
-      console.log('🏢 Organization created successfully');
+      console.log('🟢 Organization created successfully:', orgResult.id);
+      return orgResult;
+
     } catch (error) {
       console.error('🔴 Organization creation error:', error);
+      // Don't throw - let signup succeed even if org creation fails
     }
   };
+
+  // Password reset function
+  const resetPassword = useCallback(async (email) => {
+    try {
+      const redirectURL = getAuthRedirectURL('/auth/callback?type=recovery');
+      console.log('🔑 Password reset will redirect to:', redirectURL);
+      
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectURL
+      });
+      
+      if (error) {
+        const handledError = handleError(error, 'password-reset');
+        return { error: handledError };
+      }
+      
+      return { data };
+    } catch (error) {
+      const handledError = handleError(error, 'password-reset');
+      return { error: handledError };
+    }
+  }, [handleError]);
+
+  // ✅ NEW: Resend verification email
+  const resendVerification = useCallback(async (email) => {
+    try {
+      const redirectURL = getAuthRedirectURL('/auth/callback');
+      
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+        options: {
+          emailRedirectTo: redirectURL
+        }
+      });
+      
+      if (error) {
+        const handledError = handleError(error, 'resend-verification');
+        return { error: handledError };
+      }
+      
+      return { success: true };
+    } catch (error) {
+      const handledError = handleError(error, 'resend-verification');
+      return { error: handledError };
+    }
+  }, [handleError]);
 
   // Sign out function
   const signOut = useCallback(async () => {
@@ -329,7 +396,6 @@ export function AuthProvider({ children }) {
         return { error: handledError };
       }
 
-      // Clear state - auth state change listener will also clear these
       setProfile(null);
       
       console.log('🟢 Signed out successfully');
@@ -351,8 +417,8 @@ export function AuthProvider({ children }) {
     user,
     session,
     profile,
-    loading, // Auth loading only
-    profileLoading, // Separate profile loading
+    loading,
+    profileLoading,
     isAuthenticated: !!user,
     hasProfile: !!profile,
     login,
@@ -361,6 +427,8 @@ export function AuthProvider({ children }) {
     resetPassword,
     refreshUser,
     loadUserProfile,
+    resendVerification,
+    createUserProfile, // ✅ For auth callback use
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -229,42 +229,42 @@ const Reports = () => {
         <div className="card text-center">
           <Users className="h-8 w-8 text-blue-600 mx-auto mb-2" />
           <div className="text-2xl font-bold text-text-dark">
-            {reportData.totalEmployees}
+            {reportData?.totalEmployees}
           </div>
           <div className="text-sm text-text-medium">Total Employees</div>
         </div>
         <div className="card text-center">
           <Target className="h-8 w-8 text-green-600 mx-auto mb-2" />
           <div className="text-2xl font-bold text-text-dark">
-            {reportData.coursesCompleted}
+            {reportData?.coursesCompleted}
           </div>
           <div className="text-sm text-text-medium">Courses Completed</div>
         </div>
         <div className="card text-center">
           <Clock className="h-8 w-8 text-purple-600 mx-auto mb-2" />
           <div className="text-2xl font-bold text-text-dark">
-            {reportData.totalHours.toLocaleString()}
+            {reportData?.totalHours?.toLocaleString()}
           </div>
           <div className="text-sm text-text-medium">Total Hours</div>
         </div>
         <div className="card text-center">
           <Award className="h-8 w-8 text-yellow-600 mx-auto mb-2" />
           <div className="text-2xl font-bold text-text-dark">
-            {reportData.certificates}
+            {reportData?.certificates}
           </div>
           <div className="text-sm text-text-medium">Certificates</div>
         </div>
         <div className="card text-center">
           <TrendingUp className="h-8 w-8 text-primary mx-auto mb-2" />
           <div className="text-2xl font-bold text-text-dark">
-            {reportData.averageCompletion}%
+            {reportData?.averageCompletion}%
           </div>
           <div className="text-sm text-text-medium">Avg. Completion</div>
         </div>
         <div className="card text-center">
           <BookOpen className="h-8 w-8 text-indigo-600 mx-auto mb-2" />
           <div className="text-2xl font-bold text-text-dark">
-            {reportData.activeEmployees}
+            {reportData?.activeEmployees}
           </div>
           <div className="text-sm text-text-medium">Active Learners</div>
         </div>
@@ -287,7 +287,7 @@ const Reports = () => {
               </tr>
             </thead>
             <tbody>
-              {reportData.departmentStats.map((dept, index) => (
+              {reportData?.departmentStats?.map((dept, index) => (
                 <tr key={index} className="border-b border-background-light">
                   <td className="py-3 font-medium text-text-dark">
                     {dept.name}
@@ -321,20 +321,20 @@ const Reports = () => {
           Monthly Learning Progress
         </h3>
         <div className="h-64 flex items-end justify-between space-x-2 border-b border-background-dark">
-          {reportData.monthlyProgress.map((month, index) => (
+          {reportData?.monthlyProgress?.map((month, index) => (
             <div key={index} className="flex-1 flex flex-col items-center">
               <div className="w-full max-w-12 space-y-1">
                 <div
                   className="bg-primary rounded-t"
                   style={{
-                    height: `${(month.completions / Math.max(...reportData.monthlyProgress.map((m) => m.completions))) * 200}px`,
+                    height: `${(month.completions / Math.max(...reportData?.monthlyProgress?.map((m) => m.completions))) * 200}px`,
                     minHeight: "4px",
                   }}
                 />
                 <div
                   className="bg-primary-light rounded-t"
                   style={{
-                    height: `${(month.hours / Math.max(...reportData.monthlyProgress.map((m) => m.hours))) * 100}px`,
+                    height: `${(month.hours / Math.max(...reportData?.monthlyProgress?.map((m) => m.hours))) * 100}px`,
                     minHeight: "2px",
                   }}
                 />
@@ -363,25 +363,25 @@ const Reports = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card text-center">
           <div className="text-2xl font-bold text-blue-600">
-            {reportData.inProgress}
+            {reportData?.inProgress}
           </div>
           <div className="text-sm text-text-medium">In Progress</div>
         </div>
         <div className="card text-center">
           <div className="text-2xl font-bold text-green-600">
-            {reportData.completed}
+            {reportData?.completed}
           </div>
           <div className="text-sm text-text-medium">Completed</div>
         </div>
         <div className="card text-center">
           <div className="text-2xl font-bold text-gray-600">
-            {reportData.notStarted}
+            {reportData?.notStarted}
           </div>
           <div className="text-sm text-text-medium">Not Started</div>
         </div>
         <div className="card text-center">
           <div className="text-2xl font-bold text-red-600">
-            {reportData.overdue}
+            {reportData?.overdue}
           </div>
           <div className="text-sm text-text-medium">Overdue</div>
         </div>
@@ -403,7 +403,7 @@ const Reports = () => {
               </tr>
             </thead>
             <tbody>
-              {reportData.progressByWeek.map((week, index) => (
+              {reportData?.progressByWeek?.map((week, index) => (
                 <tr key={index} className="border-b border-background-light">
                   <td className="py-3 font-medium">{week.week}</td>
                   <td className="py-3">{week.started}</td>
@@ -426,7 +426,7 @@ const Reports = () => {
           Top Performers
         </h3>
         <div className="space-y-3">
-          {reportData.topPerformers.map((performer, index) => (
+          {reportData?.topPerformers?.map((performer, index) => (
             <div
               key={index}
               className="flex items-center justify-between p-3 bg-background-light rounded-lg"
@@ -460,25 +460,25 @@ const Reports = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card text-center">
           <div className="text-2xl font-bold text-text-dark">
-            {reportData.totalAssignments}
+            {reportData?.totalAssignments}
           </div>
           <div className="text-sm text-text-medium">Total Assignments</div>
         </div>
         <div className="card text-center">
           <div className="text-2xl font-bold text-green-600">
-            {reportData.completed}
+            {reportData?.completed}
           </div>
           <div className="text-sm text-text-medium">Completed</div>
         </div>
         <div className="card text-center">
           <div className="text-2xl font-bold text-primary">
-            {reportData.completionRate}%
+            {reportData?.completionRate}%
           </div>
           <div className="text-sm text-text-medium">Completion Rate</div>
         </div>
         <div className="card text-center">
           <div className="text-2xl font-bold text-text-dark">
-            {reportData.averageTimeToComplete}
+            {reportData?.averageTimeToComplete}
           </div>
           <div className="text-sm text-text-medium">Avg. Days to Complete</div>
         </div>
@@ -490,7 +490,7 @@ const Reports = () => {
           Course Completion Rates
         </h3>
         <div className="space-y-4">
-          {reportData.completionTrends.map((course, index) => (
+          {reportData?.completionTrends?.map((course, index) => (
             <div
               key={index}
               className="border border-background-dark rounded-lg p-4"

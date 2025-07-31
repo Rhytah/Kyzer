@@ -14,10 +14,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 // Get the correct base URL for current environment
 export const getBaseURL = () => {
-  // For development
-  if (import.meta.env.DEV) {
-    return `http://localhost:${window.location.port || 5173}`;
-  }
   
   // For production/staging - use environment variable or current origin
   return import.meta.env.VITE_APP_URL || window.location.origin;

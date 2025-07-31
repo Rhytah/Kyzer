@@ -24,7 +24,7 @@ const UserMenu = () => {
   const handleLogout = async () => {
     try {
       await signOut();
-      navigate('/auth/login');
+      navigate('/login');
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
