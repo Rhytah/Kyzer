@@ -22,7 +22,7 @@ import AcceptInvitation from "@/pages/corporate/AcceptInvitation";
 // Layouts and Guards
 import CorporateLayout from "@/components/layout/CorporateLayout";
 import CorporateGuard from "@/components/auth/CorporateGuard";
-// import AdminGuard from "@/components/auth/AdminGuard";
+import AdminGuard from "@/components/auth/AdminGuard";
 
 // Corporate navigation configuration
 export const corporateNavItems = [

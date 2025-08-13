@@ -42,6 +42,7 @@ export const individualNavigation = [{
             { name: 'Browse Catalog', href: '/app/courses/catalog' },
         ],
     },
+
     {
         name: 'Progress',
         href: '/app/progress',
@@ -124,6 +125,7 @@ export const quickActions = {
             icon: BookOpen,
             color: 'bg-green-500',
         },
+
         {
             name: 'View Progress',
             href: '/app/progress',
@@ -161,6 +163,7 @@ export const getBreadcrumbs = (pathname, params = {}) => {
         dashboard: { label: 'Dashboard', href: '/app/dashboard' },
         courses: { label: 'Courses', href: '/app/courses' },
         catalog: { label: 'Catalog', href: '/app/courses/catalog' },
+        learning: { label: 'Learning', href: null },
         progress: { label: 'Progress', href: '/app/progress' },
         certificates: { label: 'Certificates', href: '/app/certificates' },
         profile: { label: 'Profile', href: '/app/profile' },

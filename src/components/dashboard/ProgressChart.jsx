@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { TrendingUp, Calendar, BarChart } from "lucide-react";
 
-export default function ProgressChart({ data = null }) {
+export default function ProgressChart({ data }) {
   const [timeFrame, setTimeFrame] = useState("7d"); // 7d, 30d, 90d
 
   // Mock data for demonstration
@@ -34,7 +34,32 @@ export default function ProgressChart({ data = null }) {
   };
 
   const chartData = data || mockData[timeFrame];
-  const maxHours = Math.max(...chartData.learningHours);
+  console.log("chartData", chartData);
+  
+  // Handle empty data gracefully
+  if (!chartData || !Array.isArray(chartData) || chartData.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-text-dark">
+              Learning Progress
+            </h3>
+            <p className="text-sm text-text-light">
+              Track your learning activity over time
+            </p>
+          </div>
+        </div>
+        
+        <div className="bg-background-light rounded-lg p-8 text-center">
+          <div className="text-text-light text-lg mb-2">No learning data available</div>
+          <div className="text-text-light text-sm">Start learning to see your progress here</div>
+        </div>
+      </div>
+    );
+  }
+  
+  const maxHours = Math.max(...chartData?.learningHours || [0]);
 
   return (
     <div className="space-y-6">

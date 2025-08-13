@@ -130,9 +130,9 @@ Let's start by looking at the useState hook...`,
     const currentIndex = course.lessons.findIndex(l => l.id === lessonId)
     const nextLesson = course.lessons[currentIndex + 1]
     if (nextLesson) {
-      navigate(`/courses/${courseId}/lesson/${nextLesson.id}`)
+      navigate(`/app/courses/${courseId}/lesson/${nextLesson.id}`)
     } else {
-      navigate(`/courses/${courseId}/completion`)
+      navigate(`/app/courses/${courseId}/completion`)
     }
   }
 
@@ -140,7 +140,7 @@ Let's start by looking at the useState hook...`,
     const currentIndex = course.lessons.findIndex(l => l.id === lessonId)
     const prevLesson = course.lessons[currentIndex - 1]
     if (prevLesson) {
-      navigate(`/courses/${courseId}/lesson/${prevLesson.id}`)
+      navigate(`/app/courses/${courseId}/lesson/${prevLesson.id}`)
     }
   }
 
@@ -265,7 +265,7 @@ Let's start by looking at the useState hook...`,
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold text-text-dark mb-4">Lesson Not Found</h2>
         <p className="text-text-light mb-6">The lesson you're looking for doesn't exist.</p>
-        <Button onClick={() => navigate(`/courses/${courseId}`)}>
+        <Button onClick={() => navigate(`/app/courses/${courseId}`)}>
           Back to Course
         </Button>
       </div>
@@ -279,7 +279,7 @@ Let's start by looking at the useState hook...`,
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-text-light">
           <button 
-            onClick={() => navigate(`/courses/${courseId}`)}
+            onClick={() => navigate(`/app/courses/${courseId}`)}
             className="hover:text-primary-default"
           >
             {course.title}
@@ -448,7 +448,7 @@ Let's start by looking at the useState hook...`,
             {course.lessons.map((courseLesson, index) => (
               <button
                 key={courseLesson.id}
-                onClick={() => navigate(`/courses/${courseId}/lesson/${courseLesson.id}`)}
+                onClick={() => navigate(`/app/courses/${courseId}/lesson/${courseLesson.id}`)}
                 className={`w-full text-left p-3 rounded-lg transition-colors ${
                   courseLesson.id === lessonId
                     ? 'bg-primary-light text-primary-default'

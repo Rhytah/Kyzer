@@ -46,7 +46,7 @@ export  function EnrolledCourses({
           Start your learning journey by enrolling in your first course.
         </p>
         <Link
-          to="/courses"
+          to="/app/courses"
           className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
         >
           Browse Courses

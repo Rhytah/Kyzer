@@ -28,6 +28,7 @@ import CourseDetail from "@/pages/courses/CourseDetail";
 import LessonView from "@/pages/courses/LessonView";
 import MyCourses from "@/pages/courses/MyCourses";
 import CourseCompletion from "@/pages/courses/CourseCompletion";
+import CourseLearning from "@/pages/courses/CourseLearning";
 
 // Corporate Pages
 import CompanyDashboard from "@/pages/corporate/CompanyDashboard";
@@ -39,6 +40,8 @@ import AcceptInvitation from "@/pages/corporate/AcceptInvitation";
 // Error Pages
 import NotFound from "@/components/common/NotFound";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
+import Certificates from "./pages/dashboard/Certificates";
+import Progress from "./pages/dashboard/Progress";
 
 export const router = createBrowserRouter([
   {
@@ -87,12 +90,13 @@ export const router = createBrowserRouter([
               { index: true, element: <MyCourses /> },
               { path: "catalog", element: <CourseCatalog /> },
               { path: ":courseId", element: <CourseDetail /> },
+              { path: ":courseId/learning", element: <CourseLearning /> },
               { path: ":courseId/lesson/:lessonId", element: <LessonView /> },
               { path: ":courseId/completion", element: <CourseCompletion /> },
             ],
           },
-          { path: "progress", element: <div>Progress Page</div> },
-          { path: "certificates", element: <div>Certificates</div> },
+          { path: "progress", element: <Progress /> },
+          { path: "certificates", element: <Certificates /> },
         ],
       },
 

@@ -16,7 +16,7 @@ export function useNavigation() {
     };
 
     const goToSection = (section) => {
-        const basePath = userType === 'corporate' ? '/corporate' : '/app';
+        const basePath = userType === 'corporate' ? '/company' : '/app';
         navigate(`${basePath}/${section}`);
     };
 
@@ -25,7 +25,7 @@ export function useNavigation() {
     };
 
     const goHome = () => {
-        const homePath = userType === 'corporate' ? '/corporate/dashboard' : '/app/dashboard';
+        const homePath = userType === 'corporate' ? '/company/dashboard' : '/app/dashboard';
         navigate(homePath);
     };
 

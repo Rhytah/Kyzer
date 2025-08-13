@@ -2,7 +2,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { supabase, TABLES } from '@/lib/supabase';
-import toast from 'react-hot-toast';
 
 const useCourseStore = create(
   subscribeWithSelector((set, get) => ({
@@ -37,9 +36,9 @@ const useCourseStore = create(
             .select(`
               *,
               lessons:${TABLES.LESSONS}(id, title, order_index),
-              enrollments:${TABLES.ENROLLMENTS}(id, user_id)
+              enrollments:${TABLES.COURSE_ENROLLMENTS}(id, user_id)
             `)
-            .eq('published', true)
+            .eq('is_published', true)
             .order('created_at', { ascending: false });
 
           // Apply filters
@@ -54,7 +53,6 @@ const useCourseStore = create(
           }
 
           const { data, error } = await query;
-
           if (error) throw error;
 
           set((state) => ({
@@ -64,7 +62,6 @@ const useCourseStore = create(
 
           return { data, error: null };
         } catch (error) {
-          console.error('Error fetching courses:', error);
           set((state) => ({
             error: error.message,
             loading: { ...state.loading, courses: false },
@@ -73,7 +70,7 @@ const useCourseStore = create(
         }
       },
 
-      // Fetch user's enrolled courses
+      // Fetch user's enrolled courses - SIMPLIFIED VERSION
       fetchEnrolledCourses: async (userId) => {
         set((state) => ({
           loading: { ...state.loading, enrollments: true },
@@ -81,13 +78,26 @@ const useCourseStore = create(
         }));
 
         try {
-          const { data, error } = await supabase
-            .from(TABLES.ENROLLMENTS)
+          // Use a single query with join to get both enrollment and course data
+          const { data: enrolledCoursesData, error } = await supabase
+            .from(TABLES.COURSE_ENROLLMENTS)
             .select(`
-              *,
-              course:${TABLES.COURSES}(
-                *,
-                lessons:${TABLES.LESSONS}(id, title, order_index)
+              id,
+              enrolled_at,
+              completed_at,
+              progress_percentage,
+              status,
+              last_accessed,
+              course:${TABLES.COURSES} (
+                id,
+                title,
+                description,
+                thumbnail_url,
+                duration_minutes,
+                difficulty_level,
+                category_id,
+                is_published,
+                created_at
               )
             `)
             .eq('user_id', userId)
@@ -95,13 +105,28 @@ const useCourseStore = create(
 
           if (error) throw error;
 
-          const enrolledCourses = data?.map(enrollment => ({
-            ...enrollment.course,
-            enrollment_id: enrollment.id,
-            enrolled_at: enrollment.enrolled_at,
-            completed_at: enrollment.completed_at,
-            progress_percentage: enrollment.progress_percentage || 0,
-          })) || [];
+          if (!enrolledCoursesData || enrolledCoursesData.length === 0) {
+            set((state) => ({
+              enrolledCourses: [],
+              loading: { ...state.loading, enrollments: false },
+            }));
+            return { data: [], error: null };
+          }
+
+          // Transform the data to match expected format
+          const enrolledCourses = enrolledCoursesData
+            .filter(enrollment => enrollment.course) // Filter out enrollments with null courses
+            .map(enrollment => ({
+              // Course data
+              ...enrollment.course,
+              // Enrollment data
+              enrollment_id: enrollment.id,
+              enrolled_at: enrollment.enrolled_at,
+              completed_at: enrollment.completed_at,
+              progress_percentage: enrollment.progress_percentage || 0,
+              status: enrollment.status || 'active',
+              last_accessed: enrollment.last_accessed,
+            }));
 
           set((state) => ({
             enrolledCourses,
@@ -110,66 +135,67 @@ const useCourseStore = create(
 
           return { data: enrolledCourses, error: null };
         } catch (error) {
-          console.error('Error fetching enrolled courses:', error);
           set((state) => ({
             error: error.message,
+            enrolledCourses: [], // Ensure we set empty array on error
             loading: { ...state.loading, enrollments: false },
           }));
-          return { data: null, error };
+          return { data: [], error };
         }
       },
 
       // Enroll in a course
-      enrollInCourse: async (courseId, userId) => {
+      enrollInCourse: async (userId, courseId) => {
         try {
+          // Check if already enrolled
           const { data: existingEnrollment } = await supabase
-            .from(TABLES.ENROLLMENTS)
+            .from(TABLES.COURSE_ENROLLMENTS)
             .select('id')
             .eq('course_id', courseId)
             .eq('user_id', userId)
             .single();
 
           if (existingEnrollment) {
-            toast.error('Already enrolled in this course');
-            return { data: null, error: 'Already enrolled' };
+            return { data: existingEnrollment, error: null };
           }
 
+          // Create new enrollment
           const { data, error } = await supabase
-            .from(TABLES.ENROLLMENTS)
+            .from(TABLES.COURSE_ENROLLMENTS)
             .insert({
               course_id: courseId,
               user_id: userId,
               enrolled_at: new Date().toISOString(),
+              status: 'pending',
+              progress_percentage: 0,
+              last_accessed: new Date().toISOString(),
             })
             .select()
             .single();
 
           if (error) throw error;
 
-          toast.success('Successfully enrolled in course!');
-          
-          // Refresh enrolled courses
-          await get().actions.fetchEnrolledCourses(userId);
+          // Note: Don't refresh here to avoid circular dependency
+          // The component will refresh when needed
 
           return { data, error: null };
         } catch (error) {
-          console.error('Error enrolling in course:', error);
-          toast.error('Failed to enroll in course');
           return { data: null, error };
         }
       },
 
       // Update lesson progress
-      updateLessonProgress: async (userId, lessonId, courseId, completed = true) => {
+      updateLessonProgress: async (userId, lessonId, courseId, completed = true, metadata = {}) => {
         try {
           const { data, error } = await supabase
-            .from(TABLES.PROGRESS)
+            .from(TABLES.LESSON_PROGRESS)
             .upsert({
               user_id: userId,
               lesson_id: lessonId,
               course_id: courseId,
               completed,
               completed_at: completed ? new Date().toISOString() : null,
+              metadata: metadata,
             })
             .select()
             .single();
@@ -182,7 +208,11 @@ const useCourseStore = create(
               ...state.courseProgress,
               [courseId]: {
                 ...state.courseProgress[courseId],
-                [lessonId]: { completed, completed_at: data.completed_at },
+                [lessonId]: { 
+                  completed, 
+                  completed_at: data.completed_at,
+                  metadata: metadata,
+                },
               },
             },
           }));
@@ -192,7 +222,6 @@ const useCourseStore = create(
 
           return { data, error: null };
         } catch (error) {
-          console.error('Error updating lesson progress:', error);
           return { data: null, error };
         }
       },
@@ -210,7 +239,7 @@ const useCourseStore = create(
 
           // Get completed lessons
           const { data: completedProgress, error: progressError } = await supabase
-            .from(TABLES.PROGRESS)
+            .from(TABLES.LESSON_PROGRESS)
             .select('lesson_id')
             .eq('user_id', userId)
             .eq('course_id', courseId)
@@ -224,10 +253,11 @@ const useCourseStore = create(
 
           // Update enrollment record
           const { error: updateError } = await supabase
-            .from(TABLES.ENROLLMENTS)
+            .from(TABLES.COURSE_ENROLLMENTS)
             .update({
               progress_percentage: progressPercentage,
               completed_at: progressPercentage === 100 ? new Date().toISOString() : null,
+              last_accessed: new Date().toISOString(),
             })
             .eq('user_id', userId)
             .eq('course_id', courseId);
@@ -245,7 +275,6 @@ const useCourseStore = create(
 
           return progressPercentage;
         } catch (error) {
-          console.error('Error calculating course progress:', error);
           return 0;
         }
       },
@@ -259,7 +288,7 @@ const useCourseStore = create(
 
         try {
           const { data, error } = await supabase
-            .from(TABLES.PROGRESS)
+            .from(TABLES.LESSON_PROGRESS)
             .select('*')
             .eq('user_id', userId)
             .eq('course_id', courseId);
@@ -271,6 +300,7 @@ const useCourseStore = create(
             progressMap[progress.lesson_id] = {
               completed: progress.completed,
               completed_at: progress.completed_at,
+              metadata: progress.metadata,
             };
           });
 
@@ -284,7 +314,6 @@ const useCourseStore = create(
 
           return { data: progressMap, error: null };
         } catch (error) {
-          console.error('Error fetching course progress:', error);
           set((state) => ({
             error: error.message,
             loading: { ...state.loading, progress: false },
@@ -326,7 +355,6 @@ const useCourseStore = create(
 
           return { data, error: null };
         } catch (error) {
-          console.error('Error submitting quiz attempt:', error);
           set((state) => ({
             error: error.message,
             loading: { ...state.loading, quiz: false },
@@ -350,10 +378,10 @@ const useCourseStore = create(
           if (error) throw error;
 
           set({ certificates: data || [] });
-          return { data, error: null };
+          return { data: data || [], error: null };
         } catch (error) {
-          console.error('Error fetching certificates:', error);
-          return { data: null, error };
+          set({ certificates: [] });
+          return { data: [], error };
         }
       },
 
@@ -389,20 +417,19 @@ const useCourseStore = create(
             user_id: employeeId,
             assigned_by: assignedBy,
             enrolled_at: new Date().toISOString(),
+            status: 'assigned',
+            progress_percentage: 0,
           }));
 
           const { data, error } = await supabase
-            .from(TABLES.ENROLLMENTS)
+            .from(TABLES.COURSE_ENROLLMENTS)
             .upsert(assignments, { onConflict: 'course_id,user_id' })
             .select();
 
           if (error) throw error;
 
-          toast.success(`Course assigned to ${employeeIds.length} employees`);
           return { data, error: null };
         } catch (error) {
-          console.error('Error assigning course:', error);
-          toast.error('Failed to assign course');
           return { data: null, error };
         }
       },
@@ -411,7 +438,7 @@ const useCourseStore = create(
       fetchTeamProgress: async (organizationId) => {
         try {
           const { data, error } = await supabase
-            .from(TABLES.ENROLLMENTS)
+            .from(TABLES.COURSE_ENROLLMENTS)
             .select(`
               *,
               user:profiles(id, full_name, email),
@@ -424,13 +451,12 @@ const useCourseStore = create(
 
           return { data, error: null };
         } catch (error) {
-          console.error('Error fetching team progress:', error);
           return { data: null, error };
         }
       },
     },
 
-    // Computed values
+    // Computed values (using getters)
     get isLoading() {
       const { loading } = get();
       return Object.values(loading).some(Boolean);

@@ -1,6 +1,6 @@
 // src/components/layout/MobileNav.jsx
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '@hooks/auth/useAuth';
+import { useAuth } from '@/hooks/auth/useAuth';
 import { individualNavigation, corporateNavigation } from '@/config/navigation';
 
 const MobileNav = () => {
@@ -14,8 +14,8 @@ const MobileNav = () => {
   const mobileNavItems = navigation.slice(0, 4);
 
   const isActive = (path) => {
-    if (path === '/app' || path === '/corporate') {
-      return location.pathname === path + '/dashboard';
+    if (path === '/app/dashboard' || path === '/company/dashboard') {
+      return location.pathname === path || location.pathname.startsWith(path.replace('/dashboard', ''));
     }
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };

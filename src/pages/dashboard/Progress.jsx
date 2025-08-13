@@ -1,0 +1,590 @@
+// // src/pages/dashboard/Progress.jsx
+// import { useState, useEffect } from 'react';
+// import Card from '@/components/ui/Card';
+// import ProgressChart from '@/components/dashboard/ProgressChart';
+// import EnrolledCourses from '@/components/dashboard/EnrolledCourses';
+// import Recommendations from '@/components/dashboard/Recommendations';
+// import { useCourseStore } from '@/store/courseStore';
+// import { useAuth } from '@/hooks/auth/useAuth';
+// import { 
+//   TrendingUp, 
+//   BookOpen, 
+//   Award, 
+//   Clock, 
+//   Target,
+//   Calendar,
+//   BarChart3
+// } from 'lucide-react';
+
+// export default function Progress() {
+//   const { user } = useAuth();
+//   const store = useCourseStore();
+//   const { 
+//     enrolledCourses, 
+//     certificates, 
+//     actions: { fetchEnrolledCourses, fetchCertificates },
+//     loading: storeLoading,
+//     error: storeError
+//   } = store;
+  
+//   console.log('Store state:', store);
+//   // console.log('Store actions:', store.actions);
+//   // console.log('fetchEnrolledCourses function:', fetchEnrolledCourses);
+//   // console.log('Current enrolledCourses:', enrolledCourses);
+//   // console.log('Current certificates:', certificates);
+  
+//   const [loading, setLoading] = useState(true);
+//   const [stats, setStats] = useState({
+//     totalCourses: 0,
+//     completedCourses: 0,
+//     inProgressCourses: 0,
+//     totalHours: 0,
+//     certificates: 0,
+//     streak: 0
+//   });
+
+//   useEffect(() => {
+//     const loadProgressData = async () => {
+//       if (user?.id) {
+//         try {
+//           console.log('Loading progress data for user:', user.id);
+//           console.log('fetchEnrolledCourses function exists:', typeof fetchEnrolledCourses);
+          
+//           if (typeof fetchEnrolledCourses !== 'function') {
+//             console.error('fetchEnrolledCourses is not a function!');
+//             return;
+//           }
+          
+//           const [enrollmentsResult, certificatesResult] = await Promise.all([
+//             fetchEnrolledCourses(user.id),
+//             fetchCertificates(user.id)
+//           ]);
+          
+//           console.log('Enrollments result:', enrollmentsResult);
+//           console.log('Certificates result:', certificatesResult);
+          
+//           if (enrollmentsResult.error) {
+//             console.error('Error fetching enrollments:', enrollmentsResult.error);
+//           }
+//           if (certificatesResult.error) {
+//             console.error('Error fetching certificates:', certificatesResult.error);
+//           }
+//         } catch (error) {
+//           console.error('Error loading progress data:', error);
+//         } finally {
+//           setLoading(false);
+//         }
+//       }
+//     };
+
+//     loadProgressData();
+//   }, [user?.id, fetchEnrolledCourses, fetchCertificates]);
+
+//   useEffect(() => {
+//     console.log('Enrolled courses updated:', enrolledCourses);
+//     console.log('Certificates updated:', certificates);
+    
+//     if (enrolledCourses && enrolledCourses.length > 0) {
+//       const completed = enrolledCourses.filter(course => course.progress_percentage === 100).length;
+//       const inProgress = enrolledCourses.filter(course => 
+//         course.progress_percentage > 0 && course.progress_percentage < 100
+//       ).length;
+//       const totalHours = enrolledCourses.reduce((sum, course) => sum + (course.duration || 0), 0) / 60;
+
+//       setStats({
+//         totalCourses: enrolledCourses.length,
+//         completedCourses: completed,
+//         inProgressCourses: inProgress,
+//         totalHours: Math.round(totalHours),
+//         certificates: certificates?.length || 0,
+//         streak: 7 // Mock data - would come from actual streak tracking
+//       });
+//     } else {
+//       // Set default stats when no courses
+//       setStats({
+//         totalCourses: 0,
+//         completedCourses: 0,
+//         inProgressCourses: 0,
+//         totalHours: 0,
+//         certificates: certificates?.length || 0,
+//         streak: 0
+//       });
+//     }
+//   }, [enrolledCourses, certificates]);
+
+//   // Show loading state
+//   if (loading || storeLoading?.enrollments) {
+//     return (
+//       <div className="space-y-6">
+//         <div className="animate-pulse">
+//           <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+//           <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+//         </div>
+//         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+//           {[1, 2, 3, 4].map((i) => (
+//             <div key={i} className="animate-pulse">
+//               <div className="h-32 bg-gray-200 rounded"></div>
+//             </div>
+//           ))}
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   // Show error state
+//   if (storeError) {
+//     return (
+//       <div className="space-y-6">
+//         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+//           <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Progress</h3>
+//           <p className="text-red-600">{storeError}</p>
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   return (
+//     <div className="space-y-8">
+//       {/* Header */}
+//       <div>
+//         <h1 className="text-3xl font-bold text-text-dark mb-2">Learning Progress</h1>
+//         <p className="text-text-light">
+//           Track your learning journey and celebrate your achievements
+//         </p>
+//       </div>
+
+//       {/* Stats Cards */}
+//       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+//         <Card className="p-6">
+//           <div className="flex items-center gap-4">
+//             <div className="w-12 h-12 bg-primary-light rounded-lg flex items-center justify-center">
+//               <BookOpen className="w-6 h-6 text-primary-default" />
+//             </div>
+//             <div>
+//               <p className="text-sm text-text-light">Total Courses</p>
+//               <p className="text-2xl font-bold text-text-dark">{stats.totalCourses}</p>
+//             </div>
+//           </div>
+//         </Card>
+
+//         <Card className="p-6">
+//           <div className="flex items-center gap-4">
+//             <div className="w-12 h-12 bg-success-light rounded-lg flex items-center justify-center">
+//               <Award className="w-6 h-6 text-success-default" />
+//             </div>
+//             <div>
+//               <p className="text-sm text-text-light">Completed</p>
+//               <p className="text-2xl font-bold text-text-dark">{stats.completedCourses}</p>
+//             </div>
+//           </div>
+//         </Card>
+
+//         <Card className="p-6">
+//           <div className="flex items-center gap-4">
+//             <div className="w-12 h-12 bg-warning-light rounded-lg flex items-center justify-center">
+//               <TrendingUp className="w-6 h-6 text-warning-default" />
+//             </div>
+//             <div>
+//               <p className="text-sm text-text-light">In Progress</p>
+//               <p className="text-2xl font-bold text-text-dark">{stats.inProgressCourses}</p>
+//             </div>
+//           </div>
+//         </Card>
+
+//         <Card className="p-6">
+//           <div className="flex items-center gap-4">
+//             <div className="w-12 h-12 bg-info-light rounded-lg flex items-center justify-center">
+//               <Clock className="w-6 h-6 text-info-default" />
+//             </div>
+//             <div>
+//               <p className="text-sm text-text-light">Total Hours</p>
+//               <p className="text-2xl font-bold text-text-dark">{stats.totalHours}h</p>
+//             </div>
+//           </div>
+//         </Card>
+//       </div>
+
+//       {/* Progress Chart */}
+//       <Card className="p-6">
+//         <div className="flex items-center justify-between mb-6">
+//           <h2 className="text-xl font-semibold text-text-dark">Learning Trends</h2>
+//           <div className="flex items-center gap-2 text-sm text-text-light">
+//             <Calendar className="w-4 h-4" />
+//             <span>Last 30 days</span>
+//           </div>
+//         </div>
+//         <ProgressChart data={enrolledCourses || []} />
+//       </Card>
+
+//       {/* Course Progress */}
+//       <Card className="p-6">
+//         <div className="flex items-center justify-between mb-6">
+//           <h2 className="text-xl font-semibold text-text-dark">Course Progress</h2>
+//           <div className="flex items-center gap-2 text-sm text-text-light">
+//             <BarChart3 className="w-4 h-4" />
+//             <span>Detailed view</span>
+//           </div>
+//         </div>
+//         <EnrolledCourses />
+//       </Card>
+
+//       {/* Recommendations */}
+//       <Card className="p-6">
+//         <div className="flex items-center justify-between mb-6">
+//           <h2 className="text-xl font-semibold text-text-dark">Recommended Next Steps</h2>
+//           <Target className="w-5 h-5 text-text-muted" />
+//         </div>
+//         <Recommendations />
+//       </Card>
+//     </div>
+//   );
+// } 
+
+
+// src/pages/dashboard/Progress.jsx - Fixed loading states
+import { useState, useEffect } from 'react';
+import Card from '@/components/ui/Card';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ProgressChart from '@/components/dashboard/ProgressChart';
+import EnrolledCourses from '@/components/dashboard/EnrolledCourses';
+import Recommendations from '@/components/dashboard/Recommendations';
+import { useCourseStore } from '@/store/courseStore';
+import { useAuth } from '@/hooks/auth/useAuth';
+import { 
+  TrendingUp, 
+  BookOpen, 
+  Award, 
+  Clock, 
+  Target,
+  Calendar,
+  BarChart3,
+  RefreshCw,
+  AlertCircle
+} from 'lucide-react';
+
+export default function Progress() {
+  const { user } = useAuth();
+  
+  // Get store data with individual selectors
+  const enrolledCourses = useCourseStore(state => state.enrolledCourses);
+  const certificates = useCourseStore(state => state.certificates);
+  const loading = useCourseStore(state => state.loading);
+  const error = useCourseStore(state => state.error);
+  const fetchEnrolledCourses = useCourseStore(state => state.actions.fetchEnrolledCourses);
+  const fetchCertificates = useCourseStore(state => state.actions.fetchCertificates);
+  
+  // Local state for component-level loading
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [lastAttempt, setLastAttempt] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [stats, setStats] = useState({
+    totalCourses: 0,
+    completedCourses: 0,
+    inProgressCourses: 0,
+    totalHours: 0,
+    certificates: 0,
+    streak: 0
+  });
+
+
+
+  // Calculate stats whenever data changes
+  useEffect(() => {
+    if (enrolledCourses && Array.isArray(enrolledCourses)) {
+      const completed = enrolledCourses.filter(course => course.progress_percentage === 100).length;
+      const inProgress = enrolledCourses.filter(course => 
+        course.progress_percentage > 0 && course.progress_percentage < 100
+      ).length;
+      
+      const totalHours = enrolledCourses.reduce((sum, course) => {
+        const duration = course.duration || 0;
+        return sum + duration;
+      }, 0) / 60;
+
+      setStats({
+        totalCourses: enrolledCourses.length,
+        completedCourses: completed,
+        inProgressCourses: inProgress,
+        totalHours: Math.round(totalHours),
+        certificates: certificates?.length || 0,
+        streak: 7 // Mock data
+      });
+    } else {
+      setStats({
+        totalCourses: 0,
+        completedCourses: 0,
+        inProgressCourses: 0,
+        totalHours: 0,
+        certificates: certificates?.length || 0,
+        streak: 0
+      });
+    }
+  }, [enrolledCourses, certificates]);
+
+  // Initial data load with timeout and retry logic
+  useEffect(() => {
+    const loadData = async () => {
+      if (!user?.id) {
+        setIsInitializing(false);
+        return;
+      }
+
+      if (!fetchEnrolledCourses || typeof fetchEnrolledCourses !== 'function') {
+        setIsInitializing(false);
+        return;
+      }
+
+      setLastAttempt(Date.now());
+
+      try {
+        // Set a timeout for the fetch operation
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout')), 15000); // 15 second timeout
+        });
+
+        const fetchPromise = Promise.all([
+          fetchEnrolledCourses(user.id),
+          fetchCertificates(user.id)
+        ]);
+
+        const [enrollmentsResult, certificatesResult] = await Promise.race([
+          fetchPromise,
+          timeoutPromise
+        ]);
+        
+        setRetryCount(0); // Reset retry count on success
+      } catch (error) {
+        setRetryCount(prev => prev + 1);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    // Only load if we haven't initialized yet
+    if (isInitializing && user?.id) {
+      loadData();
+    }
+  }, [user?.id, fetchEnrolledCourses, fetchCertificates, isInitializing]);
+
+  // Manual refresh function
+  const handleRefresh = async () => {
+    if (!user?.id) return;
+    
+    
+    setIsInitializing(true);
+    setLastAttempt(Date.now());
+    
+    try {
+      await Promise.all([
+        fetchEnrolledCourses(user.id),
+        fetchCertificates(user.id)
+      ]);
+      setRetryCount(0);
+    } catch (error) {
+      setRetryCount(prev => prev + 1);
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
+  // Determine actual loading state
+  const isActuallyLoading = isInitializing || loading?.enrollments || loading?.courses;
+  
+  // Show loading state
+  if (isActuallyLoading && retryCount < 3) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col items-center justify-center min-h-96">
+          <LoadingSpinner size="lg" />
+          <p className="mt-4 text-text-light">Loading your learning progress...</p>
+          {lastAttempt && (
+            <p className="text-xs text-text-muted mt-2">
+              Started {Math.round((Date.now() - lastAttempt) / 1000)}s ago
+            </p>
+          )}
+          {retryCount > 0 && (
+            <p className="text-xs text-warning-default mt-1">
+              Retry attempt {retryCount}/3
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state with retry option
+  if (error || retryCount >= 3) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertCircle className="w-5 h-5 text-red-600" />
+            <h3 className="text-lg font-medium text-red-800">Unable to Load Progress</h3>
+          </div>
+          <p className="text-red-600 mb-4">
+            {error || `Failed to load data after ${retryCount} attempts`}
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={handleRefresh}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Try Again
+            </button>
+            <button
+              onClick={() => {
+                setRetryCount(0);
+                setIsInitializing(false);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              Skip Loading
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Main content
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-text-dark mb-2">Learning Progress</h1>
+          <p className="text-text-light">
+            Track your learning journey and celebrate your achievements
+          </p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={isActuallyLoading}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-primary-default text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 ${isActuallyLoading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
+      </div>
+
+      {/* Debug Info (remove in production) */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
+        <h4 className="font-medium text-blue-800 mb-2">Debug Info:</h4>
+        <div className="grid grid-cols-2 gap-4 text-blue-600">
+          <div>
+            <div>User ID: {user?.id || 'Not available'}</div>
+            <div>Enrolled Courses: {enrolledCourses?.length || 0}</div>
+            <div>Certificates: {certificates?.length || 0}</div>
+          </div>
+          <div>
+            <div>Store Loading: {JSON.stringify(loading)}</div>
+            <div>Local Loading: {isInitializing ? 'Yes' : 'No'}</div>
+            <div>Error: {error || 'None'}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-primary-light rounded-lg flex items-center justify-center">
+              <BookOpen className="w-6 h-6 text-primary-default" />
+            </div>
+            <div>
+              <p className="text-sm text-text-light">Total Courses</p>
+              <p className="text-2xl font-bold text-text-dark">{stats.totalCourses}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <Award className="w-6 h-6 text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-text-light">Completed</p>
+              <p className="text-2xl font-bold text-text-dark">{stats.completedCourses}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-yellow-600" />
+            </div>
+            <div>
+              <p className="text-sm text-text-light">In Progress</p>
+              <p className="text-2xl font-bold text-text-dark">{stats.inProgressCourses}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Clock className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm text-text-light">Total Hours</p>
+              <p className="text-2xl font-bold text-text-dark">{stats.totalHours}h</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Content based on data availability */}
+      {enrolledCourses && enrolledCourses.length > 0 ? (
+        <>
+          {/* Progress Chart */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-text-dark">Learning Trends</h2>
+              <div className="flex items-center gap-2 text-sm text-text-light">
+                <Calendar className="w-4 h-4" />
+                <span>Last 30 days</span>
+              </div>
+            </div>
+            <ProgressChart data={enrolledCourses} />
+          </Card>
+
+          {/* Course Progress */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-text-dark">Course Progress</h2>
+              <div className="flex items-center gap-2 text-sm text-text-light">
+                <BarChart3 className="w-4 h-4" />
+                <span>{enrolledCourses.length} courses</span>
+              </div>
+            </div>
+            <EnrolledCourses />
+          </Card>
+        </>
+      ) : (
+        /* Empty State */
+        <Card className="p-12 text-center">
+          <BookOpen className="w-16 h-16 text-text-muted mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-text-dark mb-2">No Courses Yet</h3>
+          <p className="text-text-light mb-6">
+            Start your learning journey by enrolling in your first course
+          </p>
+          <button className="inline-flex items-center gap-2 px-6 py-3 bg-primary-default text-white rounded-lg hover:bg-primary-dark transition-colors">
+            Browse Courses
+          </button>
+        </Card>
+      )}
+
+      {/* Recommendations */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-text-dark">Recommended Next Steps</h2>
+          <Target className="w-5 h-5 text-text-muted" />
+        </div>
+        <Recommendations />
+      </Card>
+    </div>
+  );
+}

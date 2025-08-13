@@ -1,6 +1,8 @@
 // src/pages/courses/CourseDetail.jsx
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useCourseStore } from '@/store/courseStore'
+import { useAuth } from '@/hooks/auth/useAuth'
 import { 
   Play, 
   Clock, 
@@ -23,11 +25,19 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
 export default function CourseDetail() {
   const { courseId } = useParams()
-  const [course, setCourse] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const { 
+    courses, 
+    enrolledCourses, 
+    loading: storeLoading, 
+    error,
+    fetchCourses, 
+    enrollInCourse
+  } = useCourseStore()
+  
   const [activeTab, setActiveTab] = useState('overview')
   const [expandedModule, setExpandedModule] = useState(null)
-  const [enrolled, setEnrolled] = useState(false)
 
   // Mock course data - in real app, this would come from your database
   const mockCourse = {
@@ -151,26 +161,41 @@ export default function CourseDetail() {
     ]
   }
 
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setCourse(mockCourse)
-      setLoading(false)
-      // Check if user is enrolled (mock)
-      setEnrolled(Math.random() > 0.5)
-    }, 1000)
-  }, [courseId])
+  // Get the current course from the store
+  const course = courses?.find(c => c.id === courseId)
+  
+  // Check if user is enrolled
+  const isEnrolled = enrolledCourses?.some(enrollment => 
+    enrollment.course_id === courseId || enrollment.id === courseId
+  )
 
-  const handleEnroll = () => {
-    setEnrolled(true)
-    // In real app, this would make an API call to enroll the user
+  useEffect(() => {
+    // Fetch courses if not already loaded
+    if (!courses || courses.length === 0) {
+      fetchCourses()
+    }
+  }, [courses, fetchCourses])
+
+  // Handle course enrollment
+  const handleEnroll = async () => {
+    if (!user) {
+      navigate('/auth/login')
+      return
+    }
+
+    try {
+      await enrollInCourse(user.id, courseId)
+      // The store will automatically refresh enrolled courses
+    } catch (error) {
+      console.error('Failed to enroll:', error)
+    }
   }
 
   const toggleModule = (moduleId) => {
     setExpandedModule(expandedModule === moduleId ? null : moduleId)
   }
 
-  if (loading) {
+  if (storeLoading) {
     return (
       <div className="flex justify-center items-center min-h-96">
         <LoadingSpinner size="lg" />
@@ -183,7 +208,7 @@ export default function CourseDetail() {
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold text-text-dark mb-4">Course Not Found</h2>
         <p className="text-text-light mb-6">The course you're looking for doesn't exist.</p>
-        <Link to="/courses">
+        <Link to="/app/courses">
           <Button>Browse All Courses</Button>
         </Link>
       </div>
@@ -249,12 +274,18 @@ export default function CourseDetail() {
                 )}
               </div>
 
-              {enrolled ? (
+              {isEnrolled ? (
                 <div className="space-y-3">
-                  <Link to={`/courses/${courseId}/lesson/1-1`}>
+                  <Link to={`/app/courses/${courseId}/learning`}>
                     <Button className="w-full" size="lg">
                       <Play className="w-5 h-5 mr-2" />
-                      Continue Learning
+                      Start Learning
+                    </Button>
+                  </Link>
+                  <Link to={`/app/courses/${courseId}/lesson/1-1`}>
+                    <Button variant="outline" className="w-full" size="lg">
+                      <BookOpen className="w-4 h-4 mr-2" />
+                      Continue Lesson
                     </Button>
                   </Link>
                   <div className="text-center text-sm text-success-default">
@@ -409,7 +440,7 @@ export default function CourseDetail() {
                                 </span>
                               )}
                               {enrolled && (
-                                <Link to={`/courses/${courseId}/lesson/${lecture.id}`}>
+                                <Link to={`/app/courses/${courseId}/lesson/${lecture.id}`}>
                                   <Button size="sm" variant="ghost">
                                     <Play className="w-4 h-4" />
                                   </Button>
