@@ -19,7 +19,9 @@ import { Link } from 'react-router-dom';
 
 export default function Certificates() {
   const { user } = useAuth();
-  const { certificates, fetchCertificates } = useCourseStore();
+  // Store selectors - individual to prevent infinite loops
+  const certificates = useCourseStore(state => state.certificates);
+  const fetchCertificates = useCourseStore(state => state.actions.fetchCertificates);
   
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

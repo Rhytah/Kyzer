@@ -5,7 +5,8 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 
 export default function QuickReviewPath({ courseId, chapterId, onComplete, onExit }) {
-  const { actions } = useCourseStore();
+  // Store selectors - individual to prevent infinite loops
+  const actions = useCourseStore(state => state.actions);
   const [currentStep, setCurrentStep] = useState(0);
   const [expandedSections, setExpandedSections] = useState(new Set());
   const [completedSteps, setCompletedSteps] = useState(new Set());

@@ -6,3 +6,6 @@ export { default as TestOutAssessment } from './TestOutAssessment';
 export { default as LearnerTypeSelector } from './LearnerTypeSelector';
 export { default as QuickReviewPath } from './QuickReviewPath'; 
 export { default as EnrollmentButton } from './EnrollmentButton';
+export { default as CourseForm } from './CourseForm';
+export { default as LessonForm } from './LessonForm';
+export { default as CategoryForm } from './CategoryForm';

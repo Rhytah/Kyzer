@@ -5,7 +5,11 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 
 export default function SelfPacedLearningFlow({ courseId, initialLessonId = null, userType = 'first-time' }) {
-  const { currentCourse, currentLesson, courseProgress, actions } = useCourseStore();
+  // Store selectors - individual to prevent infinite loops
+  const currentCourse = useCourseStore(state => state.currentCourse);
+  const currentLesson = useCourseStore(state => state.currentLesson);
+  const courseProgress = useCourseStore(state => state.courseProgress);
+  const actions = useCourseStore(state => state.actions);
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0);
   const [learningPath, setLearningPath] = useState([]);
   const [isPaused, setIsPaused] = useState(false);

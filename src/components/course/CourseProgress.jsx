@@ -3,7 +3,9 @@ import { CheckCircle, Circle, Clock, Award, TrendingUp, BookOpen, Target } from 
 import { useCourseStore } from '@/store/courseStore';
 
 export default function CourseProgress({ courseId, showDetails = true }) {
-  const { currentCourse, courseProgress } = useCourseStore();
+  // Store selectors - individual to prevent infinite loops
+  const currentCourse = useCourseStore(state => state.currentCourse);
+  const courseProgress = useCourseStore(state => state.courseProgress);
   const [progressStats, setProgressStats] = useState({
     totalLessons: 0,
     completedLessons: 0,

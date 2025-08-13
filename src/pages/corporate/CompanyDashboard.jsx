@@ -345,7 +345,7 @@ const CompanyDashboard = () => {
             )}
 
             <Link 
-              to="/courses" 
+              to="/company/courses" 
               className="w-full block p-3 bg-purple-50 hover:bg-purple-100 rounded-md transition-colors"
             >
               <div className="flex items-center">

@@ -5,7 +5,9 @@ import { useCourseStore } from '@/store/courseStore';
 export default function CourseStructure({ courseId, onLessonSelect, userType = 'first-time' }) {
   const [expandedModules, setExpandedModules] = useState(new Set());
   const [expandedChapters, setExpandedChapters] = useState(new Set());
-  const { currentCourse, courseProgress } = useCourseStore();
+  // Store selectors - individual to prevent infinite loops
+  const currentCourse = useCourseStore(state => state.currentCourse);
+  const courseProgress = useCourseStore(state => state.courseProgress);
 
   const toggleModule = (moduleId) => {
     const newExpanded = new Set(expandedModules);

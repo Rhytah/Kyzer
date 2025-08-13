@@ -29,6 +29,8 @@ import LessonView from "@/pages/courses/LessonView";
 import MyCourses from "@/pages/courses/MyCourses";
 import CourseCompletion from "@/pages/courses/CourseCompletion";
 import CourseLearning from "@/pages/courses/CourseLearning";
+import CourseManagement from "@/pages/courses/CourseManagement";
+import CategoriesManagement from "@/pages/courses/CategoriesManagement";
 
 // Corporate Pages
 import CompanyDashboard from "@/pages/corporate/CompanyDashboard";
@@ -84,17 +86,19 @@ export const router = createBrowserRouter([
           { path: "dashboard", element: <Dashboard /> },
           { path: "profile", element: <Profile /> },
           { path: "settings", element: <Settings /> },
-          {
-            path: "courses",
-            children: [
-              { index: true, element: <MyCourses /> },
-              { path: "catalog", element: <CourseCatalog /> },
-              { path: ":courseId", element: <CourseDetail /> },
-              { path: ":courseId/learning", element: <CourseLearning /> },
-              { path: ":courseId/lesson/:lessonId", element: <LessonView /> },
-              { path: ":courseId/completion", element: <CourseCompletion /> },
-            ],
-          },
+                      {
+              path: "courses",
+              children: [
+                { index: true, element: <MyCourses /> },
+                { path: "catalog", element: <CourseCatalog /> },
+                { path: "management", element: <CourseManagement /> },
+                { path: "categories", element: <CategoriesManagement /> },
+                { path: ":courseId", element: <CourseDetail /> },
+                { path: ":courseId/learning", element: <CourseLearning /> },
+                { path: ":courseId/lesson/:lessonId", element: <LessonView /> },
+                { path: ":courseId/completion", element: <CourseCompletion /> },
+              ],
+            },
           { path: "progress", element: <Progress /> },
           { path: "certificates", element: <Certificates /> },
         ],
@@ -171,6 +175,7 @@ export const navigationRoutes = {
     { path: "/app/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
     { path: "/app/courses", label: "My Courses", icon: "BookOpen" },
     { path: "/app/courses/catalog", label: "Course Catalog", icon: "Search" },
+    { path: "/app/courses/management", label: "Course Management", icon: "Settings" },
     { path: "/app/progress", label: "Progress", icon: "TrendingUp" },
     { path: "/app/certificates", label: "Certificates", icon: "Award" },
   ],

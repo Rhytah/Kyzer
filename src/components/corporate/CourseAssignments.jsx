@@ -33,7 +33,9 @@ export default function CourseAssignments() {
     error 
   } = useCorporateStore()
   
-  const { courses, fetchCourses } = useCourseStore()
+  // Store selectors - individual to prevent infinite loops
+  const courses = useCourseStore(state => state.courses);
+  const fetchCourses = useCourseStore(state => state.actions.fetchCourses);
   
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')

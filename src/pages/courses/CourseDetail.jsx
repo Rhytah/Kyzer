@@ -27,14 +27,13 @@ export default function CourseDetail() {
   const { courseId } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { 
-    courses, 
-    enrolledCourses, 
-    loading: storeLoading, 
-    error,
-    fetchCourses, 
-    enrollInCourse
-  } = useCourseStore()
+  // Store selectors - individual to prevent infinite loops
+  const courses = useCourseStore(state => state.courses);
+  const enrolledCourses = useCourseStore(state => state.enrolledCourses);
+  const loading = useCourseStore(state => state.loading);
+  const error = useCourseStore(state => state.error);
+  const fetchCourses = useCourseStore(state => state.actions.fetchCourses);
+  const enrollInCourse = useCourseStore(state => state.actions.enrollInCourse);
   
   const [activeTab, setActiveTab] = useState('overview')
   const [expandedModule, setExpandedModule] = useState(null)

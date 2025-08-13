@@ -4,8 +4,8 @@ import { useCourseStore } from '@/store/courseStore';
 import { useAuth } from '@/hooks/auth/useAuth';
 
 /**
- * Custom hook that ensures proper subscription to course store
- * and handles data fetching with better error handling
+ * Enhanced custom hook that provides comprehensive course data management
+ * with proper error handling and caching
  */
 export function useCourseData() {
   const { user } = useAuth();
@@ -19,10 +19,15 @@ export function useCourseData() {
   // Get store actions
   const fetchEnrolledCourses = useCourseStore(state => state.actions.fetchEnrolledCourses);
   const fetchCertificates = useCourseStore(state => state.actions.fetchCertificates);
+  const fetchCourses = useCourseStore(state => state.actions.fetchCourses);
+  const enrollInCourse = useCourseStore(state => state.actions.enrollInCourse);
+  const updateLessonProgress = useCourseStore(state => state.actions.updateLessonProgress);
+  const calculateCourseProgress = useCourseStore(state => state.actions.calculateCourseProgress);
   
   // Local state for additional tracking
   const [isInitialized, setIsInitialized] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState(null);
+  const [localError, setLocalError] = useState(null);
   
   // Computed values
   const stats = useCourseStore(state => {
@@ -50,7 +55,7 @@ export function useCourseData() {
     };
   });
 
-  // Refresh function with caching
+  // Enhanced refresh function with better error handling
   const refresh = useCallback(async (force = false) => {
     if (!user?.id) {
       return { success: false, error: 'No user ID' };
@@ -65,6 +70,8 @@ export function useCourseData() {
     }
 
     try {
+      setLocalError(null);
+      
       const [enrollmentsResult, certificatesResult] = await Promise.all([
         fetchEnrolledCourses(user.id),
         fetchCertificates(user.id)
@@ -82,9 +89,79 @@ export function useCourseData() {
         }
       };
     } catch (error) {
-      return { success: false, error: error.message };
+      const errorMessage = error.message || 'Failed to refresh course data';
+      setLocalError(errorMessage);
+      return { success: false, error: errorMessage };
     }
   }, [user?.id, fetchEnrolledCourses, fetchCertificates, lastFetchTime]);
+
+  // Enhanced enrollment function
+  const enroll = useCallback(async (courseId) => {
+    if (!user?.id) {
+      return { success: false, error: 'No user ID' };
+    }
+
+    try {
+      setLocalError(null);
+      const result = await enrollInCourse(user.id, courseId);
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      // Refresh data to show new enrollment
+      await refresh(true);
+      
+      return { success: true, error: null, data: result.data };
+    } catch (error) {
+      const errorMessage = error.message || 'Failed to enroll in course';
+      setLocalError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  }, [user?.id, enrollInCourse, refresh]);
+
+  // Enhanced progress update function
+  const updateProgress = useCallback(async (lessonId, courseId, completed = true, metadata = {}) => {
+    if (!user?.id) {
+      return { success: false, error: 'No user ID' };
+    }
+
+    try {
+      setLocalError(null);
+      const result = await updateLessonProgress(user.id, lessonId, courseId, completed, metadata);
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      // Refresh data to show updated progress
+      await refresh(true);
+      
+      return { success: true, error: null, data: result.data };
+    } catch (error) {
+      const errorMessage = error.message || 'Failed to update progress';
+      setLocalError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  }, [user?.id, updateLessonProgress, refresh]);
+
+  // Fetch all available courses (for catalog)
+  const fetchAllCourses = useCallback(async (filters = {}) => {
+    try {
+      setLocalError(null);
+      const result = await fetchCourses(filters);
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      return { success: true, error: null, data: result.data };
+    } catch (error) {
+      const errorMessage = error.message || 'Failed to fetch courses';
+      setLocalError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  }, [fetchCourses]);
 
   // Initial data load
   useEffect(() => {
@@ -101,17 +178,28 @@ export function useCourseData() {
     
     // State
     loading,
-    error,
+    error: error || localError,
     isInitialized,
     lastFetchTime,
     
     // Actions
     refresh,
+    enroll,
+    updateProgress,
+    fetchAllCourses,
     
     // Computed values for convenience
     hasData: (enrolledCourses?.length || 0) > 0 || (certificates?.length || 0) > 0,
     isEmpty: !enrolledCourses?.length && !certificates?.length,
     isLoading: loading?.enrollments || loading?.courses || !isInitialized,
+    
+    // Helper functions
+    getCourseById: (courseId) => enrolledCourses?.find(course => course.id === courseId),
+    isEnrolledInCourse: (courseId) => enrolledCourses?.some(course => course.id === courseId),
+    getCourseProgress: (courseId) => {
+      const course = enrolledCourses?.find(c => c.id === courseId);
+      return course?.progress_percentage || 0;
+    }
   };
 }
 

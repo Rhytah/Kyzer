@@ -12,7 +12,8 @@ export default function TestOutAssessment({
   passingScore = 80,
   timeLimit = 30 // minutes
 }) {
-  const { actions } = useCourseStore();
+  // Store selectors - individual to prevent infinite loops
+  const actions = useCourseStore(state => state.actions);
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});

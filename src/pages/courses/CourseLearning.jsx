@@ -30,7 +30,9 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 export default function CourseLearning() {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const { currentCourse, actions } = useCourseStore();
+  // Store selectors - individual to prevent infinite loops
+  const currentCourse = useCourseStore(state => state.currentCourse);
+  const actions = useCourseStore(state => state.actions);
   
   const [activeView, setActiveView] = useState('learning');
   const [userType, setUserType] = useState(null);
