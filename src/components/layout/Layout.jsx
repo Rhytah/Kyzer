@@ -5,13 +5,15 @@ import Header from './Header';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
 import Breadcrumbs from './Breadcrumbs';
+import { useToast, ToastContainer } from '@/components/ui';
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
   const { user } = useAuth();
+  const { toasts, removeToast } = useToast();
   const isCorporateUser = user?.user_metadata?.account_type === 'corporate';
-const currentUser = user?.user_metadata;
+  const currentUser = user?.user_metadata;
   const toggleDesktopSidebar = () => {
     setDesktopSidebarCollapsed(!desktopSidebarCollapsed);
   };
@@ -76,6 +78,9 @@ const currentUser = user?.user_metadata;
 
       {/* Mobile Navigation */}
       {user && <MobileNav />}
+      
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 };

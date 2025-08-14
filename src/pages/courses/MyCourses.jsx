@@ -595,17 +595,17 @@ console.log("courses", courses)
         <div className="flex items-center gap-4 mb-4 text-sm text-text-muted">
           <div className="flex items-center gap-1">
             <Clock className="w-4 h-4" />
-            <span>{Math.floor(course.timeSpent / 60)}h {course.timeSpent % 60}m watched</span>
+            <span>{Math.floor((course.duration_minutes || 0) / 60)}h {(course.duration_minutes || 0) % 60}m total</span>
           </div>
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4 fill-warning-default text-warning-default" />
-            <span>{course.rating}</span>
+            <span>{course.rating || '4.5'}</span>
           </div>
         </div>
 
-        {course.lastAccessed && (
+        {course.last_accessed && (
           <p className="text-xs text-text-muted mb-4">
-            Last accessed: {new Date(course.lastAccessed).toLocaleDateString()}
+            Last accessed: {new Date(course.last_accessed).toLocaleDateString()}
           </p>
         )}
 
@@ -617,7 +617,8 @@ console.log("courses", courses)
                   Review Course
                 </Button>
               </Link>
-              {course.certificate && (
+              {/* Certificate download will be available when certificates are implemented */}
+              {/* {course.certificate && (
                 <Button 
                   variant="ghost" 
                   size="sm"
@@ -625,17 +626,17 @@ console.log("courses", courses)
                 >
                   <Download className="w-4 h-4" />
                 </Button>
-              )}
+              )} */}
             </div>
           ) : course.status === 'not-started' ? (
-            <Link to={`/app/courses/${course.id}/lesson/${course.nextLesson.id}`} className="w-full">
+            <Link to={`/app/courses/${course.id}`} className="w-full">
               <Button className="w-full">
                 <Play className="w-4 h-4 mr-2" />
                 Start Course
               </Button>
             </Link>
           ) : (
-            <Link to={`/app/courses/${course.id}/lesson/${course.nextLesson.id}`} className="w-full">
+            <Link to={`/app/courses/${course.id}`} className="w-full">
               <Button className="w-full">
                 <Play className="w-4 h-4 mr-2" />
                 Continue Learning

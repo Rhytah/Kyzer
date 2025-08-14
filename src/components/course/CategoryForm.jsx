@@ -6,9 +6,11 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { useToast } from '@/components/ui';
 
 export default function CategoryForm({ category = null, onSuccess, onCancel }) {
   const { user } = useAuth();
+  const { success, error: showError } = useToast();
   
   // Store selectors - individual to prevent infinite loops
   const createCategory = useCourseStore(state => state.actions.createCategory);
@@ -77,12 +79,20 @@ export default function CategoryForm({ category = null, onSuccess, onCancel }) {
 
       if (result.error) {
         setError(result.error);
+        showError(result.error);
         return;
       }
 
+      const message = isEditing 
+        ? `Category "${result.data.name}" updated successfully!` 
+        : `Category "${result.data.name}" created successfully!`;
+      
+      success(message);
       onSuccess?.(result.data);
     } catch (err) {
-      setError(err.message || 'An error occurred');
+      const errorMessage = err.message || 'An error occurred';
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }

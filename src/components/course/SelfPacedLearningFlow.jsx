@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Play, Pause, CheckCircle, Clock, BookOpen, Target, Zap, RefreshCw, SkipForward } from 'lucide-react';
 import { useCourseStore } from '@/store/courseStore';
+import { useAuth } from '@/hooks/auth/useAuth';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 
 export default function SelfPacedLearningFlow({ courseId, initialLessonId = null, userType = 'first-time' }) {
+  const { user } = useAuth();
   // Store selectors - individual to prevent infinite loops
   const currentCourse = useCourseStore(state => state.currentCourse);
   const currentLesson = useCourseStore(state => state.currentLesson);
@@ -155,12 +157,14 @@ export default function SelfPacedLearningFlow({ courseId, initialLessonId = null
     const lessonDuration = lessonStartTime ? Math.floor((Date.now() - lessonStartTime) / 1000 / 60) : 0;
     
     try {
-      await actions.updateLessonProgress(
-        'current-user-id', // Replace with actual user ID
-        currentLesson.id,
-        courseId,
-        true
-      );
+      if (user?.id) {
+        await actions.updateLessonProgress(
+          user.id,
+          currentLesson.id,
+          courseId,
+          true
+        );
+      }
 
       // Auto-advance to next lesson after a short delay
       setTimeout(() => {
@@ -169,7 +173,7 @@ export default function SelfPacedLearningFlow({ courseId, initialLessonId = null
         }
       }, 2000);
     } catch (error) {
-      console.error('Error marking lesson complete:', error);
+      // Handle error silently or set error state if needed
     }
   };
 
@@ -185,7 +189,6 @@ export default function SelfPacedLearningFlow({ courseId, initialLessonId = null
 
   const showPracticeExercises = () => {
     // Implementation for showing practice exercises
-    console.log('Showing practice exercises for:', currentLesson.title);
   };
 
   const getLessonProgress = (lessonId) => {
@@ -235,7 +238,7 @@ export default function SelfPacedLearningFlow({ courseId, initialLessonId = null
             <Button onClick={skipLesson} variant="outline">
               Skip Test
             </Button>
-            <Button onClick={() => console.log('Start test')} className="bg-yellow-500 hover:bg-yellow-600">
+            <Button onClick={() => {}} className="bg-yellow-500 hover:bg-yellow-600">
               Start Assessment
             </Button>
           </div>

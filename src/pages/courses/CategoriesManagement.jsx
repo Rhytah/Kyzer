@@ -23,9 +23,11 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import CategoryForm from '@/components/course/CategoryForm';
+import { useToast } from '@/components/ui';
 
 export default function CategoriesManagement() {
   const { user } = useAuth();
+  const { success, error: showError, warning } = useToast();
   
   // Store selectors - individual to prevent infinite loops
   const categories = useCourseStore(state => state.categories);
@@ -60,8 +62,11 @@ export default function CategoriesManagement() {
     if (window.confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
       const result = await deleteCategory(categoryId);
       if (result.success) {
+        success('Category deleted successfully!');
         // Refresh categories list
         fetchCategories();
+      } else {
+        showError(result.error || 'Failed to delete category');
       }
     }
   };

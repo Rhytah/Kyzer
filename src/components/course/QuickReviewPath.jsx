@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Zap, Clock, CheckCircle, BookOpen, Target, ChevronRight, ChevronDown, AlertCircle } from 'lucide-react';
 import { useCourseStore } from '@/store/courseStore';
+import { useAuth } from '@/hooks/auth/useAuth';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 
 export default function QuickReviewPath({ courseId, chapterId, onComplete, onExit }) {
+  const { user } = useAuth();
   // Store selectors - individual to prevent infinite loops
   const actions = useCourseStore(state => state.actions);
   const [currentStep, setCurrentStep] = useState(0);
@@ -119,12 +121,14 @@ export default function QuickReviewPath({ courseId, chapterId, onComplete, onExi
   const confirmComplete = async () => {
     try {
       // Mark chapter as completed via quick review
-      await actions.updateLessonProgress(
-        'current-user-id', // Replace with actual user ID
-        `quick-review-${chapterId}`,
-        courseId,
-        true
-      );
+      if (user?.id) {
+        await actions.updateLessonProgress(
+          user.id,
+          `quick-review-${chapterId}`,
+          courseId,
+          true
+        );
+      }
 
       if (onComplete) {
         onComplete({
@@ -134,7 +138,7 @@ export default function QuickReviewPath({ courseId, chapterId, onComplete, onExi
         });
       }
     } catch (error) {
-      console.error('Error completing quick review:', error);
+      // Handle error silently or set error state if needed
     }
   };
 

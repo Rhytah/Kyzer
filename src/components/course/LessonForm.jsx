@@ -6,22 +6,24 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { useToast } from '@/components/ui';
 
 export default function LessonForm({ lesson = null, courseId, onSuccess, onCancel }) {
   const { user } = useAuth();
+  const { success, error: showError } = useToast();
+  
   // Store selectors - individual to prevent infinite loops
   const createLesson = useCourseStore(state => state.actions.createLesson);
   const updateLesson = useCourseStore(state => state.actions.updateLesson);
 
   const [formData, setFormData] = useState({
     title: '',
-    content: '',
-    video_url: '',
+    content_type: 'video',
+    content_url: '',
+    content_text: '',
     duration_minutes: '',
-    lesson_type: 'video',
-    resources: '',
-    quiz_questions: '',
-    order_index: 1
+    order_index: 1,
+    is_required: true
   });
 
   const [loading, setLoading] = useState(false);
@@ -33,17 +35,12 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     if (lesson) {
       setFormData({
         title: lesson.title || '',
-        content: lesson.content || '',
-        video_url: lesson.video_url || '',
+        content_type: lesson.content_type || 'video',
+        content_url: lesson.content_url || '',
+        content_text: lesson.content_text || '',
         duration_minutes: lesson.duration_minutes || '',
-        lesson_type: lesson.lesson_type || 'video',
-        resources: Array.isArray(lesson.resources) ? 
-          lesson.resources.join('\n') : 
-          lesson.resources || '',
-        quiz_questions: Array.isArray(lesson.quiz_questions) ? 
-          lesson.quiz_questions.join('\n') : 
-          lesson.quiz_questions || '',
-        order_index: lesson.order_index || 1
+        order_index: lesson.order_index || 1,
+        is_required: lesson.is_required !== undefined ? lesson.is_required : true
       });
     }
   }, [lesson]);
@@ -61,8 +58,8 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
       setError('Lesson title is required');
       return false;
     }
-    if (!formData.content.trim()) {
-      setError('Lesson content is required');
+    if (!formData.content_text.trim() && !formData.content_url.trim()) {
+      setError('Either lesson content text or content URL is required');
       return false;
     }
     return true;
@@ -80,14 +77,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
       const lessonData = {
         ...formData,
         duration_minutes: formData.duration_minutes ? parseInt(formData.duration_minutes) : null,
-        order_index: formData.order_index ? parseInt(formData.order_index) : 1,
-        // Convert text fields to arrays if they're expected as arrays by the database
-        resources: formData.resources ? 
-          formData.resources.split('\n').filter(resource => resource.trim()) : 
-          [],
-        quiz_questions: formData.quiz_questions ? 
-          formData.quiz_questions.split('\n').filter(question => question.trim()) : 
-          []
+        order_index: formData.order_index ? parseInt(formData.order_index) : 1
       };
 
       let result;
@@ -99,12 +89,20 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
 
       if (result.error) {
         setError(result.error);
+        showError(result.error);
         return;
       }
 
+      const message = isEditing 
+        ? `Lesson "${result.data.title}" updated successfully!` 
+        : `Lesson "${result.data.title}" created successfully!`;
+      
+      success(message);
       onSuccess?.(result.data);
     } catch (err) {
-      setError(err.message || 'An error occurred');
+      const errorMessage = err.message || 'An error occurred';
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -149,19 +147,19 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Lesson Type
+                Content Type
               </label>
               <select
-                name="lesson_type"
-                value={formData.lesson_type}
+                name="content_type"
+                value={formData.content_type}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                {lessonTypes.map(type => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
+                <option value="video">Video</option>
+                <option value="text">Text</option>
+                <option value="file">File</option>
+                <option value="link">Link</option>
+                <option value="quiz">Quiz</option>
               </select>
             </div>
 
@@ -200,69 +198,48 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
           <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Lesson Content *
+                Lesson Content Text
               </label>
               <textarea
-                name="content"
-                value={formData.content}
+                name="content_text"
+                value={formData.content_text}
                 onChange={handleInputChange}
                 rows={6}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter the main content of this lesson..."
-                required
+                placeholder="Enter the main content text of this lesson..."
               />
             </div>
-
-            {formData.lesson_type === 'video' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Video URL
-                </label>
-                <Input
-                  name="video_url"
-                  value={formData.video_url}
-                  onChange={handleInputChange}
-                  placeholder="https://youtube.com/watch?v=..."
-                  type="url"
-                />
-              </div>
-            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Additional Resources (One per line)
+                Content URL
               </label>
-              <textarea
-                name="resources"
-                value={formData.resources}
+              <Input
+                name="content_url"
+                value={formData.content_url}
                 onChange={handleInputChange}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Links to additional materials, downloads, etc.&#10;Enter each resource on a new line"
+                placeholder="https://youtube.com/watch?v=... or file URL"
+                type="url"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Enter each resource on a separate line
-              </p>
             </div>
 
-            {formData.lesson_type === 'quiz' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Quiz Questions (One per line)
-                </label>
-                <textarea
-                  name="quiz_questions"
-                  value={formData.quiz_questions}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Required Lesson
+              </label>
+              <div className="flex items-center">
+                <input
+                  name="is_required"
+                  type="checkbox"
+                  checked={formData.is_required}
                   onChange={handleInputChange}
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter quiz questions and answers...&#10;Enter each question on a new line"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Enter each quiz question on a separate line
-                </p>
+                <label className="ml-2 block text-sm text-gray-900">
+                  This lesson is required to complete the course
+                </label>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Form Actions */}

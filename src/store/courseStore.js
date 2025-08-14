@@ -35,7 +35,6 @@ const useCourseStore = create((set, get) => ({
           .from(TABLES.COURSES)
           .select(`
             *,
-            lessons:${TABLES.LESSONS}(id, title, order_index),
             enrollments:${TABLES.COURSE_ENROLLMENTS}(id, user_id)
           `)
           .order('created_at', { ascending: false });

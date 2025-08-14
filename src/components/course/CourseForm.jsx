@@ -6,12 +6,18 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { useToast } from '@/components/ui';
 
 export default function CourseForm({ course = null, onSuccess, onCancel }) {
   const { user } = useAuth();
+  const { success, error: showError } = useToast();
+  
   // Store selectors - individual to prevent infinite loops
   const createCourse = useCourseStore(state => state.actions.createCourse);
   const updateCourse = useCourseStore(state => state.actions.updateCourse);
+  const categories = useCourseStore(state => state.categories);
+  const loadingCategories = useCourseStore(state => state.loading.categories);
+  const fetchCategories = useCourseStore(state => state.actions.fetchCategories);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -128,23 +134,26 @@ export default function CourseForm({ course = null, onSuccess, onCancel }) {
 
       if (result.error) {
         setError(result.error);
+        showError(result.error);
         return;
       }
 
+      const message = isEditing 
+        ? `Course "${result.data.title}" updated successfully!` 
+        : `Course "${result.data.title}" created successfully!`;
+      
+      success(message);
       onSuccess?.(result.data);
     } catch (err) {
-      setError(err.message || 'An error occurred');
+      const errorMessage = err.message || 'An error occurred';
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   const difficultyLevels = ['Beginner', 'Intermediate', 'Advanced'];
-  
-  // Store selectors - individual to prevent infinite loops
-  const categories = useCourseStore(state => state.categories);
-  const loadingCategories = useCourseStore(state => state.loading.categories);
-  const fetchCategories = useCourseStore(state => state.actions.fetchCategories);
 
   return (
     <Card className="max-w-4xl mx-auto">

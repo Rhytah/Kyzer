@@ -14,6 +14,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { useCourseStore } from '@/store/courseStore';
+import { useAuth } from '@/hooks/auth/useAuth';
 import { 
   CourseStructure, 
   CourseProgress, 
@@ -30,8 +31,10 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 export default function CourseLearning() {
   const { courseId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   // Store selectors - individual to prevent infinite loops
   const currentCourse = useCourseStore(state => state.currentCourse);
+  const courses = useCourseStore(state => state.courses);
   const actions = useCourseStore(state => state.actions);
   
   const [activeView, setActiveView] = useState('learning');
@@ -42,30 +45,33 @@ export default function CourseLearning() {
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const loadCourseData = async () => {
+    try {
+      await actions.fetchCourses();
+      const course = courses.find(c => c.id === courseId);
+      if (course) {
+        actions.setCurrentCourse(course);
+        if (user?.id) {
+          await actions.fetchCourseProgress(user.id, courseId);
+        }
+      }
+    } catch (error) {
+      // Handle error silently or set error state if needed
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (courseId) {
+    if (courseId && user?.id) {
       loadCourseData();
     }
-  }, [courseId, loadCourseData]);
+  }, [courseId, loadCourseData, courses, user?.id]);
 
   useEffect(() => {
     if (currentCourse) {
       setLoading(false);
     }
   }, [currentCourse]);
-
-  const loadCourseData = async () => {
-    try {
-      await actions.fetchCourses();
-      const course = actions.courses.find(c => c.id === courseId);
-      if (course) {
-        actions.setCurrentCourse(course);
-        await actions.fetchCourseProgress('current-user-id', courseId);
-      }
-    } catch (error) {
-      console.error('Error loading course data:', error);
-    }
-  };
 
   const handleLearnerTypeSelect = (type) => {
     setUserType(type.id);
@@ -97,13 +103,11 @@ export default function CourseLearning() {
   const handleTestOutComplete = (results) => {
     setShowTestOut(false);
     // Handle test out completion
-    console.log('Test out completed:', results);
   };
 
   const handleQuickReviewComplete = (results) => {
     setShowQuickReview(false);
     // Handle quick review completion
-    console.log('Quick review completed:', results);
   };
 
   const renderNavigationTabs = () => (

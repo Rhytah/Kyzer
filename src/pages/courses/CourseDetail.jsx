@@ -160,8 +160,8 @@ export default function CourseDetail() {
     ]
   }
 
-  // Get the current course from the store
-  const course = courses?.find(c => c.id === courseId)
+  // Get the current course from the store or use mock data as fallback
+  const course = courses?.find(c => c.id === courseId) || mockCourse
   
   // Check if user is enrolled
   const isEnrolled = enrolledCourses?.some(enrollment => 
@@ -194,7 +194,7 @@ export default function CourseDetail() {
     setExpandedModule(expandedModule === moduleId ? null : moduleId)
   }
 
-  if (storeLoading) {
+  if (loading.courses) {
     return (
       <div className="flex justify-center items-center min-h-96">
         <LoadingSpinner size="lg" />
@@ -222,31 +222,31 @@ export default function CourseDetail() {
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2 mb-4">
               <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm">
-                {course.category}
+                {course.category || course.category_id || 'General'}
               </span>
-              <span className="text-white/80 text-sm">{course.level}</span>
+              <span className="text-white/80 text-sm">{course.level || course.difficulty_level || 'Beginner'}</span>
             </div>
             
             <h1 className="text-3xl md:text-4xl font-bold mb-4">{course.title}</h1>
-            <p className="text-xl text-white/90 mb-6">{course.subtitle}</p>
+            <p className="text-xl text-white/90 mb-6">{course.subtitle || course.description?.substring(0, 100) + '...'}</p>
             
             <div className="flex flex-wrap items-center gap-6 text-sm">
               <div className="flex items-center gap-2">
                 <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                <span className="font-medium">{course.rating}</span>
-                <span className="text-white/80">({course.totalRatings.toLocaleString()} ratings)</span>
+                <span className="font-medium">{course.rating || '4.5'}</span>
+                <span className="text-white/80">({(course.totalRatings || 0).toLocaleString()} ratings)</span>
               </div>
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4" />
-                <span>{course.students.toLocaleString()} students</span>
+                <span>{(course.students || 0).toLocaleString()} students</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />
-                <span>{Math.floor(course.duration / 60)} hours</span>
+                <span>{Math.floor((course.duration || course.duration_minutes || 0) / 60)} hours</span>
               </div>
               <div className="flex items-center gap-2">
                 <Globe className="w-4 h-4" />
-                <span>{course.language}</span>
+                <span>{course.language || 'English'}</span>
               </div>
             </div>
           </div>
@@ -260,7 +260,7 @@ export default function CourseDetail() {
                 </div>
                 
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <span className="text-3xl font-bold">${course.price}</span>
+                  <span className="text-3xl font-bold">${course.price || 'Free'}</span>
                   {course.originalPrice && (
                     <span className="text-lg text-text-muted line-through">${course.originalPrice}</span>
                   )}
@@ -268,7 +268,7 @@ export default function CourseDetail() {
                 
                 {course.originalPrice && (
                   <span className="text-success-default font-medium">
-                    {Math.round(((course.originalPrice - course.price) / course.originalPrice) * 100)}% off
+                    {Math.round(((course.originalPrice - (course.price || 0)) / course.originalPrice) * 100)}% off
                   </span>
                 )}
               </div>
@@ -355,9 +355,13 @@ export default function CourseDetail() {
               <Card className="p-6">
                 <h2 className="text-2xl font-bold text-text-dark mb-4">About This Course</h2>
                 <div className="prose max-w-none text-text-medium">
-                  {course.description.split('\n\n').map((paragraph, index) => (
-                    <p key={index} className="mb-4">{paragraph}</p>
-                  ))}
+                  {course.description ? (
+                    course.description.split('\n\n').map((paragraph, index) => (
+                      <p key={index} className="mb-4">{paragraph}</p>
+                    ))
+                  ) : (
+                    <p>No description available for this course.</p>
+                  )}
                 </div>
               </Card>
 
@@ -365,12 +369,16 @@ export default function CourseDetail() {
               <Card className="p-6">
                 <h2 className="text-2xl font-bold text-text-dark mb-4">What You'll Learn</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {course.outcomes.map((outcome, index) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 text-success-default flex-shrink-0 mt-0.5" />
-                      <span className="text-text-dark">{outcome}</span>
-                    </div>
-                  ))}
+                  {course.outcomes ? (
+                    course.outcomes.map((outcome, index) => (
+                      <div key={index} className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-success-default flex-shrink-0 mt-0.5" />
+                        <span className="text-text-dark">{outcome}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-text-medium">Learning objectives not specified for this course.</p>
+                  )}
                 </div>
               </Card>
 
@@ -378,12 +386,16 @@ export default function CourseDetail() {
               <Card className="p-6">
                 <h2 className="text-2xl font-bold text-text-dark mb-4">Requirements</h2>
                 <ul className="space-y-2">
-                  {course.requirements.map((requirement, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-text-muted rounded-full mt-2 flex-shrink-0"></div>
-                      <span className="text-text-medium">{requirement}</span>
-                    </li>
-                  ))}
+                  {course.requirements ? (
+                    course.requirements.map((requirement, index) => (
+                      <li key={index} className="flex items-start gap-3">
+                        <div className="w-2 h-2 bg-text-muted rounded-full mt-2 flex-shrink-0"></div>
+                        <span className="text-text-medium">{requirement}</span>
+                      </li>
+                    ))
+                  ) : (
+                    <p className="text-text-medium">No specific requirements listed for this course.</p>
+                  )}
                 </ul>
               </Card>
             </div>
@@ -393,7 +405,8 @@ export default function CourseDetail() {
             <Card className="p-6">
               <h2 className="text-2xl font-bold text-text-dark mb-6">Course Curriculum</h2>
               <div className="space-y-4">
-                {course.curriculum.map((module) => (
+                {course.curriculum ? (
+                  course.curriculum.map((module) => (
                   <div key={module.id} className="border border-background-dark rounded-lg">
                     <button
                       onClick={() => toggleModule(module.id)}
@@ -438,7 +451,7 @@ export default function CourseDetail() {
                                   Free
                                 </span>
                               )}
-                              {enrolled && (
+                              {isEnrolled && (
                                 <Link to={`/app/courses/${courseId}/lesson/${lecture.id}`}>
                                   <Button size="sm" variant="ghost">
                                     <Play className="w-4 h-4" />
@@ -451,7 +464,10 @@ export default function CourseDetail() {
                       </div>
                     )}
                   </div>
-                ))}
+                ))
+                ) : (
+                  <p className="text-text-medium">No curriculum available for this course.</p>
+                )}
               </div>
             </Card>
           )}
@@ -459,30 +475,34 @@ export default function CourseDetail() {
           {activeTab === 'instructor' && (
             <Card className="p-6">
               <h2 className="text-2xl font-bold text-text-dark mb-6">Instructor</h2>
-              <div className="flex items-start gap-6">
-                <div className="text-6xl">{course.instructor.avatar}</div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-text-dark mb-2">{course.instructor.name}</h3>
-                  <p className="text-text-medium mb-4">{course.instructor.title}</p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-text-dark">{course.instructor.rating}</div>
-                      <div className="text-sm text-text-light">Instructor Rating</div>
+              {course.instructor ? (
+                <div className="flex items-start gap-6">
+                  <div className="text-6xl">{course.instructor.avatar}</div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-text-dark mb-2">{course.instructor.name}</h3>
+                    <p className="text-text-medium mb-4">{course.instructor.title}</p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-text-dark">{course.instructor.rating}</div>
+                        <div className="text-sm text-text-light">Instructor Rating</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-text-dark">{course.instructor.students.toLocaleString()}</div>
+                        <div className="text-sm text-text-light">Students</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-text-dark">{course.instructor.courses}</div>
+                        <div className="text-sm text-text-light">Courses</div>
+                      </div>
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-text-dark">{course.instructor.students.toLocaleString()}</div>
-                      <div className="text-sm text-text-light">Students</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-text-dark">{course.instructor.courses}</div>
-                      <div className="text-sm text-text-light">Courses</div>
-                    </div>
+                    
+                    <p className="text-text-medium">{course.instructor.bio}</p>
                   </div>
-                  
-                  <p className="text-text-medium">{course.instructor.bio}</p>
                 </div>
-              </div>
+              ) : (
+                <p className="text-text-medium">No instructor information available for this course.</p>
+              )}
             </Card>
           )}
 
@@ -490,41 +510,47 @@ export default function CourseDetail() {
             <Card className="p-6">
               <h2 className="text-2xl font-bold text-text-dark mb-6">Student Reviews</h2>
               
-              <div className="mb-8">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="text-4xl font-bold text-text-dark">{course.rating}</div>
-                  <div>
-                    <div className="flex items-center gap-1 mb-1">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-5 h-5 fill-warning-default text-warning-default" />
-                      ))}
-                    </div>
-                    <p className="text-text-light">Based on {course.totalRatings.toLocaleString()} reviews</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                {course.reviews.map((review) => (
-                  <div key={review.id} className="border-b border-background-light pb-6 last:border-b-0">
-                    <div className="flex items-start gap-4">
-                      <div className="text-3xl">{review.avatar}</div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4 className="font-medium text-text-dark">{review.user}</h4>
-                          <div className="flex items-center gap-1">
-                            {[...Array(review.rating)].map((_, i) => (
-                              <Star key={i} className="w-4 h-4 fill-warning-default text-warning-default" />
-                            ))}
-                          </div>
-                          <span className="text-sm text-text-light">{new Date(review.date).toLocaleDateString()}</span>
+              {course.reviews ? (
+                <>
+                  <div className="mb-8">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="text-4xl font-bold text-text-dark">{course.rating || '4.5'}</div>
+                      <div>
+                        <div className="flex items-center gap-1 mb-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className="w-5 h-5 fill-warning-default text-warning-default" />
+                          ))}
                         </div>
-                        <p className="text-text-medium">{review.comment}</p>
+                        <p className="text-text-light">Based on {(course.totalRatings || 0).toLocaleString()} reviews</p>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  <div className="space-y-6">
+                    {course.reviews.map((review) => (
+                      <div key={review.id} className="border-b border-background-light pb-6 last:border-b-0">
+                        <div className="flex items-start gap-4">
+                          <div className="text-3xl">{review.avatar}</div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h4 className="font-medium text-text-dark">{review.user}</h4>
+                              <div className="flex items-center gap-1">
+                                {[...Array(review.rating)].map((_, i) => (
+                                  <Star key={i} className="w-4 h-4 fill-warning-default text-warning-default" />
+                                ))}
+                              </div>
+                              <span className="text-sm text-text-light">{new Date(review.date).toLocaleDateString()}</span>
+                            </div>
+                            <p className="text-text-medium">{review.comment}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-text-medium">No reviews available for this course yet.</p>
+              )}
             </Card>
           )}
         </div>
@@ -535,12 +561,16 @@ export default function CourseDetail() {
           <Card className="p-6">
             <h3 className="text-lg font-semibold text-text-dark mb-4">This course includes:</h3>
             <div className="space-y-3">
-              {course.features.map((feature, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <CheckCircle className="w-4 h-4 text-success-default flex-shrink-0" />
-                  <span className="text-text-dark text-sm">{feature}</span>
-                </div>
-              ))}
+              {course.features ? (
+                course.features.map((feature, index) => (
+                  <div key={index} className="flex items-center gap-3">
+                    <CheckCircle className="w-4 h-4 text-success-default flex-shrink-0" />
+                    <span className="text-text-dark text-sm">{feature}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-text-medium text-sm">Course features not specified.</p>
+              )}
             </div>
           </Card>
 

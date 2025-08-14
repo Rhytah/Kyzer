@@ -21,9 +21,12 @@ import Card from '@/components/ui/Card';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import CourseForm from '@/components/course/CourseForm';
 import LessonForm from '@/components/course/LessonForm';
+import { useToast } from '@/components/ui';
 
 export default function CourseManagement() {
   const { user } = useAuth();
+  const { success, error: showError, warning } = useToast();
+  
   // Store selectors - individual to prevent infinite loops
   const courses = useCourseStore(state => state.courses);
   const loading = useCourseStore(state => state.loading);
@@ -69,8 +72,11 @@ export default function CourseManagement() {
     if (window.confirm('Are you sure you want to delete this course? This action cannot be undone.')) {
       const result = await deleteCourse(courseId);
       if (result.success) {
+        success('Course deleted successfully!');
         // Don't call fetchCourses here to prevent infinite loops
         // The store will update automatically
+      } else {
+        showError(result.error || 'Failed to delete course');
       }
     }
   };
@@ -79,8 +85,14 @@ export default function CourseManagement() {
     const isPublished = currentStatus === 'published';
     const result = await toggleCoursePublish(courseId, !isPublished);
     if (result.data) {
+      const message = isPublished 
+        ? 'Course unpublished successfully!' 
+        : 'Course published successfully!';
+      success(message);
       // Don't call fetchCourses here to prevent infinite loops
       // The store will update automatically
+    } else {
+      showError(result.error || 'Failed to update course status');
     }
   };
 
