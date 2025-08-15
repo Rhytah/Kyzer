@@ -468,23 +468,6 @@ export default function Progress() {
         </button>
       </div>
 
-      {/* Debug Info (remove in production) */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
-        <h4 className="font-medium text-blue-800 mb-2">Debug Info:</h4>
-        <div className="grid grid-cols-2 gap-4 text-blue-600">
-          <div>
-            <div>User ID: {user?.id || 'Not available'}</div>
-            <div>Enrolled Courses: {enrolledCourses?.length || 0}</div>
-            <div>Certificates: {certificates?.length || 0}</div>
-          </div>
-          <div>
-            <div>Store Loading: {JSON.stringify(loading)}</div>
-            <div>Local Loading: {isInitializing ? 'Yes' : 'No'}</div>
-            <div>Error: {error || 'None'}</div>
-          </div>
-        </div>
-      </div>
-
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="p-6">

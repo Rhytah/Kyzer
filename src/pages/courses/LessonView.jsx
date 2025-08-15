@@ -625,27 +625,7 @@ export default function LessonView() {
 
         {/* Video Error Display */}
         <VideoErrorDisplay />
-
-        {/* Debug Information (only show in development) */}
-        {import.meta.env.DEV && (
-          <Card className="p-4 bg-gray-50 border-gray-200">
-            <details className="text-sm">
-              <summary className="cursor-pointer font-medium text-gray-700 mb-2">
-                Debug Info (Development Only)
-              </summary>
-              <div className="space-y-2 text-gray-600">
-                <p><strong>Lesson ID:</strong> {lesson.id}</p>
-                <p><strong>Content Type:</strong> {lesson.content_type}</p>
-                <p><strong>Content URL:</strong> {lesson.content_url}</p>
-                <p><strong>Content Text:</strong> {lesson.content_text ? 'Available' : 'Not available'}</p>
-                <p><strong>Duration:</strong> {lesson.duration_minutes} minutes</p>
-                <p><strong>Order Index:</strong> {lesson.order_index}</p>
-                <p><strong>Course ID:</strong> {course.id}</p>
-                <p><strong>Video Error State:</strong> {JSON.stringify(videoError)}</p>
-              </div>
-            </details>
-          </Card>
-        )}
+   
 
         {/* Lesson Info */}
         <Card className="p-6">

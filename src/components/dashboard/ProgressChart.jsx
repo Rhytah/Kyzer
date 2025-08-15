@@ -37,7 +37,7 @@ export default function ProgressChart({ data }) {
   console.log("chartData", chartData);
   
   // Handle empty data gracefully
-  if (!chartData || !Array.isArray(chartData) || chartData.length === 0) {
+  if (!chartData || !chartData.labels || !Array.isArray(chartData.labels) || chartData.labels.length === 0) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -59,7 +59,7 @@ export default function ProgressChart({ data }) {
     );
   }
   
-  const maxHours = Math.max(...chartData?.learningHours || [0]);
+  const maxHours = Math.max(...(chartData?.learningHours || [0]));
 
   return (
     <div className="space-y-6">
@@ -133,9 +133,10 @@ export default function ProgressChart({ data }) {
       {/* Chart */}
       <div className="relative">
         <div className="flex items-end justify-between space-x-2 h-40 px-2">
-          {chartData.labels.map((label, index) => {
-            const hours = chartData.learningHours[index];
-            const completed = chartData.coursesCompleted[index];
+          {chartData.labels && chartData.learningHours && chartData.coursesCompleted && 
+           chartData.labels.map((label, index) => {
+            const hours = chartData.learningHours[index] || 0;
+            const completed = chartData.coursesCompleted[index] || 0;
             const heightPercentage =
               maxHours > 0 ? (hours / maxHours) * 100 : 0;
 
@@ -193,7 +194,7 @@ export default function ProgressChart({ data }) {
       </div>
 
       {/* Insights */}
-      {chartData.totalHours > 0 && (
+      {chartData.totalHours && chartData.totalHours > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start space-x-3">
             <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -204,7 +205,7 @@ export default function ProgressChart({ data }) {
                 Learning Insights
               </h4>
               <p className="text-xs text-blue-700">
-                {chartData.trend.startsWith("+")
+                {chartData.trend && chartData.trend.startsWith("+")
                   ? `Great progress! You're learning ${chartData.trend} more than last period. Keep up the momentum!`
                   : `You've been consistent with your learning. Try to increase your daily study time to accelerate progress.`}
               </p>

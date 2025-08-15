@@ -17,7 +17,8 @@ const MobileNav = () => {
     if (path === '/app/dashboard' || path === '/company/dashboard') {
       return location.pathname === path || location.pathname.startsWith(path.replace('/dashboard', ''));
     }
-    return location.pathname === path || location.pathname.startsWith(path + '/');
+    // For other routes, use exact match only to prevent multiple active states
+    return location.pathname === path;
   };
 
   return (

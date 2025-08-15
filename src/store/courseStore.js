@@ -251,13 +251,22 @@ const useCourseStore = create((set, get) => ({
     // Calculate course progress percentage
     calculateCourseProgress: async (userId, courseId) => {
       try {
+        // Validate parameters
+        if (!userId || !courseId) {
+          console.warn('calculateCourseProgress: Missing userId or courseId', { userId, courseId });
+          return 0;
+        }
+
         // Get total lessons in course
         const { data: lessons, error: lessonsError } = await supabase
           .from(TABLES.LESSONS)
           .select('id')
           .eq('course_id', courseId);
 
-        if (lessonsError) throw lessonsError;
+        if (lessonsError) {
+          console.error('Error fetching lessons for progress calculation:', lessonsError);
+          return 0;
+        }
 
         // Get completed lessons
         const { data: completedProgress, error: progressError } = await supabase
@@ -267,7 +276,10 @@ const useCourseStore = create((set, get) => ({
           .eq('course_id', courseId)
           .eq('completed', true);
 
-        if (progressError) throw progressError;
+        if (progressError) {
+          console.error('Error fetching lesson progress for calculation:', progressError);
+          return 0;
+        }
 
         const totalLessons = lessons?.length || 0;
         const completedLessons = completedProgress?.length || 0;
@@ -284,7 +296,10 @@ const useCourseStore = create((set, get) => ({
           .eq('user_id', userId)
           .eq('course_id', courseId);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Error updating enrollment progress:', updateError);
+          // Don't throw, just return the calculated percentage
+        }
 
         // Update local state
         set((state) => ({
@@ -297,6 +312,7 @@ const useCourseStore = create((set, get) => ({
 
         return progressPercentage;
       } catch (error) {
+        console.error('Exception in calculateCourseProgress:', error);
         return 0;
       }
     },
@@ -309,13 +325,23 @@ const useCourseStore = create((set, get) => ({
       }));
 
       try {
+        // Validate parameters
+        if (!userId || !courseId) {
+          console.warn('fetchCourseProgress: Missing userId or courseId', { userId, courseId });
+          return { data: {}, error: null };
+        }
+
         const { data, error } = await supabase
           .from(TABLES.LESSON_PROGRESS)
           .select('*')
           .eq('user_id', userId)
           .eq('course_id', courseId);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching lesson progress:', error);
+          // Return empty progress instead of throwing
+          return { data: {}, error: null };
+        }
 
         const progressMap = {};
         data?.forEach(progress => {
@@ -336,11 +362,13 @@ const useCourseStore = create((set, get) => ({
 
         return { data: progressMap, error: null };
       } catch (error) {
+        console.error('Exception in fetchCourseProgress:', error);
         set((state) => ({
           error: error.message,
           loading: { ...state.loading, progress: false },
         }));
-        return { data: null, error };
+        // Return empty progress instead of null
+        return { data: {}, error: null };
       }
     },
 
