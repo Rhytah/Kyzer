@@ -47,7 +47,11 @@ export default function CourseLearning() {
 
   const loadCourseData = async () => {
     try {
-      await actions.fetchCourses();
+      if (user?.id) {
+        await actions.fetchCourses({}, user.id);
+      } else {
+        await actions.fetchCourses();
+      }
       const course = courses.find(c => c.id === courseId);
       if (course) {
         actions.setCurrentCourse(course);

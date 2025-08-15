@@ -15,6 +15,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
   // Store selectors - individual to prevent infinite loops
   const createLesson = useCourseStore(state => state.actions.createLesson);
   const updateLesson = useCourseStore(state => state.actions.updateLesson);
+  const fetchCourseModules = useCourseStore(state => state.actions.fetchCourseModules);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -23,12 +24,15 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     content_text: '',
     duration_minutes: '',
     order_index: 1,
-    is_required: true
+    is_required: true,
+    module_id: ''
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isEditing] = useState(!!lesson);
+  const [modules, setModules] = useState([]);
+  const [loadingModules, setLoadingModules] = useState(false);
 
   // Initialize form with lesson data if editing
   useEffect(() => {
@@ -40,10 +44,32 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         content_text: lesson.content_text || '',
         duration_minutes: lesson.duration_minutes || '',
         order_index: lesson.order_index || 1,
-        is_required: lesson.is_required !== undefined ? lesson.is_required : true
+        is_required: lesson.is_required !== undefined ? lesson.is_required : true,
+        module_id: lesson.module_id || '' // Assuming lesson object has module_id
       });
     }
   }, [lesson]);
+
+  // Fetch modules for the course
+  useEffect(() => {
+    const loadModules = async () => {
+      if (courseId) {
+        setLoadingModules(true);
+        try {
+          const result = await fetchCourseModules(courseId);
+          if (result.data) {
+            setModules(result.data);
+          }
+        } catch (error) {
+          console.error('Failed to load modules:', error);
+        } finally {
+          setLoadingModules(false);
+        }
+      }
+    };
+
+    loadModules();
+  }, [courseId, fetchCourseModules]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -77,7 +103,8 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
       const lessonData = {
         ...formData,
         duration_minutes: formData.duration_minutes ? parseInt(formData.duration_minutes) : null,
-        order_index: formData.order_index ? parseInt(formData.order_index) : 1
+        order_index: formData.order_index ? parseInt(formData.order_index) : 1,
+        module_id: formData.module_id || null // Allow null for unassigned lessons
       };
 
       let result;
@@ -98,11 +125,10 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         : `Lesson "${result.data.title}" created successfully!`;
       
       success(message);
-      onSuccess?.(result.data);
-    } catch (err) {
-      const errorMessage = err.message || 'An error occurred';
-      setError(errorMessage);
-      showError(errorMessage);
+      onSuccess(result.data);
+    } catch (error) {
+      setError(error.message || 'An unexpected error occurred');
+      showError(error.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -157,10 +183,36 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
               >
                 <option value="video">Video</option>
                 <option value="text">Text</option>
-                <option value="file">File</option>
-                <option value="link">Link</option>
+                <option value="pdf">PDF</option>
                 <option value="quiz">Quiz</option>
+                <option value="interactive">Interactive</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Module (Optional)
+              </label>
+              <select
+                name="module_id"
+                value={formData.module_id}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">No Module (Unassigned)</option>
+                {loadingModules ? (
+                  <option disabled>Loading modules...</option>
+                ) : (
+                  modules.map(module => (
+                    <option key={module.id} value={module.id}>
+                      {module.title}
+                    </option>
+                  ))
+                )}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Select a module to organize this lesson, or leave unassigned
+              </p>
             </div>
 
             <div>

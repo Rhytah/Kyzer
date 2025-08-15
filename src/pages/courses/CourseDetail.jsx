@@ -34,9 +34,37 @@ export default function CourseDetail() {
   const error = useCourseStore(state => state.error);
   const fetchCourses = useCourseStore(state => state.actions.fetchCourses);
   const enrollInCourse = useCourseStore(state => state.actions.enrollInCourse);
+  const fetchCourseLessons = useCourseStore(state => state.actions.fetchCourseLessons);
+  const fetchCourseModules = useCourseStore(state => state.actions.fetchCourseModules);
   
   const [activeTab, setActiveTab] = useState('overview')
   const [expandedModule, setExpandedModule] = useState(null)
+  const [lessons, setLessons] = useState([])
+  const [modules, setModules] = useState([])
+  const [courseStructure, setCourseStructure] = useState({})
+
+  // Function to fetch lessons for the course
+  const loadCourseLessons = async () => {
+    if (courseId) {
+      try {
+        const [lessonsResult, modulesResult] = await Promise.all([
+          fetchCourseLessons(courseId),
+          fetchCourseModules(courseId)
+        ]);
+        
+        if (lessonsResult.data) {
+          setLessons(Object.values(lessonsResult.data).flatMap(moduleData => moduleData.lessons || []));
+          setCourseStructure(lessonsResult.data);
+        }
+        
+        if (modulesResult.data) {
+          setModules(modulesResult.data);
+        }
+      } catch (error) {
+        // Handle error silently or set error state if needed
+      }
+    }
+  }
 
   // Mock course data - in real app, this would come from your database
   const mockCourse = {
@@ -160,7 +188,7 @@ export default function CourseDetail() {
     ]
   }
 
-  // Get the current course from the store or use mock data as fallback
+  // Get the current course from the store
   const course = courses?.find(c => c.id === courseId) || mockCourse
   
   // Check if user is enrolled
@@ -168,12 +196,21 @@ export default function CourseDetail() {
     enrollment.course_id === courseId || enrollment.id === courseId
   )
 
+  // Fetch lessons when component mounts
+  useEffect(() => {
+    loadCourseLessons()
+  }, [courseId])
+
   useEffect(() => {
     // Fetch courses if not already loaded
     if (!courses || courses.length === 0) {
-      fetchCourses()
+      if (user?.id) {
+        fetchCourses({}, user.id)
+      } else {
+        fetchCourses()
+      }
     }
-  }, [courses, fetchCourses])
+  }, [courses, fetchCourses, user?.id])
 
   // Handle course enrollment
   const handleEnroll = async () => {
@@ -186,7 +223,7 @@ export default function CourseDetail() {
       await enrollInCourse(user.id, courseId)
       // The store will automatically refresh enrolled courses
     } catch (error) {
-      console.error('Failed to enroll:', error)
+      // Handle error silently or set error state if needed
     }
   }
 
@@ -222,7 +259,7 @@ export default function CourseDetail() {
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2 mb-4">
               <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm">
-                {course.category || course.category_id || 'General'}
+                {course.category?.name || 'General'}
               </span>
               <span className="text-white/80 text-sm">{course.level || course.difficulty_level || 'Beginner'}</span>
             </div>
@@ -281,12 +318,14 @@ export default function CourseDetail() {
                       Start Learning
                     </Button>
                   </Link>
-                  <Link to={`/app/courses/${courseId}/lesson/1-1`}>
-                    <Button variant="outline" className="w-full" size="lg">
-                      <BookOpen className="w-4 h-4 mr-2" />
-                      Continue Lesson
-                    </Button>
-                  </Link>
+                  {lessons.length > 0 && (
+                    <Link to={`/app/courses/${courseId}/lesson/${lessons[0].id}`}>
+                      <Button variant="outline" className="w-full" size="lg">
+                        <BookOpen className="w-4 h-4 mr-2" />
+                        Continue Lesson
+                      </Button>
+                    </Link>
+                  )}
                   <div className="text-center text-sm text-success-default">
                     ✓ You're enrolled in this course
                   </div>
@@ -405,66 +444,92 @@ export default function CourseDetail() {
             <Card className="p-6">
               <h2 className="text-2xl font-bold text-text-dark mb-6">Course Curriculum</h2>
               <div className="space-y-4">
-                {course.curriculum ? (
-                  course.curriculum.map((module) => (
-                  <div key={module.id} className="border border-background-dark rounded-lg">
-                    <button
-                      onClick={() => toggleModule(module.id)}
-                      className="w-full flex items-center justify-between p-4 hover:bg-background-light transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        {expandedModule === module.id ? (
-                          <ChevronDown className="w-5 h-5 text-text-medium" />
-                        ) : (
-                          <ChevronRight className="w-5 h-5 text-text-medium" />
-                        )}
-                        <div className="text-left">
-                          <h3 className="font-semibold text-text-dark">{module.title}</h3>
-                          <p className="text-sm text-text-light">
-                            {module.lessons} lessons • {Math.floor(module.duration / 60)}h {module.duration % 60}m
-                          </p>
+                {modules && modules.length > 0 ? (
+                  modules.map((module) => (
+                    <div key={module.id} className="border border-background-dark rounded-lg">
+                      <button
+                        onClick={() => setExpandedModule(expandedModule === module.id ? null : module.id)}
+                        className="w-full flex items-center justify-between p-4 hover:bg-background-light transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          {expandedModule === module.id ? (
+                            <ChevronDown className="w-5 h-5 text-text-medium" />
+                          ) : (
+                            <ChevronRight className="w-5 h-5 text-text-medium" />
+                          )}
+                          <div className="text-left">
+                            <h3 className="font-semibold text-text-dark">{module.title}</h3>
+                            <p className="text-sm text-text-light">
+                              {courseStructure[module.id]?.lessons?.length || 0} lessons • {module.estimated_duration || 0} min
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </button>
+                      </button>
 
-                    {expandedModule === module.id && (
-                      <div className="border-t border-background-dark">
-                        {module.lectures.map((lecture, index) => (
-                          <div key={lecture.id} className="flex items-center justify-between p-4 hover:bg-background-light">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-background-medium rounded flex items-center justify-center">
-                                {lecture.type === 'video' ? (
-                                  <Play className="w-4 h-4 text-text-muted" />
-                                ) : (
-                                  <BookOpen className="w-4 h-4 text-text-muted" />
+                      {expandedModule === module.id && (
+                        <div className="border-t border-background-dark">
+                          {courseStructure[module.id]?.lessons?.map((lesson, index) => (
+                            <div key={lesson.id} className="flex items-center justify-between p-4 hover:bg-background-light">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-background-medium rounded flex items-center justify-center">
+                                  {lesson.content_type === 'video' ? (
+                                    <Play className="w-4 h-4 text-text-muted" />
+                                  ) : (
+                                    <BookOpen className="w-4 h-4 text-text-muted" />
+                                  )}
+                                </div>
+                                <div>
+                                  <h4 className="font-medium text-text-dark">{lesson.title}</h4>
+                                  <p className="text-sm text-text-light">{lesson.duration_minutes || 0} min</p>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-2">
+                                {isEnrolled && (
+                                  <Link to={`/app/courses/${courseId}/lesson/${lesson.id}`}>
+                                    <Button size="sm" variant="ghost">
+                                      <Play className="w-4 h-4" />
+                                    </Button>
+                                  </Link>
                                 )}
                               </div>
-                              <div>
-                                <h4 className="font-medium text-text-dark">{lecture.title}</h4>
-                                <p className="text-sm text-text-light">{lecture.duration} min</p>
-                              </div>
                             </div>
-                            
-                            <div className="flex items-center gap-2">
-                              {lecture.free && (
-                                <span className="text-xs bg-success-light text-success-default px-2 py-1 rounded">
-                                  Free
-                                </span>
-                              )}
-                              {isEnrolled && (
-                                <Link to={`/app/courses/${courseId}/lesson/${lecture.id}`}>
-                                  <Button size="sm" variant="ghost">
-                                    <Play className="w-4 h-4" />
-                                  </Button>
-                                </Link>
-                              )}
-                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : lessons && lessons.length > 0 ? (
+                  // Fallback: show lessons without modules if no modules exist
+                  <div className="space-y-2">
+                    {lessons.map((lesson) => (
+                      <div key={lesson.id} className="flex items-center justify-between p-4 border border-background-dark rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-background-medium rounded flex items-center justify-center">
+                            {lesson.content_type === 'video' ? (
+                              <Play className="w-4 h-4 text-text-muted" />
+                            ) : (
+                              <BookOpen className="w-4 h-4 text-text-muted" />
+                            )}
                           </div>
-                        ))}
+                          <div>
+                            <h4 className="font-medium text-text-dark">{lesson.title}</h4>
+                            <p className="text-sm text-text-light">{lesson.duration_minutes || 0} min</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          {isEnrolled && (
+                            <Link to={`/app/courses/${courseId}/lesson/${lesson.id}`}>
+                              <Button size="sm" variant="ghost">
+                                <Play className="w-4 h-4" />
+                              </Button>
+                            </Link>
+                          )}
+                        </div>
                       </div>
-                    )}
+                    ))}
                   </div>
-                ))
                 ) : (
                   <p className="text-text-medium">No curriculum available for this course.</p>
                 )}

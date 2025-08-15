@@ -12,19 +12,21 @@ const useCourseStore = create((set, get) => ({
   quizAttempts: {},
   certificates: [],
   categories: [],
+  courseModules: {}, // New: Store modules by course ID
   loading: {
     courses: false,
     enrollments: false,
     progress: false,
     quiz: false,
     categories: false,
+    modules: false, // New: Loading state for modules
   },
   error: null,
 
   // Actions
   actions: {
     // Fetch all courses
-    fetchCourses: async (filters = {}) => {
+    fetchCourses: async (filters = {}, userId = null) => {
       set((state) => ({
         loading: { ...state.loading, courses: true },
         error: null,
@@ -35,7 +37,16 @@ const useCourseStore = create((set, get) => ({
           .from(TABLES.COURSES)
           .select(`
             *,
-            enrollments:${TABLES.COURSE_ENROLLMENTS}(id, user_id)
+            category:${TABLES.COURSE_CATEGORIES}(id, name, color),
+            enrollments:${TABLES.COURSE_ENROLLMENTS}(
+              id, 
+              user_id, 
+              progress_percentage, 
+              status, 
+              enrolled_at, 
+              completed_at,
+              last_accessed
+            )
           `)
           .order('created_at', { ascending: false });
 
@@ -53,12 +64,31 @@ const useCourseStore = create((set, get) => ({
         const { data, error } = await query;
         if (error) throw error;
 
+        // Transform data to include user enrollment status and progress
+        let transformedCourses = data || [];
+        if (userId && data) {
+          transformedCourses = data.map(course => {
+            const userEnrollment = course.enrollments?.find(enrollment => enrollment.user_id === userId);
+            return {
+              ...course,
+              isEnrolled: !!userEnrollment,
+              enrollment_id: userEnrollment?.id,
+              progress_percentage: userEnrollment?.progress_percentage || 0,
+              enrollment_status: userEnrollment?.status || null,
+              enrolled_at: userEnrollment?.enrolled_at,
+              completed_at: userEnrollment?.completed_at,
+              last_accessed: userEnrollment?.last_accessed,
+              canContinue: userEnrollment && userEnrollment.progress_percentage < 100
+            };
+          });
+        }
+
         set((state) => ({
-          courses: data || [],
+          courses: transformedCourses,
           loading: { ...state.loading, courses: false },
         }));
 
-        return { data, error: null };
+        return { data: transformedCourses, error: null };
       } catch (error) {
         set((state) => ({
           error: error.message,
@@ -738,6 +768,258 @@ const useCourseStore = create((set, get) => ({
         return { success: true, error: null };
       } catch (error) {
         return { success: false, error: error.message };
+      }
+    },
+
+    // Module Management: Fetch modules for a course
+    fetchCourseModules: async (courseId) => {
+      set((state) => ({
+        loading: { ...state.loading, modules: true },
+        error: null,
+      }));
+
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.COURSE_MODULES)
+          .select('*')
+          .eq('course_id', courseId)
+          .order('order_index', { ascending: true });
+
+        if (error) throw error;
+
+        // Update local state
+        set((state) => ({
+          courseModules: {
+            ...state.courseModules,
+            [courseId]: data || []
+          },
+          loading: { ...state.loading, modules: false },
+        }));
+
+        return { data: data || [], error: null };
+      } catch (error) {
+        set((state) => ({
+          error: error.message,
+          loading: { ...state.loading, modules: false },
+        }));
+        return { data: [], error: error.message };
+      }
+    },
+
+    // Module Management: Create new module
+    createModule: async (moduleData, courseId, createdBy) => {
+      try {
+        // Get current module count for order_index
+        const { data: existingModules } = await supabase
+          .from(TABLES.COURSE_MODULES)
+          .select('order_index')
+          .eq('course_id', courseId)
+          .order('order_index', { ascending: false })
+          .limit(1);
+
+        const nextOrderIndex = existingModules && existingModules.length > 0 
+          ? existingModules[0].order_index + 1 
+          : 1;
+
+        const { data, error } = await supabase
+          .from(TABLES.COURSE_MODULES)
+          .insert({
+            ...moduleData,
+            course_id: courseId,
+            created_by: createdBy,
+            order_index: nextOrderIndex,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Update local state
+        const currentModules = get().courseModules[courseId] || [];
+        set((state) => ({
+          courseModules: {
+            ...state.courseModules,
+            [courseId]: [...currentModules, data]
+          }
+        }));
+
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    // Module Management: Update module
+    updateModule: async (moduleId, updates) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.COURSE_MODULES)
+          .update({
+            ...updates,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', moduleId)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Update local state
+        set((state) => ({
+          courseModules: Object.keys(state.courseModules).reduce((acc, courseId) => {
+            acc[courseId] = state.courseModules[courseId].map(module =>
+              module.id === moduleId ? { ...module, ...updates } : module
+            );
+            return acc;
+          }, {})
+        }));
+
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    // Module Management: Delete module
+    deleteModule: async (moduleId, courseId) => {
+      try {
+        const { error } = await supabase
+          .from(TABLES.COURSE_MODULES)
+          .delete()
+          .eq('id', moduleId);
+
+        if (error) throw error;
+
+        // Update local state
+        set((state) => ({
+          courseModules: {
+            ...state.courseModules,
+            [courseId]: state.courseModules[courseId]?.filter(module => module.id !== moduleId) || []
+          }
+        }));
+
+        return { success: true, error: null };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    },
+
+    // Module Management: Reorder modules
+    reorderModules: async (courseId, moduleOrder) => {
+      try {
+        const updates = moduleOrder.map((moduleId, index) => ({
+          id: moduleId,
+          order_index: index + 1
+        }));
+
+        const { error } = await supabase
+          .from(TABLES.COURSE_MODULES)
+          .upsert(updates, { onConflict: 'id' });
+
+        if (error) throw error;
+
+        // Update local state
+        set((state) => ({
+          courseModules: {
+            ...state.courseModules,
+            [courseId]: state.courseModules[courseId]?.map(module => {
+              const update = updates.find(u => u.id === module.id);
+              return update ? { ...module, order_index: update.order_index } : module;
+            }).sort((a, b) => a.order_index - b.order_index) || []
+          }
+        }));
+
+        return { success: true, error: null };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    },
+
+    // Enhanced Lesson Management: Create lesson with module support
+    createLesson: async (lessonData, courseId, moduleId, createdBy) => {
+      try {
+        // Get current lesson count for order_index within the module
+        const { data: existingLessons } = await supabase
+          .from(TABLES.LESSONS)
+          .select('order_index')
+          .eq('course_id', courseId)
+          .eq('module_id', moduleId)
+          .order('order_index', { ascending: false })
+          .limit(1);
+
+        const nextOrderIndex = existingLessons && existingLessons.length > 0 
+          ? existingLessons[0].order_index + 1 
+          : 1;
+
+        const { data, error } = await supabase
+          .from(TABLES.LESSONS)
+          .insert({
+            ...lessonData,
+            course_id: courseId,
+            module_id: moduleId,
+            created_by: createdBy,
+            order_index: nextOrderIndex,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    // Enhanced Lesson Management: Get lessons for a course with module grouping
+    fetchCourseLessons: async (courseId) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.LESSONS)
+          .select(`
+            *,
+            module:${TABLES.COURSE_MODULES}(id, title, order_index)
+          `)
+          .eq('course_id', courseId)
+          .order('order_index', { ascending: true });
+
+        if (error) throw error;
+
+        // Group lessons by module and sort by module order
+        const groupedLessons = {};
+        data?.forEach(lesson => {
+          const moduleId = lesson.module?.id || 'unassigned';
+          if (!groupedLessons[moduleId]) {
+            groupedLessons[moduleId] = {
+              module: lesson.module || { id: 'unassigned', title: 'Unassigned Lessons', order_index: 999 },
+              lessons: []
+            };
+          }
+          groupedLessons[moduleId].lessons.push(lesson);
+        });
+
+        // Sort modules by order_index and lessons within each module
+        const sortedGroupedLessons = {};
+        Object.keys(groupedLessons)
+          .sort((a, b) => {
+            const moduleA = groupedLessons[a].module;
+            const moduleB = groupedLessons[b].module;
+            return (moduleA.order_index || 999) - (moduleB.order_index || 999);
+          })
+          .forEach(moduleId => {
+            const moduleData = groupedLessons[moduleId];
+            // Sort lessons within the module by their order_index
+            moduleData.lessons.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+            sortedGroupedLessons[moduleId] = moduleData;
+          });
+
+        return { data: sortedGroupedLessons, error: null };
+      } catch (error) {
+        return { data: {}, error: error.message };
       }
     },
   },

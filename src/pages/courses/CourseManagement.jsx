@@ -14,13 +14,18 @@ import {
   Settings,
   Users,
   Clock,
-  Star
+  Star,
+  ChevronDown,
+  ChevronRight,
+  FolderOpen,
+  FileText
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import CourseForm from '@/components/course/CourseForm';
 import LessonForm from '@/components/course/LessonForm';
+import ModuleForm from '@/components/course/ModuleForm';
 import { useToast } from '@/components/ui';
 
 export default function CourseManagement() {
@@ -36,29 +41,48 @@ export default function CourseManagement() {
   const deleteCourse = useCourseStore(state => state.actions.deleteCourse);
   const toggleCoursePublish = useCourseStore(state => state.actions.toggleCoursePublish);
   const fetchCourseLessons = useCourseStore(state => state.actions.fetchCourseLessons);
+  const fetchCourseModules = useCourseStore(state => state.actions.fetchCourseModules);
+  const createModule = useCourseStore(state => state.actions.createModule);
+  const updateModule = useCourseStore(state => state.actions.updateModule);
+  const deleteModule = useCourseStore(state => state.actions.deleteModule);
 
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [showLessonForm, setShowLessonForm] = useState(false);
+  const [showModuleForm, setShowModuleForm] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
   const [editingLesson, setEditingLesson] = useState(null);
+  const [editingModule, setEditingModule] = useState(null);
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [courseLessons, setCourseLessons] = useState({});
+  const [courseModules, setCourseModules] = useState({});
+  const [expandedModules, setExpandedModules] = useState({});
 
   useEffect(() => {
-    fetchCourses();
-  }, []); // Empty dependency array to run only once
+    if (user?.id) {
+      fetchCourses({}, user.id);
+    } else {
+      fetchCourses();
+    }
+  }, [fetchCourses, user?.id]);
 
   const handleCourseSuccess = (courseData) => {
     setShowCourseForm(false);
     setEditingCourse(null);
-    // Don't call fetchCourses here to prevent infinite loops
-    // The store will update automatically
   };
 
   const handleLessonSuccess = (lessonData) => {
     setShowLessonForm(false);
     setEditingLesson(null);
     if (selectedCourseId) {
+      loadCourseLessons(selectedCourseId);
+    }
+  };
+
+  const handleModuleSuccess = (moduleData) => {
+    setShowModuleForm(false);
+    setEditingModule(null);
+    if (selectedCourseId) {
+      loadCourseModules(selectedCourseId);
       loadCourseLessons(selectedCourseId);
     }
   };
@@ -73,8 +97,6 @@ export default function CourseManagement() {
       const result = await deleteCourse(courseId);
       if (result.success) {
         success('Course deleted successfully!');
-        // Don't call fetchCourses here to prevent infinite loops
-        // The store will update automatically
       } else {
         showError(result.error || 'Failed to delete course');
       }
@@ -89,8 +111,6 @@ export default function CourseManagement() {
         ? 'Course unpublished successfully!' 
         : 'Course published successfully!';
       success(message);
-      // Don't call fetchCourses here to prevent infinite loops
-      // The store will update automatically
     } else {
       showError(result.error || 'Failed to update course status');
     }
@@ -107,10 +127,62 @@ export default function CourseManagement() {
     setShowLessonForm(true);
   };
 
+  const handleAddModule = (courseId) => {
+    setSelectedCourseId(courseId);
+    setShowModuleForm(true);
+  };
+
+  const handleEditModule = (module, courseId) => {
+    setEditingModule(module);
+    setSelectedCourseId(courseId);
+    setShowModuleForm(true);
+  };
+
+  const handleDeleteModule = async (moduleId, courseId) => {
+    if (window.confirm('Are you sure you want to delete this module? All lessons in this module will become unassigned.')) {
+      const result = await deleteModule(moduleId, courseId);
+      if (result.success) {
+        success('Module deleted successfully!');
+        loadCourseModules(courseId);
+        loadCourseLessons(courseId);
+      } else {
+        showError(result.error || 'Failed to delete module');
+      }
+    }
+  };
+
+  const toggleModuleExpansion = (moduleId) => {
+    setExpandedModules(prev => ({
+      ...prev,
+      [moduleId]: !prev[moduleId]
+    }));
+  };
+
   const loadCourseLessons = async (courseId) => {
     const result = await fetchCourseLessons(courseId);
     if (result.data) {
+      // Convert grouped lessons to flat array for display
+      const flatLessons = [];
+      Object.values(result.data).forEach(moduleData => {
+        if (moduleData.lessons && Array.isArray(moduleData.lessons)) {
+          flatLessons.push(...moduleData.lessons);
+        }
+      });
+      
+      // Sort lessons by their order_index
+      flatLessons.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+      
       setCourseLessons(prev => ({
+        ...prev,
+        [courseId]: flatLessons
+      }));
+    }
+  };
+
+  const loadCourseModules = async (courseId) => {
+    const result = await fetchCourseModules(courseId);
+    if (result.data) {
+      setCourseModules(prev => ({
         ...prev,
         [courseId]: result.data
       }));
@@ -126,6 +198,7 @@ export default function CourseManagement() {
       });
     } else {
       loadCourseLessons(courseId);
+      loadCourseModules(courseId);
     }
   };
 
@@ -135,9 +208,8 @@ export default function CourseManagement() {
         <LoadingSpinner size="lg" />
       </div>
     );
-  }
-
-  return (
+      }
+    return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
@@ -188,6 +260,24 @@ export default function CourseManagement() {
               onCancel={() => {
                 setShowLessonForm(false);
                 setEditingLesson(null);
+                setSelectedCourseId(null);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Module Form Modal */}
+      {showModuleForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <ModuleForm
+              module={editingModule}
+              courseId={selectedCourseId}
+              onSuccess={handleModuleSuccess}
+              onCancel={() => {
+                setShowModuleForm(false);
+                setEditingModule(null);
                 setSelectedCourseId(null);
               }}
             />
@@ -252,9 +342,19 @@ export default function CourseManagement() {
                       <BookOpen className="w-4 h-4" />
                       <span>{courseLessons[course.id]?.length || 0} lessons</span>
                     </div>
-                    {course.category_id && (
-                      <span className="px-2 py-1 bg-gray-100 rounded">
-                        {course.category_id}
+                    <div className="flex items-center gap-1">
+                      <FolderOpen className="w-4 h-4" />
+                      <span>{courseModules[course.id]?.length || 0} modules</span>
+                    </div>
+                    {course.category && (
+                      <span 
+                        className="px-2 py-1 rounded text-xs font-medium"
+                        style={{
+                          backgroundColor: course.category.color ? `${course.category.color}20` : '#f3f4f6',
+                          color: course.category.color || '#374151'
+                        }}
+                      >
+                        {course.category.name}
                       </span>
                     )}
                   </div>
@@ -266,7 +366,7 @@ export default function CourseManagement() {
                     size="sm"
                     onClick={() => toggleLessonsView(course.id)}
                   >
-                    {courseLessons[course.id] ? 'Hide' : 'Show'} Lessons
+                    {courseLessons[course.id] ? 'Hide' : 'Show'} Structure
                   </Button>
                   <Button
                     variant="secondary"
@@ -296,6 +396,14 @@ export default function CourseManagement() {
                   <Button
                     variant="secondary"
                     size="sm"
+                    onClick={() => handleAddModule(course.id)}
+                  >
+                    <FolderOpen className="w-4 h-4 mr-1" />
+                    Add Module
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => handleAddLesson(course.id)}
                   >
                     <Plus className="w-4 h-4 mr-1" />
@@ -312,52 +420,170 @@ export default function CourseManagement() {
                 </div>
               </div>
 
-              {/* Lessons Section */}
-              {courseLessons[course.id] && (
+              {/* Course Structure Section */}
+              {(courseModules[course.id] || courseLessons[course.id]) && (
                 <div className="border-t border-gray-200 pt-4 mt-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium text-gray-900">Lessons</h4>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleAddLesson(course.id)}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Lesson
-                    </Button>
+                    <h4 className="font-medium text-gray-900">Course Structure</h4>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleAddModule(course.id)}
+                      >
+                        <FolderOpen className="w-4 h-4 mr-2" />
+                        Add Module
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleAddLesson(course.id)}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Lesson
+                      </Button>
+                    </div>
                   </div>
                   
-                  <div className="space-y-2">
-                    {courseLessons[course.id].map(lesson => (
-                      <div
-                        key={lesson.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-medium text-gray-500">
-                            {lesson.order_index}.
-                          </span>
-                          <div>
-                            <h5 className="font-medium text-gray-900">
-                              {lesson.title}
-                            </h5>
-                            <p className="text-sm text-gray-500">
-                              {lesson.lesson_type} • {lesson.duration_minutes || 0} min
-                            </p>
+                  <div className="space-y-3">
+                    {/* Display Modules with Lessons */}
+                    {courseModules[course.id]?.map(module => (
+                      <div key={module.id} className="border border-gray-200 rounded-lg">
+                        <div 
+                          className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer hover:bg-gray-100"
+                          onClick={() => toggleModuleExpansion(module.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            {expandedModules[module.id] ? (
+                              <ChevronDown className="w-4 h-4 text-gray-500" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-gray-500" />
+                            )}
+                            <FolderOpen className="w-5 h-5 text-blue-600" />
+                            <div>
+                              <h5 className="font-medium text-gray-900">
+                                {module.title}
+                              </h5>
+                              <p className="text-sm text-gray-500">
+                                {module.estimated_duration ? `${module.estimated_duration} min` : 'No duration set'}
+                                {module.is_required && ' • Required'}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditModule(module, course.id);
+                              }}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteModule(module.id, course.id);
+                              }}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                         </div>
                         
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditLesson(lesson, course.id)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        {/* Module Lessons */}
+                        {expandedModules[module.id] && (
+                          <div className="p-3 bg-white">
+                            {courseLessons[course.id]?.filter(lesson => lesson.module_id === module.id).length > 0 ? (
+                              <div className="space-y-2">
+                                {courseLessons[course.id]
+                                  ?.filter(lesson => lesson.module_id === module.id)
+                                  .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+                                  .map(lesson => (
+                                    <div
+                                      key={lesson.id}
+                                      className="flex items-center justify-between p-2 bg-gray-50 rounded border-l-4 border-blue-200"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <FileText className="w-4 h-4 text-gray-500" />
+                                        <span className="text-sm font-medium text-gray-500">
+                                          {lesson.order_index || '?'}.
+                                        </span>
+                                        <div>
+                                          <h6 className="font-medium text-gray-900">
+                                            {lesson.title || 'Untitled Lesson'}
+                                          </h6>
+                                          <p className="text-xs text-gray-500">
+                                            {lesson.content_type || lesson.lesson_type || 'Unknown'} • {lesson.duration_minutes || 0} min
+                                          </p>
+                                        </div>
+                                      </div>
+                                      
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleEditLesson(lesson, course.id)}
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-500 italic">No lessons in this module yet.</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
+                    
+                    {/* Display Unassigned Lessons */}
+                    {courseLessons[course.id]?.filter(lesson => !lesson.module_id).length > 0 && (
+                      <div className="border border-gray-200 rounded-lg">
+                        <div className="p-3 bg-yellow-50 border-l-4 border-yellow-400">
+                          <h5 className="font-medium text-gray-900 mb-2">Unassigned Lessons</h5>
+                          <div className="space-y-2">
+                            {courseLessons[course.id]
+                              ?.filter(lesson => !lesson.module_id)
+                              .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+                              .map(lesson => (
+                                <div
+                                  key={lesson.id}
+                                  className="flex items-center justify-between p-2 bg-white rounded border"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <FileText className="w-4 h-4 text-gray-500" />
+                                    <span className="text-sm font-medium text-gray-500">
+                                      {lesson.order_index || '?'}.
+                                    </span>
+                                    <div>
+                                      <h6 className="font-medium text-gray-900">
+                                        {lesson.title || 'Untitled Lesson'}
+                                      </h6>
+                                      <p className="text-xs text-gray-500">
+                                        {lesson.content_type || lesson.lesson_type || 'Unknown'} • {lesson.duration_minutes || 0} min
+                                      </p>
+                                    </div>
+                                  </div>
+                                  
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditLesson(lesson, course.id)}
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

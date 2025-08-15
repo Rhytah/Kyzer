@@ -499,10 +499,9 @@ export default function MyCourses() {
     // Fetch enrolled courses if user is logged in
     if (user) {
       fetchEnrolledCourses(user.id)
-      console.log('MyCourses: Fetching enrolled courses...');
     }
   }, [user, fetchEnrolledCourses])
-console.log("courses", courses)
+
   const filteredCourses = courses.filter(course => {
     const matchesSearch = course.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          course.description?.toLowerCase().includes(searchTerm.toLowerCase())

@@ -78,14 +78,23 @@ const CourseCatalog = () => {
 
   // Fetch courses on mount
   useEffect(() => {
-    fetchCourses();
-  }, [fetchCourses]);
+    if (user?.id) {
+      fetchCourses({}, user.id);
+    } else {
+      fetchCourses();
+    }
+  }, [fetchCourses, user?.id]);
 
   // Check if user is enrolled in a course
   const isEnrolled = (courseId) => {
-    return enrolledCourses?.some(course => 
-      course.course_id === courseId || course.id === courseId
-    );
+    const course = courses.find(c => c.id === courseId);
+    return course?.isEnrolled || false;
+  };
+
+  // Check if user can continue learning (has progress less than 100%)
+  const canContinueLearning = (courseId) => {
+    const course = courses.find(c => c.id === courseId);
+    return course?.canContinue || false;
   };
 
   // Handle course enrollment
@@ -95,12 +104,24 @@ const CourseCatalog = () => {
       return;
     }
 
+    // If already enrolled and can continue learning, navigate to course
+    if (isEnrolled(courseId) && canContinueLearning(courseId)) {
+      navigate(`/app/courses/${courseId}`);
+      return;
+    }
+
+    // If already enrolled but completed, navigate to course for review
+    if (isEnrolled(courseId) && !canContinueLearning(courseId)) {
+      navigate(`/app/courses/${courseId}`);
+      return;
+    }
+
     try {
       await enrollInCourse(user.id, courseId);
-      // Don't refresh here to prevent infinite loops
-      // The store will update automatically
+      // Navigate to the course after successful enrollment
+      navigate(`/app/courses/${courseId}`);
     } catch (error) {
-      console.error('Enrollment failed:', error);
+      // Handle error silently or set error state if needed
     }
   };
 
@@ -111,7 +132,7 @@ const CourseCatalog = () => {
     
     // Category filtering with real categories
     const matchesCategory = selectedCategory === "all" || 
-                           course.category_id === selectedCategory;
+                           course.category?.id === selectedCategory;
     
     const matchesLevel = selectedLevel === "all" || 
                         course.difficulty_level?.toLowerCase() === selectedLevel.toLowerCase();
@@ -171,11 +192,17 @@ const CourseCatalog = () => {
       <div className="p-6">
         {/* Category and Level */}
         <div className="flex items-center gap-2 mb-3">
-          {course.category_id && (
-            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-              {course.category_id}
-            </span>
-          )}
+                          {course.category && (
+                  <span 
+                    className="text-xs px-2 py-1 rounded-full font-medium"
+                    style={{
+                      backgroundColor: course.category.color ? `${course.category.color}20` : '#dbeafe',
+                      color: course.category.color || '#1d4ed8'
+                    }}
+                  >
+                    {course.category.name}
+                  </span>
+                )}
           {course.difficulty_level && (
             <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
               {course.difficulty_level}
@@ -205,6 +232,12 @@ const CourseCatalog = () => {
             <BookOpen className="w-4 h-4" />
             <span>{course.lessons?.length || 0} lessons</span>
           </div>
+          <div className="flex items-center gap-1">
+            <div className="w-4 h-4 bg-blue-100 rounded flex items-center justify-center">
+              <BookOpen className="w-3 h-3 text-blue-600" />
+            </div>
+            <span>{course.modules?.length || 0} modules</span>
+          </div>
         </div>
 
         {/* Action Button */}
@@ -214,10 +247,17 @@ const CourseCatalog = () => {
           onClick={() => handleEnroll(course.id)}
         >
           {isEnrolled(course.id) ? (
-            <>
-              <Award className="w-4 h-4 mr-2" />
-              Continue Learning
-            </>
+            canContinueLearning(course.id) ? (
+              <>
+                <Award className="w-4 h-4 mr-2" />
+                Continue Learning
+              </>
+            ) : (
+              <>
+                <Award className="w-4 h-4 mr-2" />
+                Course Completed
+              </>
+            )
           ) : (
             <>
               <BookOpen className="w-4 h-4 mr-2" />
@@ -244,9 +284,15 @@ const CourseCatalog = () => {
             <div>
               {/* Badges */}
               <div className="flex items-center gap-2 mb-2">
-                {course.category_id && (
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                    {course.category_id}
+                {course.category && (
+                  <span 
+                    className="text-xs px-2 py-1 rounded-full font-medium"
+                    style={{
+                      backgroundColor: course.category.color ? `${course.category.color}20` : '#dbeafe',
+                      color: course.category.color || '#1d4ed8'
+                    }}
+                  >
+                    {course.category.name}
                   </span>
                 )}
                 {course.difficulty_level && (
@@ -272,7 +318,7 @@ const CourseCatalog = () => {
           </div>
 
           {/* Course Stats */}
-          <div className="flex items-center gap-6 mb-4 text-sm text-gray-500">
+                      <div className="flex items-center gap-6 mb-4 text-sm text-gray-500">
             {course.duration_minutes && (
               <div className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
@@ -282,6 +328,12 @@ const CourseCatalog = () => {
             <div className="flex items-center gap-1">
               <BookOpen className="w-4 h-4" />
               <span>{course.lessons?.length || 0} lessons</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-4 h-4 bg-blue-100 rounded flex items-center justify-center">
+                <BookOpen className="w-3 h-3 text-blue-600" />
+              </div>
+              <span>{course.modules?.length || 0} modules</span>
             </div>
             <div className="flex items-center gap-1">
               <Users className="w-4 h-4" />
@@ -307,10 +359,17 @@ const CourseCatalog = () => {
               onClick={() => handleEnroll(course.id)}
             >
               {isEnrolled(course.id) ? (
-                <>
-                  <Award className="w-4 h-4 mr-2" />
-                  Continue Learning
-                </>
+                canContinueLearning(course.id) ? (
+                  <>
+                    <Award className="w-4 h-4 mr-2" />
+                    Continue Learning
+                  </>
+                ) : (
+                  <>
+                    <Award className="w-4 h-4 mr-2" />
+                    Course Completed
+                  </>
+                )
               ) : (
                 <>
                   <BookOpen className="w-4 h-4 mr-2" />

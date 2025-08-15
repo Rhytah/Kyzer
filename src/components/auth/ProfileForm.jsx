@@ -7,9 +7,9 @@ import { Save, Eye, EyeOff, User, Mail, Phone, Bell } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Card } from '../ui/Card'
-import { AvatarUpload } from '../ui/AvatarUpload'
 import { useAuth } from '../../hooks/auth/useAuth'
 import toast from 'react-hot-toast'
+import { AvatarUpload } from '../ui'
 
 // Validation schema
 const profileSchema = z.object({

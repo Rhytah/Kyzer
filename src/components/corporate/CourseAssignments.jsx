@@ -44,8 +44,12 @@ export default function CourseAssignments() {
 
   useEffect(() => {
     fetchCourseAssignments()
-    fetchCourses()
-  }, [])
+    if (user?.id) {
+      fetchCourses({}, user.id)
+    } else {
+      fetchCourses()
+    }
+  }, [fetchCourseAssignments, fetchCourses, user?.id])
 
   // Calculate assignment statistics
   const getAssignmentStats = () => {
