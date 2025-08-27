@@ -48,12 +48,11 @@ export default function Sidebar({ mobile = false, onClose }) {
     { 
       path: "/app/courses", 
       label: "My Courses", 
-      icon: BookOpen 
-    },
-    { 
-      path: "/app/courses/catalog", 
-      label: "Browse Courses", 
-      icon: BookOpen 
+      icon: BookOpen,
+      children: [
+        { name: "Enrolled", href: "/app/courses" },
+        { name: "Browse Catalog", href: "/app/courses/catalog" }
+      ]
     },
     { 
       path: "/app/progress", 
@@ -121,8 +120,9 @@ export default function Sidebar({ mobile = false, onClose }) {
 
   const NavItem = ({ route, onClick }) => {
     const Icon = route.icon;
-    const isActive = location.pathname === route.path || 
-                    location.pathname.startsWith(route.path + '/');
+    
+    // For routes without children, use exact match only
+    const isActive = location.pathname === route.path;
     
     return (
       <NavLink
@@ -143,9 +143,67 @@ export default function Sidebar({ mobile = false, onClose }) {
     );
   };
 
+  const NavItemWithChildren = ({ route, onClick }) => {
+    const Icon = route.icon;
+    const [isExpanded, setIsExpanded] = useState(false);
+    
+    // Check if any child route is active
+    const isChildActive = route.children?.some(child => location.pathname === child.href);
+    // Parent is active if current path matches or if a child is active
+    const isActive = location.pathname === route.path || isChildActive;
+    
+    return (
+      <div>
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+            isActive
+              ? "bg-primary text-white"
+              : "text-text-medium hover:bg-background-light hover:text-text-dark"
+          }`}
+        >
+          <Icon className="w-5 h-5" />
+          <span className="font-medium">{route.label}</span>
+          <div className="ml-auto flex items-center gap-2">
+            {isActive && (
+              <div className="w-2 h-2 bg-white rounded-full opacity-75"></div>
+            )}
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4" />
+            ) : (
+              <ChevronRight className="w-4 h-4" />
+            )}
+          </div>
+        </button>
+        
+        {isExpanded && route.children && (
+          <div className="ml-6 mt-1 space-y-1">
+            {route.children.map((child) => {
+              const isChildRouteActive = location.pathname === child.href;
+              return (
+                <NavLink
+                  key={child.href}
+                  to={child.href}
+                  onClick={onClick}
+                  className={`block px-3 py-2 rounded-lg transition-colors text-sm ${
+                    isChildRouteActive
+                      ? "bg-primary/20 text-primary font-medium"
+                      : "text-text-medium hover:bg-background-light hover:text-text-dark"
+                  }`}
+                >
+                  {child.name}
+                </NavLink>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const sidebarClasses = mobile
-    ? "w-64 bg-white h-full flex flex-col shadow-xl"
-    : "hidden lg:block w-64 bg-white border-r border-border min-h-screen fixed left-0 top-16 z-20";
+    ? "w-64 bg-background-white h-full flex flex-col shadow-xl"
+    : "hidden lg:block w-64 bg-background-white border-r border-border min-h-screen fixed left-0 top-16 z-20";
 
   if (corporateLoading) {
     return (
@@ -291,11 +349,19 @@ export default function Sidebar({ mobile = false, onClose }) {
           </h3>
           <nav className="space-y-1">
             {personalNavigation.map((route) => (
-              <NavItem 
-                key={route.path} 
-                route={route} 
-                onClick={mobile ? onClose : undefined}
-              />
+              route.children && route.children.length > 0 ? (
+                <NavItemWithChildren 
+                  key={route.path} 
+                  route={route} 
+                  onClick={mobile ? onClose : undefined}
+                />
+              ) : (
+                <NavItem 
+                  key={route.path} 
+                  route={route} 
+                  onClick={mobile ? onClose : undefined}
+                />
+              )
             ))}
           </nav>
         </div>

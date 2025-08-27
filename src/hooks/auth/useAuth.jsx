@@ -1,5 +1,5 @@
 // src/hooks/auth/useAuth.jsx - UPDATED with Email Validation & Enhanced Error Handling
-import { useState, useEffect, createContext, useContext, useCallback } from "react";
+import { useState, useEffect, createContext, useContext, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 
@@ -17,6 +17,41 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
+
+  // Session lifetime enforcement (24 hours)
+  const SESSION_START_KEY = 'kyzer_session_started_at';
+  const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
+  const signoutTimerRef = useRef(null);
+
+  const getSessionStart = useCallback(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(SESSION_START_KEY) : null;
+      const parsed = raw ? parseInt(raw, 10) : null;
+      return Number.isFinite(parsed) ? parsed : null;
+    } catch (_) {
+      return null;
+    }
+  }, []);
+
+  const setSessionStartNow = useCallback(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(SESSION_START_KEY, String(Date.now()));
+      }
+    } catch (_) {
+      // ignore storage errors
+    }
+  }, []);
+
+  const clearSessionStart = useCallback(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(SESSION_START_KEY);
+      }
+    } catch (_) {
+      // ignore storage errors
+    }
+  }, []);
 
   // Safe error handler
   const handleError = useCallback((error, context = '') => {
@@ -119,6 +154,14 @@ export function AuthProvider({ children }) {
 
         setSession(session);
         setUser(session?.user || null);
+
+        // Manage session start marker on auth transitions
+        if (event === 'SIGNED_IN' && session?.user) {
+          setSessionStartNow();
+        }
+        if (event === 'SIGNED_OUT' || !session?.user) {
+          clearSessionStart();
+        }
         
         if (session?.user) {
           loadUserProfile(session.user.id);
@@ -133,6 +176,57 @@ export function AuthProvider({ children }) {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Enforce 24-hour maximum session lifetime
+  useEffect(() => {
+    // Clear any existing timer
+    if (signoutTimerRef.current) {
+      clearTimeout(signoutTimerRef.current);
+      signoutTimerRef.current = null;
+    }
+
+    const performSignOut = async () => {
+      try {
+        await supabase.auth.signOut();
+      } catch (_) {
+        // swallow; UI will reflect unauth state regardless
+      } finally {
+        clearSessionStart();
+        setProfile(null);
+      }
+    };
+
+    // If there is an active session, schedule auto sign-out at 24h mark
+    if (session?.user) {
+      let startedAt = getSessionStart();
+      if (!startedAt) {
+        setSessionStartNow();
+        startedAt = Date.now();
+      }
+
+      const elapsed = Date.now() - startedAt;
+      const remaining = SESSION_DURATION_MS - elapsed;
+
+      if (remaining <= 0) {
+        performSignOut();
+        return undefined;
+      }
+
+      signoutTimerRef.current = setTimeout(() => {
+        performSignOut();
+      }, remaining);
+    } else {
+      // No session: ensure marker cleared
+      clearSessionStart();
+    }
+
+    return () => {
+      if (signoutTimerRef.current) {
+        clearTimeout(signoutTimerRef.current);
+        signoutTimerRef.current = null;
+      }
+    };
+  }, [session?.user, getSessionStart, setSessionStartNow, clearSessionStart]);
 
   // Login function
   const login = useCallback(async (email, password) => {
@@ -491,6 +585,13 @@ const signup = useCallback(async (userData) => {
         return { error: handledError };
       }
 
+      // Clear lifetime tracking and timer
+      clearSessionStart();
+      if (signoutTimerRef.current) {
+        clearTimeout(signoutTimerRef.current);
+        signoutTimerRef.current = null;
+      }
+
       setProfile(null);
       
       return { success: true };
@@ -499,7 +600,7 @@ const signup = useCallback(async (userData) => {
       const handledError = handleError(error, 'signout');
       return { error: handledError };
     }
-  }, [handleError]);
+  }, [handleError, clearSessionStart]);
 
   // Refresh user profile
   const refreshUser = useCallback(async () => {

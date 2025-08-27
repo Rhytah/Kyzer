@@ -1,6 +1,8 @@
 // src/pages/courses/CourseDetail.jsx
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useCourseStore } from '@/store/courseStore'
+import { useAuth } from '@/hooks/auth/useAuth'
 import { 
   Play, 
   Clock, 
@@ -16,6 +18,7 @@ import {
   ChevronRight,
   Globe,
   Smartphone,
+  Layers
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
@@ -23,11 +26,49 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
 export default function CourseDetail() {
   const { courseId } = useParams()
-  const [course, setCourse] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  // Store selectors - individual to prevent infinite loops
+  const courses = useCourseStore(state => state.courses);
+  const enrolledCourses = useCourseStore(state => state.enrolledCourses);
+  const courseProgress = useCourseStore(state => state.courseProgress);
+  const loading = useCourseStore(state => state.loading);
+  const error = useCourseStore(state => state.error);
+  const fetchCourses = useCourseStore(state => state.actions.fetchCourses);
+  const enrollInCourse = useCourseStore(state => state.actions.enrollInCourse);
+  const fetchCourseLessons = useCourseStore(state => state.actions.fetchCourseLessons);
+  const fetchCourseModules = useCourseStore(state => state.actions.fetchCourseModules);
+  const fetchCourseProgress = useCourseStore(state => state.actions.fetchCourseProgress);
+  const fetchEnrolledCourses = useCourseStore(state => state.actions.fetchEnrolledCourses);
+  
   const [activeTab, setActiveTab] = useState('overview')
   const [expandedModule, setExpandedModule] = useState(null)
-  const [enrolled, setEnrolled] = useState(false)
+  const [lessons, setLessons] = useState([])
+  const [modules, setModules] = useState([])
+  const [courseStructure, setCourseStructure] = useState({})
+
+  // Function to fetch lessons for the course
+  const loadCourseLessons = async () => {
+    if (courseId) {
+      try {
+        const [lessonsResult, modulesResult] = await Promise.all([
+          fetchCourseLessons(courseId),
+          fetchCourseModules(courseId)
+        ]);
+        
+        if (lessonsResult.data) {
+          setLessons(Object.values(lessonsResult.data).flatMap(moduleData => moduleData.lessons || []));
+          setCourseStructure(lessonsResult.data);
+        }
+        
+        if (modulesResult.data) {
+          setModules(modulesResult.data);
+        }
+      } catch (error) {
+        // Handle error silently or set error state if needed
+      }
+    }
+  }
 
   // Mock course data - in real app, this would come from your database
   const mockCourse = {
@@ -151,26 +192,98 @@ export default function CourseDetail() {
     ]
   }
 
+  // Get the current course from the store
+  const course = courses?.find(c => c.id === courseId) || mockCourse
+  
+  // Check if user is enrolled
+  const isEnrolled = enrolledCourses?.some(enrollment => 
+    enrollment.course_id === courseId || enrollment.id === courseId
+  )
+
+  // Fetch lessons when component mounts
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setCourse(mockCourse)
-      setLoading(false)
-      // Check if user is enrolled (mock)
-      setEnrolled(Math.random() > 0.5)
-    }, 1000)
+    loadCourseLessons()
   }, [courseId])
 
-  const handleEnroll = () => {
-    setEnrolled(true)
-    // In real app, this would make an API call to enroll the user
+  // Load per-user progress map for this course
+  useEffect(() => {
+    if (user?.id && courseId) {
+      fetchCourseProgress(user.id, courseId)
+    }
+  }, [user?.id, courseId, fetchCourseProgress])
+
+  // Keep enrollment with progress_percentage fresh for accurate UI
+  useEffect(() => {
+    if (user?.id) {
+      fetchEnrolledCourses(user.id)
+    }
+  }, [user?.id, fetchEnrolledCourses])
+
+  useEffect(() => {
+    // Fetch courses if not already loaded
+    if (!courses || courses.length === 0) {
+      if (user?.id) {
+        fetchCourses({}, user.id)
+      } else {
+        fetchCourses()
+      }
+    }
+  }, [courses, fetchCourses, user?.id])
+
+  // Handle course enrollment
+  const handleEnroll = async () => {
+    if (!user) {
+      navigate('/auth/login')
+      return
+    }
+
+    try {
+      await enrollInCourse(user.id, courseId)
+      // The store will automatically refresh enrolled courses
+    } catch (error) {
+      // Handle error silently or set error state if needed
+    }
   }
 
   const toggleModule = (moduleId) => {
     setExpandedModule(expandedModule === moduleId ? null : moduleId)
   }
 
-  if (loading) {
+  const getProgressPercentage = () => {
+    if (course?.progress_percentage !== undefined && course?.progress_percentage !== null) {
+      return course.progress_percentage
+    }
+    const progressMap = courseProgress?.[courseId]
+    if (!progressMap || lessons.length === 0) return 0
+    const completedCount = Object.values(progressMap).filter(p => p.completed).length
+    return Math.round((completedCount / lessons.length) * 100)
+  }
+
+  const getNextLessonId = () => {
+    if (!lessons || lessons.length === 0) return null
+    const progressMap = courseProgress?.[courseId] || {}
+    const next = lessons.find(l => !progressMap[l.id]?.completed)
+    return next ? next.id : lessons[0].id
+  }
+
+  const getTotalDurationMinutes = () => {
+    const sumFromLessons = lessons && lessons.length > 0
+      ? lessons.reduce((total, l) => total + (l?.duration_minutes || 0), 0)
+      : 0
+    if (sumFromLessons > 0) return sumFromLessons
+    return (course?.duration_minutes || course?.duration || 0) || 0
+  }
+
+  const formatDuration = (totalMinutes) => {
+    const minutes = Math.max(0, Math.floor(totalMinutes || 0))
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    if (hours > 0 && mins > 0) return `${hours}h ${mins}m`
+    if (hours > 0) return `${hours}h`
+    return `${mins}m`
+  }
+
+  if (loading.courses) {
     return (
       <div className="flex justify-center items-center min-h-96">
         <LoadingSpinner size="lg" />
@@ -183,7 +296,7 @@ export default function CourseDetail() {
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold text-text-dark mb-4">Course Not Found</h2>
         <p className="text-text-light mb-6">The course you're looking for doesn't exist.</p>
-        <Link to="/courses">
+        <Link to="/app/courses">
           <Button>Browse All Courses</Button>
         </Link>
       </div>
@@ -192,37 +305,75 @@ export default function CourseDetail() {
 
   return (
     <div className="space-y-8">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-primary-dark to-primary-default text-white rounded-lg p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Hero Section with Cover Image */}
+      <div className="relative text-white rounded-lg overflow-hidden">
+        {course.thumbnail_url ? (
+          <>
+            <img
+              src={course.thumbnail_url}
+              alt={`${course.title} cover`}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/30" />
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-r from-primary-dark to-primary-default" />
+        )}
+        <div className="relative p-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2 mb-4">
               <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm">
-                {course.category}
+                {course.category?.name || 'General'}
               </span>
-              <span className="text-white/80 text-sm">{course.level}</span>
+              <span className="text-white/80 text-sm">{course.level || course.difficulty_level || 'Beginner'}</span>
             </div>
             
             <h1 className="text-3xl md:text-4xl font-bold mb-4">{course.title}</h1>
-            <p className="text-xl text-white/90 mb-6">{course.subtitle}</p>
+            <p className="text-xl text-white/90 mb-6">{course.subtitle || course.description?.substring(0, 100) + '...'}</p>
             
             <div className="flex flex-wrap items-center gap-6 text-sm">
               <div className="flex items-center gap-2">
                 <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                <span className="font-medium">{course.rating}</span>
-                <span className="text-white/80">({course.totalRatings.toLocaleString()} ratings)</span>
+                <span className="font-medium">{course.rating || '4.5'}</span>
+                <span className="text-white/80">({(course.totalRatings || 0).toLocaleString()} ratings)</span>
               </div>
+
+              {/* Enrollment progress bar */}
+              {isEnrolled && (
+                <div className="mt-2 text-left">
+                  <div className="flex items-center justify-between text-sm text-text-muted mb-1">
+                    <span>Progress</span>
+                    <span>{getProgressPercentage()}%</span>
+                  </div>
+                  <div className="w-full bg-background-medium rounded-full h-2">
+                    <div
+                      className="h-2 rounded-full bg-primary-default"
+                      style={{ width: `${getProgressPercentage()}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4" />
-                <span>{course.students.toLocaleString()} students</span>
+                <span>{(course.students || 0).toLocaleString()} students</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />
-                <span>{Math.floor(course.duration / 60)} hours</span>
+                <span>{formatDuration(getTotalDurationMinutes())}</span>
+              </div>
+              {/* Modules and Lessons counts */}
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4" />
+                <span>{modules?.length || 0} modules</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                <span>{lessons?.length || 0} lessons</span>
               </div>
               <div className="flex items-center gap-2">
                 <Globe className="w-4 h-4" />
-                <span>{course.language}</span>
+                <span>{course.language || 'English'}</span>
               </div>
             </div>
           </div>
@@ -230,13 +381,11 @@ export default function CourseDetail() {
           {/* Enrollment Card */}
           <div className="lg:col-span-1">
             <Card className="p-6 bg-white text-text-dark">
-              <div className="text-center mb-6">
-                <div className="w-full h-40 bg-background-medium rounded-lg flex items-center justify-center mb-4">
-                  <Play className="w-16 h-16 text-text-muted" />
-                </div>
+              <div className="text-center mb-8">
+              
                 
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <span className="text-3xl font-bold">${course.price}</span>
+                  <span className="text-3xl font-bold">${course.price || 'Free'}</span>
                   {course.originalPrice && (
                     <span className="text-lg text-text-muted line-through">${course.originalPrice}</span>
                   )}
@@ -244,23 +393,41 @@ export default function CourseDetail() {
                 
                 {course.originalPrice && (
                   <span className="text-success-default font-medium">
-                    {Math.round(((course.originalPrice - course.price) / course.originalPrice) * 100)}% off
+                    {Math.round(((course.originalPrice - (course.price || 0)) / course.originalPrice) * 100)}% off
                   </span>
                 )}
               </div>
 
-              {enrolled ? (
-                <div className="space-y-3">
-                  <Link to={`/courses/${courseId}/lesson/1-1`}>
-                    <Button className="w-full" size="lg">
-                      <Play className="w-5 h-5 mr-2" />
-                      Continue Learning
-                    </Button>
-                  </Link>
-                  <div className="text-center text-sm text-success-default">
-                    ✓ You're enrolled in this course
-                  </div>
-                </div>
+              {isEnrolled ? (
+                (() => {
+                  const progressPct = getProgressPercentage();
+                  const hasStarted = progressPct > 0 || !!course?.last_accessed;
+                  const nextLessonId = getNextLessonId();
+                  return (
+                    <div className="space-y-3">
+                      {hasStarted ? (
+                        nextLessonId && (
+                          <Link to={`/app/courses/${courseId}/lesson/${nextLessonId}`}>
+                            <Button className="w-full" size="lg">
+                              <BookOpen className="w-4 h-4 mr-2" />
+                              Continue ({progressPct}%)
+                            </Button>
+                          </Link>
+                        )
+                      ) : (
+                        <Link to={`/app/courses/${courseId}/learning`}>
+                          <Button className="w-full" size="lg">
+                            <Play className="w-5 h-5 mr-2" />
+                            Start Learning
+                          </Button>
+                        </Link>
+                      )}
+                      <div className="text-center text-sm text-success-default">
+                        ✓ You're enrolled in this course
+                      </div>
+                    </div>
+                  );
+                })()
               ) : (
                 <div className="space-y-3">
                   <Button className="w-full" size="lg" onClick={handleEnroll}>
@@ -290,6 +457,7 @@ export default function CourseDetail() {
             </Card>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Navigation Tabs */}
@@ -325,9 +493,13 @@ export default function CourseDetail() {
               <Card className="p-6">
                 <h2 className="text-2xl font-bold text-text-dark mb-4">About This Course</h2>
                 <div className="prose max-w-none text-text-medium">
-                  {course.description.split('\n\n').map((paragraph, index) => (
-                    <p key={index} className="mb-4">{paragraph}</p>
-                  ))}
+                  {course.description ? (
+                    course.description.split('\n\n').map((paragraph, index) => (
+                      <p key={index} className="mb-4">{paragraph}</p>
+                    ))
+                  ) : (
+                    <p>No description available for this course.</p>
+                  )}
                 </div>
               </Card>
 
@@ -335,12 +507,16 @@ export default function CourseDetail() {
               <Card className="p-6">
                 <h2 className="text-2xl font-bold text-text-dark mb-4">What You'll Learn</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {course.outcomes.map((outcome, index) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 text-success-default flex-shrink-0 mt-0.5" />
-                      <span className="text-text-dark">{outcome}</span>
-                    </div>
-                  ))}
+                  {course.outcomes ? (
+                    course.outcomes.map((outcome, index) => (
+                      <div key={index} className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-success-default flex-shrink-0 mt-0.5" />
+                        <span className="text-text-dark">{outcome}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-text-medium">Learning objectives not specified for this course.</p>
+                  )}
                 </div>
               </Card>
 
@@ -348,12 +524,16 @@ export default function CourseDetail() {
               <Card className="p-6">
                 <h2 className="text-2xl font-bold text-text-dark mb-4">Requirements</h2>
                 <ul className="space-y-2">
-                  {course.requirements.map((requirement, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-text-muted rounded-full mt-2 flex-shrink-0"></div>
-                      <span className="text-text-medium">{requirement}</span>
-                    </li>
-                  ))}
+                  {course.requirements ? (
+                    course.requirements.map((requirement, index) => (
+                      <li key={index} className="flex items-start gap-3">
+                        <div className="w-2 h-2 bg-text-muted rounded-full mt-2 flex-shrink-0"></div>
+                        <span className="text-text-medium">{requirement}</span>
+                      </li>
+                    ))
+                  ) : (
+                    <p className="text-text-medium">No specific requirements listed for this course.</p>
+                  )}
                 </ul>
               </Card>
             </div>
@@ -363,65 +543,100 @@ export default function CourseDetail() {
             <Card className="p-6">
               <h2 className="text-2xl font-bold text-text-dark mb-6">Course Curriculum</h2>
               <div className="space-y-4">
-                {course.curriculum.map((module) => (
-                  <div key={module.id} className="border border-background-dark rounded-lg">
-                    <button
-                      onClick={() => toggleModule(module.id)}
-                      className="w-full flex items-center justify-between p-4 hover:bg-background-light transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        {expandedModule === module.id ? (
-                          <ChevronDown className="w-5 h-5 text-text-medium" />
-                        ) : (
-                          <ChevronRight className="w-5 h-5 text-text-medium" />
-                        )}
-                        <div className="text-left">
-                          <h3 className="font-semibold text-text-dark">{module.title}</h3>
-                          <p className="text-sm text-text-light">
-                            {module.lessons} lessons • {Math.floor(module.duration / 60)}h {module.duration % 60}m
-                          </p>
+                {modules && modules.length > 0 ? (
+                  modules.map((module) => (
+                    <div key={module.id} className="border border-background-dark rounded-lg">
+                      <button
+                        onClick={() => setExpandedModule(expandedModule === module.id ? null : module.id)}
+                        className="w-full flex items-center justify-between p-4 hover:bg-background-light transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          {expandedModule === module.id ? (
+                            <ChevronDown className="w-5 h-5 text-text-medium" />
+                          ) : (
+                            <ChevronRight className="w-5 h-5 text-text-medium" />
+                          )}
+                          <div className="text-left">
+                            <h3 className="font-semibold text-text-dark">{module.title}</h3>
+                            <p className="text-sm text-text-light">
+                              {(() => {
+                                const lessonList = courseStructure[module.id]?.lessons || [];
+                                const lessonCount = lessonList.length;
+                                const totalMins = lessonList.reduce((sum, l) => sum + (l?.duration_minutes || 0), 0);
+                                return `${lessonCount} lessons • ${totalMins} min`;
+                              })()}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </button>
+                      </button>
 
-                    {expandedModule === module.id && (
-                      <div className="border-t border-background-dark">
-                        {module.lectures.map((lecture, index) => (
-                          <div key={lecture.id} className="flex items-center justify-between p-4 hover:bg-background-light">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-background-medium rounded flex items-center justify-center">
-                                {lecture.type === 'video' ? (
-                                  <Play className="w-4 h-4 text-text-muted" />
-                                ) : (
-                                  <BookOpen className="w-4 h-4 text-text-muted" />
+                      {expandedModule === module.id && (
+                        <div className="border-t border-background-dark">
+                          {courseStructure[module.id]?.lessons?.map((lesson, index) => (
+                            <div key={lesson.id} className="flex items-center justify-between p-4 hover:bg-background-light">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-background-medium rounded flex items-center justify-center">
+                                  {lesson.content_type === 'video' ? (
+                                    <Play className="w-4 h-4 text-text-muted" />
+                                  ) : (
+                                    <BookOpen className="w-4 h-4 text-text-muted" />
+                                  )}
+                                </div>
+                                <div>
+                                  <h4 className="font-medium text-text-dark">{lesson.title}</h4>
+                                  <p className="text-sm text-text-light">{lesson.duration_minutes || 0} min</p>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-2">
+                                {isEnrolled && (
+                                  <Link to={`/app/courses/${courseId}/lesson/${lesson.id}`}>
+                                    <Button size="sm" variant="ghost">
+                                      <Play className="w-4 h-4" />
+                                    </Button>
+                                  </Link>
                                 )}
                               </div>
-                              <div>
-                                <h4 className="font-medium text-text-dark">{lecture.title}</h4>
-                                <p className="text-sm text-text-light">{lecture.duration} min</p>
-                              </div>
                             </div>
-                            
-                            <div className="flex items-center gap-2">
-                              {lecture.free && (
-                                <span className="text-xs bg-success-light text-success-default px-2 py-1 rounded">
-                                  Free
-                                </span>
-                              )}
-                              {enrolled && (
-                                <Link to={`/courses/${courseId}/lesson/${lecture.id}`}>
-                                  <Button size="sm" variant="ghost">
-                                    <Play className="w-4 h-4" />
-                                  </Button>
-                                </Link>
-                              )}
-                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : lessons && lessons.length > 0 ? (
+                  // Fallback: show lessons without modules if no modules exist
+                  <div className="space-y-2">
+                    {lessons.map((lesson) => (
+                      <div key={lesson.id} className="flex items-center justify-between p-4 border border-background-dark rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-background-medium rounded flex items-center justify-center">
+                            {lesson.content_type === 'video' ? (
+                              <Play className="w-4 h-4 text-text-muted" />
+                            ) : (
+                              <BookOpen className="w-4 h-4 text-text-muted" />
+                            )}
                           </div>
-                        ))}
+                          <div>
+                            <h4 className="font-medium text-text-dark">{lesson.title}</h4>
+                            <p className="text-sm text-text-light">{lesson.duration_minutes || 0} min</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          {isEnrolled && (
+                            <Link to={`/app/courses/${courseId}/lesson/${lesson.id}`}>
+                              <Button size="sm" variant="ghost">
+                                <Play className="w-4 h-4" />
+                              </Button>
+                            </Link>
+                          )}
+                        </div>
                       </div>
-                    )}
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <p className="text-text-medium">No curriculum available for this course.</p>
+                )}
               </div>
             </Card>
           )}
@@ -429,30 +644,34 @@ export default function CourseDetail() {
           {activeTab === 'instructor' && (
             <Card className="p-6">
               <h2 className="text-2xl font-bold text-text-dark mb-6">Instructor</h2>
-              <div className="flex items-start gap-6">
-                <div className="text-6xl">{course.instructor.avatar}</div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-text-dark mb-2">{course.instructor.name}</h3>
-                  <p className="text-text-medium mb-4">{course.instructor.title}</p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-text-dark">{course.instructor.rating}</div>
-                      <div className="text-sm text-text-light">Instructor Rating</div>
+              {course.instructor ? (
+                <div className="flex items-start gap-6">
+                  <div className="text-6xl">{course.instructor.avatar}</div>
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-text-dark mb-2">{course.instructor.name}</h3>
+                    <p className="text-text-medium mb-4">{course.instructor.title}</p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-text-dark">{course.instructor.rating}</div>
+                        <div className="text-sm text-text-light">Instructor Rating</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-text-dark">{course.instructor.students.toLocaleString()}</div>
+                        <div className="text-sm text-text-light">Students</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-text-dark">{course.instructor.courses}</div>
+                        <div className="text-sm text-text-light">Courses</div>
+                      </div>
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-text-dark">{course.instructor.students.toLocaleString()}</div>
-                      <div className="text-sm text-text-light">Students</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-text-dark">{course.instructor.courses}</div>
-                      <div className="text-sm text-text-light">Courses</div>
-                    </div>
+                    
+                    <p className="text-text-medium">{course.instructor.bio}</p>
                   </div>
-                  
-                  <p className="text-text-medium">{course.instructor.bio}</p>
                 </div>
-              </div>
+              ) : (
+                <p className="text-text-medium">No instructor information available for this course.</p>
+              )}
             </Card>
           )}
 
@@ -460,41 +679,47 @@ export default function CourseDetail() {
             <Card className="p-6">
               <h2 className="text-2xl font-bold text-text-dark mb-6">Student Reviews</h2>
               
-              <div className="mb-8">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="text-4xl font-bold text-text-dark">{course.rating}</div>
-                  <div>
-                    <div className="flex items-center gap-1 mb-1">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-5 h-5 fill-warning-default text-warning-default" />
-                      ))}
-                    </div>
-                    <p className="text-text-light">Based on {course.totalRatings.toLocaleString()} reviews</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                {course.reviews.map((review) => (
-                  <div key={review.id} className="border-b border-background-light pb-6 last:border-b-0">
-                    <div className="flex items-start gap-4">
-                      <div className="text-3xl">{review.avatar}</div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4 className="font-medium text-text-dark">{review.user}</h4>
-                          <div className="flex items-center gap-1">
-                            {[...Array(review.rating)].map((_, i) => (
-                              <Star key={i} className="w-4 h-4 fill-warning-default text-warning-default" />
-                            ))}
-                          </div>
-                          <span className="text-sm text-text-light">{new Date(review.date).toLocaleDateString()}</span>
+              {course.reviews ? (
+                <>
+                  <div className="mb-8">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="text-4xl font-bold text-text-dark">{course.rating || '4.5'}</div>
+                      <div>
+                        <div className="flex items-center gap-1 mb-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className="w-5 h-5 fill-warning-default text-warning-default" />
+                          ))}
                         </div>
-                        <p className="text-text-medium">{review.comment}</p>
+                        <p className="text-text-light">Based on {(course.totalRatings || 0).toLocaleString()} reviews</p>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  <div className="space-y-6">
+                    {course.reviews.map((review) => (
+                      <div key={review.id} className="border-b border-background-light pb-6 last:border-b-0">
+                        <div className="flex items-start gap-4">
+                          <div className="text-3xl">{review.avatar}</div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h4 className="font-medium text-text-dark">{review.user}</h4>
+                              <div className="flex items-center gap-1">
+                                {[...Array(review.rating)].map((_, i) => (
+                                  <Star key={i} className="w-4 h-4 fill-warning-default text-warning-default" />
+                                ))}
+                              </div>
+                              <span className="text-sm text-text-light">{new Date(review.date).toLocaleDateString()}</span>
+                            </div>
+                            <p className="text-text-medium">{review.comment}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-text-medium">No reviews available for this course yet.</p>
+              )}
             </Card>
           )}
         </div>
@@ -505,12 +730,16 @@ export default function CourseDetail() {
           <Card className="p-6">
             <h3 className="text-lg font-semibold text-text-dark mb-4">This course includes:</h3>
             <div className="space-y-3">
-              {course.features.map((feature, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <CheckCircle className="w-4 h-4 text-success-default flex-shrink-0" />
-                  <span className="text-text-dark text-sm">{feature}</span>
-                </div>
-              ))}
+              {course.features ? (
+                course.features.map((feature, index) => (
+                  <div key={index} className="flex items-center gap-3">
+                    <CheckCircle className="w-4 h-4 text-success-default flex-shrink-0" />
+                    <span className="text-text-dark text-sm">{feature}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-text-medium text-sm">Course features not specified.</p>
+              )}
             </div>
           </Card>
 

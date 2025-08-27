@@ -1,7 +1,7 @@
 // src/components/ui/AvatarUpload.jsx
 import { useState, useRef } from 'react'
 import { Camera, X, Upload } from 'lucide-react'
-import { Button } from './Button'
+import Button from './Button'
 
 export function AvatarUpload({ 
   currentAvatar, 
@@ -152,3 +152,4 @@ export function AvatarUpload({
     </div>
   )
 }
+export default AvatarUpload;

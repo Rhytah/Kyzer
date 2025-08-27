@@ -1,6 +1,6 @@
 // src/components/layout/MobileNav.jsx
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '@hooks/auth/useAuth';
+import { useAuth } from '@/hooks/auth/useAuth';
 import { individualNavigation, corporateNavigation } from '@/config/navigation';
 
 const MobileNav = () => {
@@ -14,14 +14,15 @@ const MobileNav = () => {
   const mobileNavItems = navigation.slice(0, 4);
 
   const isActive = (path) => {
-    if (path === '/app' || path === '/corporate') {
-      return location.pathname === path + '/dashboard';
+    if (path === '/app/dashboard' || path === '/company/dashboard') {
+      return location.pathname === path || location.pathname.startsWith(path.replace('/dashboard', ''));
     }
-    return location.pathname === path || location.pathname.startsWith(path + '/');
+    // For other routes, use exact match only to prevent multiple active states
+    return location.pathname === path;
   };
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-lg z-30">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-background-white border-t border-border shadow-lg z-30">
       <div className="flex justify-around py-1">
         {mobileNavItems.map((item) => {
           const Icon = item.icon;

@@ -11,6 +11,7 @@
 //   Search,
 //   BarChart3,
 //   Target,
+//   Settings,
 // } from "lucide-react";
 // import Button from "../../components/ui/Button";
 // import LoadingSpinner from "../../components/ui/LoadingSpinner";
@@ -253,12 +254,20 @@
 //               : "Try adjusting your search or filter criteria"}
 //           </p>
 //           {courses.length === 0 && (
-//             <Link to="/courses">
-//               <Button>
-//                 <BookOpen className="h-4 w-4 mr-2" />
-//                 Browse Courses
-//               </Button>
-//             </Link>
+//             <>
+//               <Link to="/app/courses/management">
+//                 <Button variant="secondary" className="mr-3">
+//                   <Settings className="h-4 h-4 mr-2" />
+//                   Manage Courses
+//                 </Button>
+//               </Link>
+//               <Link to="/courses">
+//                 <Button>
+//                   <BookOpen className="h-4 w-4 mr-2" />
+//                   Browse Courses
+//                 </Button>
+//               </Link>
+//             </>
 //           )}
 //         </div>
 //       )}
@@ -453,6 +462,8 @@
 // src/pages/courses/MyCourses.jsx
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useCourseStore } from '@/store/courseStore'
+import { useAuth } from '@/hooks/auth/useAuth'
 import { 
   BookOpen, 
   Clock, 
@@ -471,121 +482,32 @@ import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 
 export default function MyCourses() {
-  const [courses, setCourses] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
+  // Store selectors - individual to prevent infinite loops
+  const enrolledCourses = useCourseStore(state => state.enrolledCourses);
+  const loading = useCourseStore(state => state.loading);
+  const error = useCourseStore(state => state.error);
+  const fetchEnrolledCourses = useCourseStore(state => state.actions.fetchEnrolledCourses);
+  
   const [activeTab, setActiveTab] = useState('all') // 'all', 'in-progress', 'completed', 'not-started'
   const [searchTerm, setSearchTerm] = useState('')
 
-  // Mock enrolled courses data
-  const mockCourses = [
-    {
-      id: '1',
-      title: 'Complete React Development Bootcamp',
-      instructor: 'Sarah Chen',
-      category: 'Technology',
-      thumbnail: '/api/placeholder/300/180',
-      progress: 65,
-      totalLessons: 45,
-      completedLessons: 29,
-      totalDuration: 1800, // minutes
-      timeSpent: 1170, // minutes
-      lastAccessed: '2024-01-20',
-      enrolledDate: '2024-01-10',
-      status: 'in-progress',
-      rating: 4.8,
-      nextLesson: {
-        id: '3-5',
-        title: 'Redux Middleware',
-        duration: 25
-      },
-      certificate: null,
-      deadline: null
-    },
-    {
-      id: '2',
-      title: 'Python for Data Science',
-      instructor: 'Dr. James Park',
-      category: 'Technology',
-      thumbnail: '/api/placeholder/300/180',
-      progress: 100,
-      totalLessons: 38,
-      completedLessons: 38,
-      totalDuration: 1500,
-      timeSpent: 1450,
-      lastAccessed: '2024-01-18',
-      enrolledDate: '2023-12-15',
-      status: 'completed',
-      rating: 4.9,
-      nextLesson: null,
-      certificate: {
-        id: 'cert-001',
-        issuedDate: '2024-01-18',
-        downloadUrl: '/certificates/cert-001.pdf'
-      },
-      deadline: null
-    },
-    {
-      id: '3',
-      title: 'Digital Marketing Fundamentals',
-      instructor: 'Mike Rodriguez',
-      category: 'Marketing',
-      thumbnail: '/api/placeholder/300/180',
-      progress: 25,
-      totalLessons: 32,
-      completedLessons: 8,
-      totalDuration: 960,
-      timeSpent: 240,
-      lastAccessed: '2024-01-15',
-      enrolledDate: '2024-01-12',
-      status: 'in-progress',
-      rating: 4.6,
-      nextLesson: {
-        id: '2-3',
-        title: 'SEO Best Practices',
-        duration: 30
-      },
-      certificate: null,
-      deadline: '2024-02-15' // Company assigned deadline
-    },
-    {
-      id: '4',
-      title: 'Project Management Mastery',
-      instructor: 'Dr. Emily Watson',
-      category: 'Business',
-      thumbnail: '/api/placeholder/300/180',
-      progress: 0,
-      totalLessons: 42,
-      completedLessons: 0,
-      totalDuration: 2100,
-      timeSpent: 0,
-      lastAccessed: null,
-      enrolledDate: '2024-01-19',
-      status: 'not-started',
-      rating: 4.9,
-      nextLesson: {
-        id: '1-1',
-        title: 'Introduction to Project Management',
-        duration: 20
-      },
-      certificate: null,
-      deadline: '2024-03-01'
-    }
-  ]
+  // Use real enrolled courses from store
+  const courses = enrolledCourses || []
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setCourses(mockCourses)
-      setLoading(false)
-    }, 1000)
-  }, [])
+    // Fetch enrolled courses if user is logged in
+    if (user) {
+      fetchEnrolledCourses(user.id)
+    }
+  }, [user, fetchEnrolledCourses])
 
   const filteredCourses = courses.filter(course => {
-    const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         course.instructor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         course.category.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = course.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         course.description?.toLowerCase().includes(searchTerm.toLowerCase())
     
-    const matchesTab = activeTab === 'all' || course.status === activeTab.replace('-', '_')
+    // For now, show all courses since status filtering needs to be implemented
+    const matchesTab = activeTab === 'all' || true
     
     return matchesSearch && matchesTab
   })
@@ -609,31 +531,48 @@ export default function MyCourses() {
     return 'bg-primary-default'
   }
 
+  const formatDuration = (totalMinutes) => {
+    const minutes = Math.max(0, Math.floor(totalMinutes || 0))
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    if (hours > 0 && mins > 0) return `${hours}h ${mins}m`
+    if (hours > 0) return `${hours}h`
+    return `${mins}m`
+  }
+
   const CourseCard = ({ course }) => (
     <Card className="overflow-hidden hover:shadow-lg transition-all duration-300">
       <div className="relative">
-        <div className="w-full h-48 bg-background-medium flex items-center justify-center">
-          <BookOpen className="w-16 h-16 text-text-muted" />
-        </div>
+        {course.thumbnail_url ? (
+          <img
+            src={course.thumbnail_url}
+            alt={`${course.title} thumbnail`}
+            className="w-full h-48 object-cover"
+          />
+        ) : (
+          <div className="w-full h-48 bg-background-medium flex items-center justify-center">
+            <BookOpen className="w-16 h-16 text-text-muted" />
+          </div>
+        )}
         
         {/* Progress Overlay */}
         <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white p-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm">{course.progress}% Complete</span>
-            <span className="text-sm">{course.completedLessons}/{course.totalLessons} lessons</span>
+            <span className="text-sm">{course.progress_percentage || 0}% Complete</span>
+            <span className="text-sm">Enrolled: {new Date(course.enrolled_at).toLocaleDateString()}</span>
           </div>
           <div className="w-full bg-white/20 rounded-full h-2">
             <div 
-              className={`h-2 rounded-full ${getProgressColor(course.progress)}`}
-              style={{ width: `${course.progress}%` }}
+              className={`h-2 rounded-full ${getProgressColor(course.progress_percentage || 0)}`}
+              style={{ width: `${course.progress_percentage || 0}%` }}
             ></div>
           </div>
         </div>
 
         {/* Status Badge */}
         <div className="absolute top-3 left-3">
-          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(course.status)}`}>
-            {course.status.replace('_', ' ').replace('-', ' ')}
+          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(course.status || 'active')}`}>
+            {course.status || 'active'}
           </span>
         </div>
 
@@ -649,12 +588,14 @@ export default function MyCourses() {
 
       <div className="p-6">
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs bg-primary-light text-primary-default px-2 py-1 rounded-full">
-            {course.category}
-          </span>
-          {course.deadline && (
-            <span className="text-xs text-error-default">
-              Due: {new Date(course.deadline).toLocaleDateString()}
+          {course.difficulty_level && (
+            <span className="text-xs bg-primary-light text-primary-default px-2 py-1 rounded-full">
+              {course.difficulty_level}
+            </span>
+          )}
+          {course.last_accessed && (
+            <span className="text-xs text-text-muted">
+              Last: {new Date(course.last_accessed).toLocaleDateString()}
             </span>
           )}
         </div>
@@ -664,35 +605,36 @@ export default function MyCourses() {
         </h3>
         
         <p className="text-text-light text-sm mb-4">
-          By {course.instructor}
+          {course.description}
         </p>
 
         <div className="flex items-center gap-4 mb-4 text-sm text-text-muted">
           <div className="flex items-center gap-1">
             <Clock className="w-4 h-4" />
-            <span>{Math.floor(course.timeSpent / 60)}h {course.timeSpent % 60}m watched</span>
+            <span>{formatDuration(course.duration_minutes)} total</span>
           </div>
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4 fill-warning-default text-warning-default" />
-            <span>{course.rating}</span>
+            <span>{course.rating || '4.5'}</span>
           </div>
         </div>
 
-        {course.lastAccessed && (
+        {course.last_accessed && (
           <p className="text-xs text-text-muted mb-4">
-            Last accessed: {new Date(course.lastAccessed).toLocaleDateString()}
+            Last accessed: {new Date(course.last_accessed).toLocaleDateString()}
           </p>
         )}
 
         <div className="flex gap-2">
           {course.status === 'completed' ? (
             <div className="flex gap-2 w-full">
-              <Link to={`/courses/${course.id}`} className="flex-1">
+              <Link to={`/app/courses/${course.id}`} className="flex-1">
                 <Button variant="secondary" className="w-full">
                   Review Course
                 </Button>
               </Link>
-              {course.certificate && (
+              {/* Certificate download will be available when certificates are implemented */}
+              {/* {course.certificate && (
                 <Button 
                   variant="ghost" 
                   size="sm"
@@ -700,17 +642,17 @@ export default function MyCourses() {
                 >
                   <Download className="w-4 h-4" />
                 </Button>
-              )}
+              )} */}
             </div>
           ) : course.status === 'not-started' ? (
-            <Link to={`/courses/${course.id}/lesson/${course.nextLesson.id}`} className="w-full">
+            <Link to={`/app/courses/${course.id}`} className="w-full">
               <Button className="w-full">
                 <Play className="w-4 h-4 mr-2" />
                 Start Course
               </Button>
             </Link>
           ) : (
-            <Link to={`/courses/${course.id}/lesson/${course.nextLesson.id}`} className="w-full">
+            <Link to={`/app/courses/${course.id}`} className="w-full">
               <Button className="w-full">
                 <Play className="w-4 h-4 mr-2" />
                 Continue Learning
@@ -723,18 +665,20 @@ export default function MyCourses() {
   )
 
   const getTabCounts = () => {
-    const counts = {
+    const inProgress = courses.filter(c => (c.progress_percentage || 0) > 0 && (c.progress_percentage || 0) < 100).length
+    const completed = courses.filter(c => (c.progress_percentage || 0) === 100).length
+    const notStarted = courses.filter(c => (c.progress_percentage || 0) === 0).length
+    return {
       all: courses.length,
-      'in-progress': courses.filter(c => c.status === 'in_progress').length,
-      completed: courses.filter(c => c.status === 'completed').length,
-      'not-started': courses.filter(c => c.status === 'not_started').length
+      'in-progress': inProgress,
+      completed: completed,
+      'not-started': notStarted
     }
-    return counts
   }
 
   const tabCounts = getTabCounts()
 
-  if (loading) {
+  if (loading.enrollments) {
     return (
       <div className="flex justify-center items-center min-h-96">
         <LoadingSpinner size="lg" />
@@ -753,7 +697,7 @@ export default function MyCourses() {
           </p>
         </div>
         
-        <Link to="/courses">
+        <Link to="/app/courses/catalog">
           <Button>
             <BookOpen className="w-4 h-4 mr-2" />
             Browse More Courses
@@ -772,23 +716,23 @@ export default function MyCourses() {
         
         <Card className="p-6 text-center">
           <div className="text-3xl font-bold text-warning-default mb-2">
-            {courses.filter(c => c.status === 'in_progress').length}
+            {courses.filter(c => (c.progress_percentage || 0) > 0 && (c.progress_percentage || 0) < 100).length}
           </div>
           <div className="text-text-light">In Progress</div>
         </Card>
         
         <Card className="p-6 text-center">
           <div className="text-3xl font-bold text-success-default mb-2">
-            {courses.filter(c => c.status === 'completed').length}
+            {courses.filter(c => c.progress_percentage === 100).length}
           </div>
           <div className="text-text-light">Completed</div>
         </Card>
         
         <Card className="p-6 text-center">
           <div className="text-3xl font-bold text-text-dark mb-2">
-            {courses.reduce((total, course) => total + Math.floor(course.timeSpent / 60), 0)}h
+            {courses.reduce((total, course) => total + (course.duration_minutes || 0), 0)}m
           </div>
-          <div className="text-text-light">Total Hours</div>
+          <div className="text-text-light">Total Duration</div>
         </Card>
       </div>
 
@@ -853,7 +797,7 @@ export default function MyCourses() {
             }
           </p>
           {!searchTerm && (
-            <Link to="/courses">
+            <Link to="/app/courses/catalog">
               <Button>Browse Course Catalog</Button>
             </Link>
           )}

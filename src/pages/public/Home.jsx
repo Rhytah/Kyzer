@@ -138,6 +138,13 @@ export default function Home() {
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>
                 </Link>
+
+                <Link to="/theme-demo">
+                  <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary-default">
+                    Theme Demo
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </Link>
               </div>
 
               <div className="flex items-center gap-6 text-sm text-gray-300">
@@ -160,41 +167,41 @@ export default function Home() {
             <div className="relative">
               <div className="relative bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
                 <div className="grid grid-cols-2 gap-4">
-                  <Card className="p-4 bg-white/90">
+                  <Card className="p-4 bg-background-dark/80 backdrop-blur-sm border border-background-light/30">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-8 h-8 bg-success-light rounded-full flex items-center justify-center">
                         <TrendingUp className="w-4 h-4 text-success-default" />
                       </div>
                       <div>
-                        <div className="text-xs text-text-muted">Progress</div>
-                        <div className="font-semibold text-text-dark">85%</div>
+                        <div className="text-xs text-white/90">Progress</div>
+                        <div className="font-semibold text-white">85%</div>
                       </div>
                     </div>
-                    <div className="w-full bg-background-medium rounded-full h-2">
+                    <div className="w-full bg-white/30 rounded-full h-2">
                       <div className="bg-success-default h-2 rounded-full" style={{width: '85%'}}></div>
                     </div>
                   </Card>
 
-                  <Card className="p-4 bg-white/90">
+                  <Card className="p-4 bg-background-dark/80 backdrop-blur-sm border border-background-light/30">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-8 h-8 bg-primary-light rounded-full flex items-center justify-center">
                         <Award className="w-4 h-4 text-primary-default" />
                       </div>
                       <div>
-                        <div className="text-xs text-text-muted">Certificates</div>
-                        <div className="font-semibold text-text-dark">12</div>
+                        <div className="text-xs text-white/90">Certificates</div>
+                        <div className="font-semibold text-white">12</div>
                       </div>
                     </div>
                   </Card>
 
-                  <Card className="p-4 bg-white/90 col-span-2">
+                  <Card className="p-4 bg-background-dark/80 backdrop-blur-sm border border-background-light/30 col-span-2">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-warning-light rounded-full flex items-center justify-center">
                         <BookOpen className="w-4 h-4 text-warning-default" />
                       </div>
                       <div className="flex-1">
-                        <div className="text-sm font-medium text-text-dark">React Development</div>
-                        <div className="text-xs text-text-muted">Next lesson: Advanced Hooks</div>
+                        <div className="text-sm font-medium text-white">React Development</div>
+                        <div className="text-xs text-white/90">Next lesson: Advanced Hooks</div>
                       </div>
                       <div className="text-xs text-success-default font-medium">In Progress</div>
                     </div>

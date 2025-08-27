@@ -42,6 +42,7 @@ export const individualNavigation = [{
             { name: 'Browse Catalog', href: '/app/courses/catalog' },
         ],
     },
+
     {
         name: 'Progress',
         href: '/app/progress',
@@ -124,6 +125,7 @@ export const quickActions = {
             icon: BookOpen,
             color: 'bg-green-500',
         },
+
         {
             name: 'View Progress',
             href: '/app/progress',
@@ -161,6 +163,7 @@ export const getBreadcrumbs = (pathname, params = {}) => {
         dashboard: { label: 'Dashboard', href: '/app/dashboard' },
         courses: { label: 'Courses', href: '/app/courses' },
         catalog: { label: 'Catalog', href: '/app/courses/catalog' },
+        learning: { label: 'Learning', href: null },
         progress: { label: 'Progress', href: '/app/progress' },
         certificates: { label: 'Certificates', href: '/app/certificates' },
         profile: { label: 'Profile', href: '/app/profile' },
@@ -193,6 +196,101 @@ export const getBreadcrumbs = (pathname, params = {}) => {
             });
         }
     });
+
+    return breadcrumbs;
+};
+
+// Enhanced breadcrumb configuration for course structure
+export const getCourseBreadcrumbs = async (pathname, params = {}, courseStore = null) => {
+    const pathSegments = pathname.split('/').filter(Boolean);
+    const breadcrumbs = [{ label: 'Home', href: '/' }];
+    let currentPath = '';
+
+    // Check if this is a course-related path
+    const isCoursePath = pathSegments.includes('courses');
+    const isLessonPath = pathSegments.includes('lesson');
+    const isCompletionPath = pathSegments.includes('completion');
+
+    if (isCoursePath) {
+        breadcrumbs.push({ label: 'Courses', href: '/app/courses' });
+        currentPath = '/app/courses';
+
+        // If we have a courseId and courseStore, try to get course details
+        if (params.courseId && courseStore) {
+            try {
+                const course = courseStore.courses.find(c => c.id === params.courseId);
+                if (course) {
+                    currentPath = `/app/courses/${params.courseId}`;
+                    breadcrumbs.push({
+                        label: course.title || 'Course',
+                        href: currentPath,
+                        isLast: !isLessonPath && !isCompletionPath
+                    });
+
+                    // If this is a lesson path, add module and lesson info
+                    if (isLessonPath && params.lessonId && courseStore) {
+                        try {
+                            const { data: lessonsData } = await courseStore.actions.fetchCourseLessons(params.courseId);
+                            if (lessonsData) {
+                                // Find the lesson and its module
+                                let foundLesson = null;
+                                let foundModule = null;
+
+                                Object.values(lessonsData).forEach(moduleData => {
+                                    if (moduleData.lessons) {
+                                        const lesson = moduleData.lessons.find(l => l.id === params.lessonId);
+                                        if (lesson) {
+                                            foundLesson = lesson;
+                                            foundModule = moduleData.module;
+                                        }
+                                    }
+                                });
+
+                                if (foundModule && foundModule.id !== 'unassigned') {
+                                    breadcrumbs.push({
+                                        label: foundModule.title || 'Module',
+                                        href: `${currentPath}#module-${foundModule.id}`,
+                                        isLast: false
+                                    });
+                                }
+
+                                if (foundLesson) {
+                                    breadcrumbs.push({
+                                        label: foundLesson.title || 'Lesson',
+                                        href: null,
+                                        isLast: true
+                                    });
+                                }
+                            }
+                        } catch (error) {
+                            // Fallback to generic lesson label
+                            breadcrumbs.push({
+                                label: 'Lesson',
+                                href: null,
+                                isLast: true
+                            });
+                        }
+                    }
+
+                    // If this is a completion path
+                    if (isCompletionPath) {
+                        breadcrumbs.push({
+                            label: 'Course Completion',
+                            href: null,
+                            isLast: true
+                        });
+                    }
+                }
+            } catch (error) {
+                // Fallback to generic course label
+                breadcrumbs.push({
+                    label: 'Course',
+                    href: currentPath,
+                    isLast: !isLessonPath && !isCompletionPath
+                });
+            }
+        }
+    }
 
     return breadcrumbs;
 };

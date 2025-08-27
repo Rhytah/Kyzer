@@ -34,7 +34,7 @@ const NotFound = () => {
           </Link>
           
           <Link 
-            to="/courses"
+            to="/app/courses"
             className="w-full inline-flex items-center justify-center px-6 py-3 border border-background-dark text-text-medium font-medium rounded-lg hover:bg-background-medium transition-colors duration-200"
           >
             <Search className="w-4 h-4 mr-2" />

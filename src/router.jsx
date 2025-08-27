@@ -11,6 +11,7 @@ import Home from "@/pages/public/Home";
 import About from "@/pages/public/About";
 import Pricing from "@/pages/public/Pricing";
 import Contact from "@/pages/public/Contact";
+import ThemeDemo from "@/pages/public/ThemeDemo";
 
 // Auth Pages
 import Login from "@/pages/auth/Login";
@@ -28,6 +29,9 @@ import CourseDetail from "@/pages/courses/CourseDetail";
 import LessonView from "@/pages/courses/LessonView";
 import MyCourses from "@/pages/courses/MyCourses";
 import CourseCompletion from "@/pages/courses/CourseCompletion";
+import CourseLearning from "@/pages/courses/CourseLearning";
+import CourseManagement from "@/pages/courses/CourseManagement";
+import CategoriesManagement from "@/pages/courses/CategoriesManagement";
 
 // Corporate Pages
 import CompanyDashboard from "@/pages/corporate/CompanyDashboard";
@@ -39,6 +43,8 @@ import AcceptInvitation from "@/pages/corporate/AcceptInvitation";
 // Error Pages
 import NotFound from "@/components/common/NotFound";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
+import Certificates from "./pages/dashboard/Certificates";
+import Progress from "./pages/dashboard/Progress";
 
 export const router = createBrowserRouter([
   {
@@ -51,6 +57,7 @@ export const router = createBrowserRouter([
       { path: "about", element: <About /> },
       { path: "pricing", element: <Pricing /> },
       { path: "contact", element: <Contact /> },
+      { path: "theme-demo", element: <ThemeDemo /> },
 
       // Auth Routes
       { path: "login", element: <Login /> },
@@ -81,18 +88,21 @@ export const router = createBrowserRouter([
           { path: "dashboard", element: <Dashboard /> },
           { path: "profile", element: <Profile /> },
           { path: "settings", element: <Settings /> },
-          {
-            path: "courses",
-            children: [
-              { index: true, element: <MyCourses /> },
-              { path: "catalog", element: <CourseCatalog /> },
-              { path: ":courseId", element: <CourseDetail /> },
-              { path: ":courseId/lesson/:lessonId", element: <LessonView /> },
-              { path: ":courseId/completion", element: <CourseCompletion /> },
-            ],
-          },
-          { path: "progress", element: <div>Progress Page</div> },
-          { path: "certificates", element: <div>Certificates</div> },
+                      {
+              path: "courses",
+              children: [
+                { index: true, element: <MyCourses /> },
+                { path: "catalog", element: <CourseCatalog /> },
+                { path: "management", element: <CourseManagement /> },
+                { path: "categories", element: <CategoriesManagement /> },
+                { path: ":courseId", element: <CourseDetail /> },
+                { path: ":courseId/learning", element: <CourseLearning /> },
+                { path: ":courseId/lesson/:lessonId", element: <LessonView /> },
+                { path: ":courseId/completion", element: <CourseCompletion /> },
+              ],
+            },
+          { path: "progress", element: <Progress /> },
+          { path: "certificates", element: <Certificates /> },
         ],
       },
 
@@ -167,6 +177,7 @@ export const navigationRoutes = {
     { path: "/app/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
     { path: "/app/courses", label: "My Courses", icon: "BookOpen" },
     { path: "/app/courses/catalog", label: "Course Catalog", icon: "Search" },
+    { path: "/app/courses/management", label: "Course Management", icon: "Settings" },
     { path: "/app/progress", label: "Progress", icon: "TrendingUp" },
     { path: "/app/certificates", label: "Certificates", icon: "Award" },
   ],

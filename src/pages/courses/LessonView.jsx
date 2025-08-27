@@ -1,5 +1,5 @@
 // src/pages/courses/LessonView.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { 
   Play, 
@@ -19,128 +19,295 @@ import {
   Settings,
   RotateCcw
 } from 'lucide-react'
+import { ScormPlayer } from '@/components/course'
+import { useCourseStore } from '@/store/courseStore'
+import { useAuth } from '@/hooks/auth/useAuth'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import { useToast } from '@/components/ui'
 
 export default function LessonView() {
   const { courseId, lessonId } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  
+  // Store selectors - individual to prevent infinite loops
+  const courses = useCourseStore(state => state.courses)
+  const courseProgress = useCourseStore(state => state.courseProgress)
+  const actions = useCourseStore(state => state.actions)
   
   const [lesson, setLesson] = useState(null)
   const [course, setCourse] = useState(null)
+  const [lessons, setLessons] = useState([])
   const [loading, setLoading] = useState(true)
-  const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
+  const [isCompleted, setIsCompleted] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [notes, setNotes] = useState('')
-  const [isCompleted, setIsCompleted] = useState(false)
-  const [playbackSpeed, setPlaybackSpeed] = useState(1)
+  const [videoLoading, setVideoLoading] = useState(false)
+  const [videoLoadTimeout, setVideoLoadTimeout] = useState(null)
+  const [videoError, setVideoError] = useState(null)
+  const [isCompleting, setIsCompleting] = useState(false)
+  const { success, error: showError } = useToast()
 
-  // Mock lesson data
-  const mockLesson = {
-    id: lessonId,
-    title: 'Introduction to React Hooks',
-    description: 'Learn the fundamentals of React Hooks and how they revolutionized React development.',
-    type: 'video', // 'video', 'text', 'quiz', 'assignment'
-    duration: 1800, // seconds for video
-    videoUrl: '/api/placeholder/video.mp4',
-    transcript: `Welcome to this lesson on React Hooks. In this video, we'll explore the fundamental concepts of React Hooks and understand how they've changed the way we write React components.
+  // Ref for video element to prevent AbortError
+  const videoRef = useRef(null)
 
-React Hooks were introduced in React 16.8 as a way to use state and other React features in functional components. Before hooks, you could only use state in class components.
-
-The most commonly used hooks are:
-1. useState - for managing component state
-2. useEffect - for side effects and lifecycle events
-3. useContext - for consuming context
-4. useReducer - for complex state management
-
-Let's start by looking at the useState hook...`,
-    resources: [
-      {
-        id: 1,
-        title: 'React Hooks Cheat Sheet',
-        type: 'pdf',
-        url: '/resources/react-hooks-cheat-sheet.pdf',
-        size: '2.5 MB'
-      },
-      {
-        id: 2,
-        title: 'Code Examples',
-        type: 'zip',
-        url: '/resources/hooks-examples.zip',
-        size: '1.2 MB'
-      }
-    ],
-    completed: false,
-    moduleId: '2',
-    moduleTitle: 'Advanced React Concepts',
-    position: 3,
-    totalLessons: 12
-  }
-
-  const mockCourse = {
-    id: courseId,
-    title: 'Complete React Development Bootcamp',
-    instructor: 'Sarah Chen',
-    lessons: [
-      { id: '1-1', title: 'What is React?', duration: 900, completed: true },
-      { id: '1-2', title: 'Setting up Development Environment', duration: 1500, completed: true },
-      { id: '2-1', title: 'React Hooks Deep Dive', duration: 2400, completed: true },
-      { id: '2-2', title: 'useEffect and Side Effects', duration: 2100, completed: true },
-      { id: '2-3', title: 'Introduction to React Hooks', duration: 1800, completed: false, current: true },
-      { id: '2-4', title: 'Custom Hooks', duration: 1800, completed: false },
-      { id: '3-1', title: 'Context API', duration: 1500, completed: false }
-    ]
-  }
-
+  // Effect to sync video state when video element is available
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setLesson(mockLesson)
-      setCourse(mockCourse)
-      setIsCompleted(mockLesson.completed)
-      setLoading(false)
-    }, 1000)
-  }, [courseId, lessonId])
+    if (videoRef.current && lesson?.content_type === 'video') {
+      // Set initial video state
+      videoRef.current.currentTime = currentTime;
+    }
+  }, [lesson?.content_type, currentTime]);
+
+  // Effect to handle video loading timeout
+  useEffect(() => {
+    if (lesson?.content_type === 'video' && lesson?.content_url && !isYouTubeUrl(lesson.content_url)) {
+      // Set loading state
+      setVideoLoading(true);
+      setVideoError(null);
+      
+      // Set a shorter timeout to prevent infinite loading (15 seconds)
+      const timeout = setTimeout(() => {
+        if (videoLoading) {
+          setVideoError({
+            error: null,
+            errorCode: 'TIMEOUT',
+            errorMessage: 'Video loading timeout - taking too long to load',
+            networkState: 3,
+            readyState: 0,
+            src: lesson.content_url
+          });
+          setVideoLoading(false);
+          
+          // Force stop the video loading
+          if (videoRef.current) {
+            try {
+              videoRef.current.pause();
+              videoRef.current.removeAttribute('src');
+              videoRef.current.load();
+            } catch (error) {
+              // Silently handle any errors during force stop
+            }
+          }
+        }
+      }, 15000); // Reduced from 30 to 15 seconds
+      
+      setVideoLoadTimeout(timeout);
+      
+      return () => {
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+      };
+    }
+  }, [lesson?.content_type, lesson?.content_url, videoLoading]);
+
+  // Function to save progress (supports completion override to avoid downgrades)
+  const saveProgress = useCallback(async (time = currentTime, completedOverride = null) => {
+    if (user?.id && lesson && course) {
+      try {
+        const completedFlag = completedOverride !== null ? completedOverride : isCompleted;
+        await actions.updateLessonProgress(
+          user.id,
+          lesson.id,
+          course.id,
+          completedFlag,
+          { 
+            timeSpent: time,
+            lastAccessed: new Date().toISOString()
+          }
+        )
+      } catch (error) {
+        // Handle error silently or set error state if needed
+      }
+    }
+  }, [user?.id, lesson, course, isCompleted, currentTime, actions])
+
+  // Function to handle video time updates for progress tracking
+  const handleVideoTimeUpdate = useCallback(() => {
+    if (videoRef.current && lesson && course) {
+      const newTime = videoRef.current.currentTime;
+      setCurrentTime(newTime);
+      // Auto-save progress every 30 seconds, but only if we have the necessary data
+      if (newTime > 0 && newTime % 30 < 1) {
+        saveProgress(newTime);
+      }
+    }
+  }, [saveProgress, lesson, course]);
+
+  // Load course and lesson data from store
+  useEffect(() => {
+    const loadCourseData = async () => {
+      try {
+        // Fetch courses if not already loaded
+        if (courses.length === 0) {
+          if (user?.id) {
+            await actions.fetchCourses({}, user.id)
+          } else {
+            await actions.fetchCourses()
+          }
+        }
+        
+        // Find the current course
+        const foundCourse = courses.find(c => c.id === courseId)
+        if (foundCourse) {
+          setCourse(foundCourse)
+          actions.setCurrentCourse(foundCourse)
+          
+          // Fetch course lessons
+          const { data: fetchedLessons } = await actions.fetchCourseLessons(courseId)
+          if (fetchedLessons && Object.keys(fetchedLessons).length > 0) {
+            // Convert grouped lessons to flat array for navigation
+            const flatLessons = [];
+            Object.values(fetchedLessons).forEach(moduleData => {
+              if (moduleData.lessons && Array.isArray(moduleData.lessons)) {
+                flatLessons.push(...moduleData.lessons);
+              }
+            });
+            
+            // Sort lessons by their order_index
+            flatLessons.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+            
+            setLessons(flatLessons)
+            // Find the current lesson
+            const foundLesson = flatLessons.find(l => l.id === lessonId)
+            if (foundLesson) {
+              setLesson(foundLesson)
+              actions.setCurrentLesson(foundLesson)
+              
+              // Check if lesson is completed
+              if (user?.id) {
+                const { data: progress } = await actions.fetchCourseProgress(user.id, courseId)
+                const lessonProgress = progress?.[lessonId]
+                setIsCompleted(lessonProgress?.completed || false)
+              }
+            }
+          }
+        }
+        setLoading(false)
+      } catch (error) {
+        // Handle error silently or set error state if needed
+        setLoading(false)
+      }
+    }
+
+    if (courseId && lessonId) {
+      loadCourseData()
+    }
+  }, [courseId, lessonId, courses, actions, user?.id])
 
   useEffect(() => {
     // Auto-save progress every 30 seconds
     const interval = setInterval(() => {
-      if (currentTime > 0) {
-        saveProgress()
+      if (videoRef.current && videoRef.current.currentTime > 0 && lesson && course) {
+        saveProgress(videoRef.current.currentTime)
       }
     }, 30000)
 
     return () => clearInterval(interval)
-  }, [currentTime])
+  }, [saveProgress, lesson, course])
 
-  const saveProgress = () => {
-    // Save progress to backend
-  }
-
-  const markAsCompleted = () => {
-    setIsCompleted(true)
-    saveProgress()
-    // Show completion animation or notification
-  }
-
-  const goToNextLesson = () => {
-    const currentIndex = course.lessons.findIndex(l => l.id === lessonId)
-    const nextLesson = course.lessons[currentIndex + 1]
-    if (nextLesson) {
-      navigate(`/courses/${courseId}/lesson/${nextLesson.id}`)
-    } else {
-      navigate(`/courses/${courseId}/completion`)
+  const markAsCompleted = async () => {
+    if (user?.id && lesson && course) {
+      try {
+        setIsCompleting(true)
+        const timeSpent = videoRef.current ? videoRef.current.currentTime : currentTime;
+        await actions.updateLessonProgress(
+          user.id,
+          lesson.id,
+          course.id,
+          true,
+          { 
+            timeSpent: timeSpent,
+            completedAt: new Date().toISOString()
+          }
+        )
+        setIsCompleted(true)
+        // Ensure we do not downgrade completion on immediate autosave
+        await saveProgress(timeSpent, true)
+        success('Lesson marked as complete')
+        // Navigate to next lesson if available
+        const { data: lessonsData } = await actions.fetchCourseLessons(course.id)
+        if (lessonsData && Object.keys(lessonsData).length > 0) {
+          const flatLessons = [];
+          Object.values(lessonsData).forEach(moduleData => {
+            if (moduleData.lessons && Array.isArray(moduleData.lessons)) {
+              flatLessons.push(...moduleData.lessons);
+            }
+          });
+          flatLessons.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+          const currentIndex = flatLessons.findIndex(l => l.id === lesson.id)
+          const nextLesson = flatLessons[currentIndex + 1]
+          if (nextLesson) {
+            navigate(`/app/courses/${courseId}/lesson/${nextLesson.id}`)
+          }
+        }
+      } catch (error) {
+        showError('Failed to mark lesson complete')
+      } finally {
+        setIsCompleting(false)
+      }
     }
   }
 
-  const goToPreviousLesson = () => {
-    const currentIndex = course.lessons.findIndex(l => l.id === lessonId)
-    const prevLesson = course.lessons[currentIndex - 1]
-    if (prevLesson) {
-      navigate(`/courses/${courseId}/lesson/${prevLesson.id}`)
+  const goToNextLesson = async () => {
+    if (course && lesson) {
+      try {
+        const { data: lessonsData } = await actions.fetchCourseLessons(course.id)
+        if (lessonsData && Object.keys(lessonsData).length > 0) {
+          // Convert grouped lessons to flat array
+          const flatLessons = [];
+          Object.values(lessonsData).forEach(moduleData => {
+            if (moduleData.lessons && Array.isArray(moduleData.lessons)) {
+              flatLessons.push(...moduleData.lessons);
+            }
+          });
+          
+          // Sort lessons by their order_index
+          flatLessons.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+          
+          const currentIndex = flatLessons.findIndex(l => l.id === lessonId)
+          const nextLesson = flatLessons[currentIndex + 1]
+          if (nextLesson) {
+            navigate(`/app/courses/${courseId}/lesson/${nextLesson.id}`)
+          } else {
+            navigate(`/app/courses/${courseId}/completion`)
+          }
+        }
+      } catch (error) {
+        // Handle error silently or set error state if needed
+      }
+    }
+  }
+
+  const goToPreviousLesson = async () => {
+    if (course && lesson) {
+      try {
+        const { data: lessonsData } = await actions.fetchCourseLessons(course.id)
+        if (lessonsData && Object.keys(lessonsData).length > 0) {
+          // Convert grouped lessons to flat array
+          const flatLessons = [];
+          Object.values(lessonsData).forEach(moduleData => {
+            if (moduleData.lessons && Array.isArray(moduleData.lessons)) {
+              flatLessons.push(...moduleData.lessons);
+            }
+          });
+          
+          // Sort lessons by their order_index
+          flatLessons.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+          
+          const currentIndex = flatLessons.findIndex(l => l.id === lessonId)
+          const prevLesson = flatLessons[currentIndex - 1]
+          if (prevLesson) {
+            navigate(`/app/courses/${courseId}/lesson/${prevLesson.id}`)
+          }
+        }
+      } catch (error) {
+        // Handle error silently or set error state if needed
+      }
     }
   }
 
@@ -155,102 +322,340 @@ Let's start by looking at the useState hook...`,
     return `${minutes}:${secs.toString().padStart(2, '0')}`
   }
 
-  const VideoPlayer = () => (
-    <div className="relative bg-black rounded-lg overflow-hidden">
-      <div className="aspect-video bg-gray-900 flex items-center justify-center">
-        <div className="text-white text-center">
-          <Play className="w-16 h-16 mx-auto mb-4 opacity-50" />
-          <p className="text-gray-400">Video Player Placeholder</p>
-          <p className="text-sm text-gray-500 mt-2">{lesson.title}</p>
+  // Helper function to check if URL is a valid video file
+  const isValidVideoUrl = (url) => {
+    if (!url) return false;
+    
+    // Check if it's a YouTube URL
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      return false; // YouTube URLs are not direct video files
+    }
+    
+    // Check if it's a valid HTTP/HTTPS URL
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      return false;
+    }
+    
+    // Check if it has a video file extension
+    const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv'];
+    const hasVideoExtension = videoExtensions.some(ext => 
+      url.toLowerCase().includes(ext)
+    );
+    
+    return hasVideoExtension;
+  };
+
+  // Helper function to check if URL is a YouTube URL
+  const isYouTubeUrl = (url) => {
+    if (!url) return false;
+    return url.includes('youtube.com') || url.includes('youtu.be');
+  };
+
+  // Helper function to extract YouTube video ID
+  const getYouTubeVideoId = (url) => {
+    if (!isYouTubeUrl(url)) return null;
+    
+    // Handle youtu.be format
+    if (url.includes('youtu.be/')) {
+      return url.split('youtu.be/')[1]?.split('?')[0];
+    }
+    
+    // Handle youtube.com format
+    if (url.includes('youtube.com/watch')) {
+      const urlParams = new URLSearchParams(url.split('?')[1]);
+      return urlParams.get('v');
+    }
+    
+    return null;
+  };
+
+  const VideoPlayer = () => {
+    if (lesson.content_type !== 'video') {
+      // Handle text rendering with stored format marker
+      if (lesson.content_type === 'text') {
+        const parseStoredText = (raw) => {
+          if (!raw) return { format: 'plaintext', text: '' };
+          const match = raw.match(/^<!--content_format:(markdown|html|plaintext)-->([\s\S]*)/);
+          if (match) {
+            return { format: match[1], text: match[2] };
+          }
+          return { format: 'plaintext', text: raw };
+        };
+        const escapeHtml = (unsafe) => unsafe
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll('\'', '&#039;');
+        const renderMarkdownToHtml = (md) => {
+          const escaped = escapeHtml(md);
+          let html = escaped;
+          html = html.replace(/^######\s?(.*)$/gm, '<h6>$1</h6>')
+                     .replace(/^#####\s?(.*)$/gm, '<h5>$1</h5>')
+                     .replace(/^####\s?(.*)$/gm, '<h4>$1</h4>')
+                     .replace(/^###\s?(.*)$/gm, '<h3>$1</h3>')
+                     .replace(/^##\s?(.*)$/gm, '<h2>$1</h2>')
+                     .replace(/^#\s?(.*)$/gm, '<h1>$1</h1>');
+          html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                     .replace(/\*(.*?)\*/g, '<em>$1</em>');
+          html = html.replace(/\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1<\/a>');
+          html = html.replace(/^(?:-\s.*(?:\n|$))+?/gm, (block) => {
+            const items = block.trim().split(/\n/).map(l => l.replace(/^-\s?/, '').trim()).filter(Boolean);
+            return items.length ? '<ul>' + items.map(i => `<li>${i}<\/li>`).join('') + '<\/ul>' : block;
+          });
+          html = html.replace(/^(?:\d+\.\s.*(?:\n|$))+?/gm, (block) => {
+            const items = block.trim().split(/\n/).map(l => l.replace(/^\d+\.\s?/, '').trim()).filter(Boolean);
+            return items.length ? '<ol>' + items.map(i => `<li>${i}<\/li>`).join('') + '<\/ol>' : block;
+          });
+          html = html.replace(/\n{2,}/g, '</p><p>');
+          html = `<p>${html.replace(/\n/g, '<br/>')}<\/p>`;
+          return html;
+        };
+
+        const parsed = parseStoredText(lesson.content_text);
+        const html = parsed.format === 'markdown'
+          ? renderMarkdownToHtml(parsed.text)
+          : parsed.format === 'html'
+            ? parsed.text
+            : `<p>${escapeHtml(parsed.text).replace(/\n/g, '<br/>')}<\/p>`;
+
+        return (
+          <div className="bg-gray-50 rounded-lg p-6">
+            <div
+              className="prose max-w-none text-text-medium"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          </div>
+        );
+      }
+
+      // Fallback placeholder for other non-video content types
+      return (
+        <div className="bg-gray-100 rounded-lg p-8 text-center">
+          <div className="text-gray-500 text-lg mb-4">Content Placeholder</div>
         </div>
-      </div>
-      
-      {/* Video Controls */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-        {/* Progress Bar */}
-        <div className="mb-4">
-          <div className="w-full bg-white/20 rounded-full h-1 cursor-pointer">
-            <div 
-              className="bg-primary-default h-1 rounded-full"
-              style={{ width: `${(currentTime / duration) * 100}%` }}
-            ></div>
+      );
+    }
+
+    // Check if it's a YouTube URL → render iframe embed
+    if (isYouTubeUrl(lesson.content_url)) {
+      const videoId = getYouTubeVideoId(lesson.content_url);
+      if (!videoId) {
+        return (
+          <div className="bg-gray-100 rounded-lg p-8 text-center">
+            <div className="text-gray-500 text-lg mb-4">Invalid YouTube URL</div>
+            <div className="bg-white p-6 rounded-lg border break-all">{lesson.content_url}</div>
+          </div>
+        );
+      }
+      const embedUrl = `https://www.youtube.com/embed/${videoId}?rel=0`;
+      return (
+        <div className="w-full">
+          <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
+            <iframe
+              src={embedUrl}
+              title="YouTube video player"
+              className="absolute top-0 left-0 w-full h-full rounded-lg"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allowFullScreen
+            />
           </div>
         </div>
-        
-        {/* Controls */}
-        <div className="flex items-center justify-between text-white">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="text-white hover:text-white hover:bg-white/20"
-            >
-              {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:text-white hover:bg-white/20"
-            >
-              <SkipBack className="w-4 h-4" />
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:text-white hover:bg-white/20"
-            >
-              <SkipForward className="w-4 h-4" />
-            </Button>
-            
-            <div className="flex items-center gap-2">
-              <Volume2 className="w-4 h-4" />
-              <div className="w-16 bg-white/20 rounded-full h-1">
-                <div className="bg-white h-1 rounded-full w-3/4"></div>
-              </div>
+      );
+    }
+
+    // Check if it's a valid direct video URL
+    if (!isValidVideoUrl(lesson.content_url)) {
+      return (
+        <div className="bg-gray-100 rounded-lg p-8 text-center">
+          <div className="text-gray-500 text-lg mb-4">
+            Invalid Video URL
+          </div>
+          <div className="bg-white p-6 rounded-lg border">
+            <p className="text-gray-700 mb-4">
+              The provided URL is not a valid video file. Please provide a direct link to a video file (e.g., .mp4, .webm).
+            </p>
+            <div className="text-sm text-gray-500 break-all">
+              Current URL: {lesson.content_url}
             </div>
-            
-            <span className="text-sm">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <select
-              value={playbackSpeed}
-              onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
-              className="bg-white/20 text-white text-sm rounded px-2 py-1 border-none"
-            >
-              <option value={0.5}>0.5x</option>
-              <option value={0.75}>0.75x</option>
-              <option value={1}>1x</option>
-              <option value={1.25}>1.25x</option>
-              <option value={1.5}>1.5x</option>
-              <option value={2}>2x</option>
-            </select>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:text-white hover:bg-white/20"
-            >
-              <Settings className="w-4 h-4" />
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:text-white hover:bg-white/20"
-            >
-              <Maximize className="w-4 h-4" />
-            </Button>
           </div>
         </div>
+      );
+    }
+
+    // Valid video URL - render video player
+    return (
+      <div className="relative">
+        <video
+          ref={videoRef}
+          className="w-full rounded-lg shadow-lg"
+          controls
+          preload="metadata"
+          onLoadStart={() => {
+            setVideoLoading(true);
+            setVideoError(null);
+            if (videoLoadTimeout) {
+              clearTimeout(videoLoadTimeout);
+            }
+          }}
+          onCanPlay={() => {
+            setVideoLoading(false);
+            if (videoLoadTimeout) {
+              clearTimeout(videoLoadTimeout);
+            }
+          }}
+          onCanPlayThrough={() => {
+            setVideoLoading(false);
+            if (videoLoadTimeout) {
+              clearTimeout(videoLoadTimeout);
+            }
+          }}
+          onWaiting={() => setVideoLoading(true)}
+          onProgress={() => setVideoLoading(false)}
+          onError={(e) => {
+            setVideoLoading(false);
+            setVideoError({
+              error: e.target.error,
+              errorCode: e.target.error?.code,
+              errorMessage: e.target.error?.message,
+              networkState: e.target.networkState,
+              readyState: e.target.readyState,
+              src: lesson.content_url
+            });
+            if (videoLoadTimeout) {
+              clearTimeout(videoLoadTimeout);
+            }
+          }}
+                     onPlay={() => {
+             if (videoRef.current) {
+               videoRef.current.currentTime = currentTime || 0;
+             }
+           }}
+                     onPause={() => {
+             if (videoRef.current && lesson && course) {
+               saveProgress(videoRef.current.currentTime);
+             }
+           }}
+          onTimeUpdate={() => {
+            if (videoRef.current && lesson && course) {
+              handleVideoTimeUpdate();
+            }
+          }}
+          onEnded={() => {
+            if (!isCompleted) {
+              markAsCompleted()
+            }
+          }}
+        >
+          <source src={lesson.content_url} type="video/mp4" />
+          <source src={lesson.content_url} type="video/webm" />
+          <source src={lesson.content_url} type="video/ogg" />
+          Your browser does not support the video tag.
+        </video>
+        
+        {videoLoading && (
+          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
+            <div className="text-white text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+              <div>Loading video...</div>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
-  )
+    );
+  };
+
+  // Video Error Display Component
+  const VideoErrorDisplay = () => {
+    if (!videoError) return null;
+    
+    const getErrorMessage = () => {
+      if (videoError.errorCode === 'TIMEOUT') {
+        return 'Video loading timeout - taking too long to load';
+      }
+      
+      switch (videoError.errorCode) {
+        case 1:
+          return 'Video loading was aborted';
+        case 2:
+          return 'Network error occurred while loading video';
+        case 3:
+          return 'Video decoding failed';
+        case 4:
+          return 'Video format not supported';
+        default:
+          return videoError.errorMessage || 'Unknown video error occurred';
+      }
+    };
+    
+    return (
+      <Card className="p-6 bg-red-50 border-red-200">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <Play className="w-5 h-5 text-red-600" />
+            </div>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-red-800 mb-2">Video Loading Error</h3>
+            <p className="text-red-700 mb-3">{getErrorMessage()}</p>
+            <div className="text-sm text-red-600 mb-4">
+              <p><strong>URL:</strong> {videoError.src}</p>
+              <p><strong>Error Code:</strong> {videoError.errorCode}</p>
+              {videoError.errorMessage && (
+                <p><strong>Details:</strong> {videoError.errorMessage}</p>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  if (videoRef.current) {
+                    videoRef.current.load();
+                  }
+                }}
+              >
+                Retry Loading
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  if (videoRef.current) {
+                    try {
+                      videoRef.current.pause();
+                      videoRef.current.removeAttribute('src');
+                      videoRef.current.load();
+                      setVideoLoading(false);
+                      setVideoError(null);
+                    } catch (error) {
+                      // Silently handle any errors during force stop
+                    }
+                  }
+                }}
+              >
+                Stop Loading
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  if (videoError.src) {
+                    window.open(videoError.src, '_blank');
+                  }
+                }}
+              >
+                Open in New Tab
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+    );
+  };
 
   if (loading) {
     return (
@@ -265,7 +670,7 @@ Let's start by looking at the useState hook...`,
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold text-text-dark mb-4">Lesson Not Found</h2>
         <p className="text-text-light mb-6">The lesson you're looking for doesn't exist.</p>
-        <Button onClick={() => navigate(`/courses/${courseId}`)}>
+        <Button onClick={() => navigate(`/app/courses/${courseId}`)}>
           Back to Course
         </Button>
       </div>
@@ -279,7 +684,7 @@ Let's start by looking at the useState hook...`,
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-text-light">
           <button 
-            onClick={() => navigate(`/courses/${courseId}`)}
+            onClick={() => navigate(`/app/courses/${courseId}`)}
             className="hover:text-primary-default"
           >
             {course.title}
@@ -290,24 +695,104 @@ Let's start by looking at the useState hook...`,
           <span className="text-text-dark">{lesson.title}</span>
         </div>
 
-        {/* Video Player */}
+        {/* Content Player */}
         <Card className="p-0 overflow-hidden">
-          <VideoPlayer />
+          {lesson.content_type === 'scorm' ? (
+            <ScormPlayer
+              scormUrl={lesson.content_url}
+              lessonId={lesson.id}
+              courseId={courseId}
+              onProgress={(score) => {
+                // Handle SCORM progress updates
+                console.log('SCORM progress:', score);
+              }}
+              onComplete={(completionData) => {
+                // Handle SCORM completion
+                setIsCompleted(true);
+                console.log('SCORM completed:', completionData);
+              }}
+              onError={(error) => {
+                console.error('SCORM error:', error);
+              }}
+            />
+          ) : (
+            <VideoPlayer />
+          )}
         </Card>
+
+        {/* Video Error Display */}
+        <VideoErrorDisplay />
+   
 
         {/* Lesson Info */}
         <Card className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
               <h1 className="text-2xl font-bold text-text-dark mb-2">{lesson.title}</h1>
-              <p className="text-text-light">{lesson.description}</p>
+              {/* Render formatted content preview (respect stored format marker) */}
+              {(() => {
+                const parseStoredText = (raw) => {
+                  if (!raw) return { format: 'plaintext', text: '' };
+                  const match = raw.match(/^<!--content_format:(markdown|html|plaintext)-->([\s\S]*)/);
+                  if (match) {
+                    return { format: match[1], text: match[2] };
+                  }
+                  return { format: 'plaintext', text: raw };
+                };
+                const escapeHtml = (unsafe) => unsafe
+                  .replaceAll('&', '&amp;')
+                  .replaceAll('<', '&lt;')
+                  .replaceAll('>', '&gt;')
+                  .replaceAll('"', '&quot;')
+                  .replaceAll('\'', '&#039;');
+                const renderMarkdownToHtml = (md) => {
+                  const escaped = escapeHtml(md);
+                  let html = escaped;
+                  html = html.replace(/^######\s?(.*)$/gm, '<h6>$1</h6>')
+                             .replace(/^#####\s?(.*)$/gm, '<h5>$1</h5>')
+                             .replace(/^####\s?(.*)$/gm, '<h4>$1</h4>')
+                             .replace(/^###\s?(.*)$/gm, '<h3>$1</h3>')
+                             .replace(/^##\s?(.*)$/gm, '<h2>$1</h2>')
+                             .replace(/^#\s?(.*)$/gm, '<h1>$1</h1>');
+                  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                             .replace(/\*(.*?)\*/g, '<em>$1</em>');
+                  html = html.replace(/\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1<\/a>');
+                  html = html.replace(/^(?:-\s.*(?:\n|$))+?/gm, (block) => {
+                    const items = block.trim().split(/\n/).map(l => l.replace(/^-\s?/, '').trim()).filter(Boolean);
+                    return items.length ? '<ul>' + items.map(i => `<li>${i}<\/li>`).join('') + '<\/ul>' : block;
+                  });
+                  html = html.replace(/^(?:\d+\.\s.*(?:\n|$))+?/gm, (block) => {
+                    const items = block.trim().split(/\n/).map(l => l.replace(/^\d+\.\s?/, '').trim()).filter(Boolean);
+                    return items.length ? '<ol>' + items.map(i => `<li>${i}<\/li>`).join('') + '<\/ol>' : block;
+                  });
+                  html = html.replace(/\n{2,}/g, '</p><p>');
+                  html = `<p>${html.replace(/\n/g, '<br/>')}<\/p>`;
+                  return html;
+                };
+                const raw = lesson.content_text || lesson.description || '';
+                if (!raw) {
+                  return <p className="text-text-light">No description available</p>;
+                }
+                const parsed = parseStoredText(raw);
+                const html = parsed.format === 'markdown'
+                  ? renderMarkdownToHtml(parsed.text)
+                  : parsed.format === 'html'
+                    ? parsed.text
+                    : `<p>${escapeHtml(parsed.text).replace(/\n/g, '<br/>')}<\/p>`;
+                return (
+                  <div
+                    className="prose max-w-none text-text-light"
+                    dangerouslySetInnerHTML={{ __html: html }}
+                  />
+                );
+              })()}
             </div>
             
             <div className="flex items-center gap-2">
               {!isCompleted ? (
-                <Button onClick={markAsCompleted}>
+                <Button onClick={markAsCompleted} disabled={isCompleting}>
                   <CheckCircle className="w-4 h-4 mr-2" />
-                  Mark Complete
+                  {isCompleting ? 'Completing...' : 'Mark Complete'}
                 </Button>
               ) : (
                 <div className="flex items-center gap-2 text-success-default">
@@ -321,11 +806,11 @@ Let's start by looking at the useState hook...`,
           <div className="flex items-center gap-6 text-sm text-text-muted">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4" />
-              <span>{formatTime(lesson.duration)}</span>
+              <span>{formatTime(lesson.duration_minutes * 60 || 0)}</span>
             </div>
             <div className="flex items-center gap-2">
               <BookOpen className="w-4 h-4" />
-              <span>Lesson {lesson.position} of {lesson.totalLessons}</span>
+              <span>Lesson {lesson.order_index || 1} of {lessons.length}</span>
             </div>
           </div>
         </Card>
@@ -357,11 +842,15 @@ Let's start by looking at the useState hook...`,
           {!showNotes ? (
             // Transcript
             <div>
-              <h3 className="text-lg font-semibold text-text-dark mb-4">Lesson Transcript</h3>
+              <h3 className="text-lg font-semibold text-text-dark mb-4">Lesson Content</h3>
               <div className="prose max-w-none text-text-medium">
-                {lesson.transcript.split('\n\n').map((paragraph, index) => (
-                  <p key={index} className="mb-4">{paragraph}</p>
-                ))}
+                {lesson.content_text ? (
+                  lesson.content_text.split('\n\n').map((paragraph, index) => (
+                    <p key={index} className="mb-4">{paragraph}</p>
+                  ))
+                ) : (
+                  <p className="text-text-muted">No content available for this lesson.</p>
+                )}
               </div>
             </div>
           ) : (
@@ -382,24 +871,26 @@ Let's start by looking at the useState hook...`,
         </Card>
 
         {/* Resources */}
-        {lesson.resources && lesson.resources.length > 0 && (
+        {lesson.content_url && (
           <Card className="p-6">
             <h3 className="text-lg font-semibold text-text-dark mb-4">Lesson Resources</h3>
             <div className="space-y-3">
-              {lesson.resources.map((resource) => (
-                <div key={resource.id} className="flex items-center justify-between p-3 border border-background-dark rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-text-muted" />
-                    <div>
-                      <h4 className="font-medium text-text-dark">{resource.title}</h4>
-                      <p className="text-sm text-text-light">{resource.type.toUpperCase()} • {resource.size}</p>
-                    </div>
+              <div className="flex items-center justify-between p-3 border border-background-dark rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-5 h-5 text-text-muted" />
+                  <div>
+                    <h4 className="font-medium text-text-dark">Additional Content</h4>
+                    <p className="text-sm text-text-light">External resource</p>
                   </div>
-                  <Button variant="ghost" size="sm">
-                    <Download className="w-4 h-4" />
-                  </Button>
                 </div>
-              ))}
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => window.open(lesson.content_url, '_blank')}
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </Card>
         )}
@@ -409,7 +900,7 @@ Let's start by looking at the useState hook...`,
           <Button
             variant="secondary"
             onClick={goToPreviousLesson}
-            disabled={course.lessons.findIndex(l => l.id === lessonId) === 0}
+            disabled={lessons.findIndex(l => l.id === lessonId) === 0}
           >
             <ChevronLeft className="w-4 h-4 mr-2" />
             Previous Lesson
@@ -430,14 +921,28 @@ Let's start by looking at the useState hook...`,
           <div className="mb-4">
             <div className="flex justify-between text-sm mb-2">
               <span className="text-text-medium">Overall Progress</span>
-              <span className="font-medium">65%</span>
+              <span className="font-medium">
+                {course && courseProgress[courseId] ? 
+                  Math.round((Object.values(courseProgress[courseId]).filter(p => p.completed).length / lessons.length) * 100) : 0
+                }%
+              </span>
             </div>
             <div className="w-full bg-background-medium rounded-full h-2">
-              <div className="bg-primary-default h-2 rounded-full" style={{ width: '65%' }}></div>
+              <div 
+                className="bg-primary-default h-2 rounded-full" 
+                style={{ 
+                  width: `${course && courseProgress[courseId] ? 
+                    (Object.values(courseProgress[courseId]).filter(p => p.completed).length / lessons.length) * 100 : 0
+                  }%` 
+                }}
+              ></div>
             </div>
           </div>
           <p className="text-sm text-text-light">
-            29 of 45 lessons completed
+            {course && courseProgress[courseId] ? 
+              `${Object.values(courseProgress[courseId]).filter(p => p.completed).length} of ${lessons.length} lessons completed` :
+              `0 of ${lessons.length} lessons completed`
+            }
           </p>
         </Card>
 
@@ -445,10 +950,10 @@ Let's start by looking at the useState hook...`,
         <Card className="p-6">
           <h3 className="font-semibold text-text-dark mb-4">Course Content</h3>
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {course.lessons.map((courseLesson, index) => (
+            {lessons.map((courseLesson, index) => (
               <button
                 key={courseLesson.id}
-                onClick={() => navigate(`/courses/${courseId}/lesson/${courseLesson.id}`)}
+                onClick={() => navigate(`/app/courses/${courseId}/lesson/${courseLesson.id}`)}
                 className={`w-full text-left p-3 rounded-lg transition-colors ${
                   courseLesson.id === lessonId
                     ? 'bg-primary-light text-primary-default'
@@ -457,7 +962,7 @@ Let's start by looking at the useState hook...`,
               >
                 <div className="flex items-center gap-3">
                   <div className="flex-shrink-0">
-                    {courseLesson.completed ? (
+                    {courseProgress[courseId]?.[courseLesson.id]?.completed ? (
                       <CheckCircle className="w-5 h-5 text-success-default" />
                     ) : courseLesson.id === lessonId ? (
                       <Play className="w-5 h-5 text-primary-default" />
@@ -469,7 +974,7 @@ Let's start by looking at the useState hook...`,
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-medium text-sm truncate">{courseLesson.title}</h4>
-                    <p className="text-xs text-text-light">{formatTime(courseLesson.duration)}</p>
+                    <p className="text-xs text-text-light">{formatTime(courseLesson.duration_minutes * 60 || 0)}</p>
                   </div>
                 </div>
               </button>

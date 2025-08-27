@@ -56,7 +56,7 @@ export default function Toggle({
       <span
         className={`
           inline-block ${thumbSizeClasses[size]} transform rounded-full 
-          bg-white transition-transform duration-200 ease-in-out
+          bg-background-white transition-transform duration-200 ease-in-out
           ${translateClasses[size]}
         `}
       />

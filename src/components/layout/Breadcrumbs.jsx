@@ -1,57 +1,68 @@
-// import { Link, useLocation, useParams } from 'react-router-dom';
-// import { ChevronRight, Home } from 'lucide-react';
-// import { getBreadcrumbs } from '@/config/navigation';
-
-// export default function Breadcrumbs() {
-//   const location = useLocation();
-//   const params = useParams();
-  
-//   const breadcrumbs = getBreadcrumbs(location.pathname, params);
-
-//   if (breadcrumbs.length <= 1) return null;
-
-//   return (
-//     <nav className="flex items-center space-x-1 text-sm text-gray-500 mb-6" aria-label="Breadcrumb">
-//       <Home className="h-4 w-4" />
-//       {breadcrumbs.map((breadcrumb, index) => (
-//         <div key={breadcrumb.href || index} className="flex items-center">
-//           {index > 0 && <ChevronRight className="h-4 w-4 mx-1" />}
-//           {breadcrumb.href && !breadcrumb.isLast ? (
-//             <Link
-//               to={breadcrumb.href}
-//               className="hover:text-gray-700 transition-colors"
-//             >
-//               {breadcrumb.label}
-//             </Link>
-//           ) : (
-//             <span className={breadcrumb.isLast ? 'text-gray-900 font-medium' : ''}>
-//               {breadcrumb.label}
-//             </span>
-//           )}
-//         </div>
-//       ))}
-//     </nav>
-//   );
-// }
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
-import { useAuth } from '@hooks/auth/useAuth';
-import { getBreadcrumbs } from '@/config/navigation';
+import { useAuth } from '@/hooks/auth/useAuth';
+import { useCourseStore } from '@/store/courseStore';
+import { getBreadcrumbs, getCourseBreadcrumbs } from '@/config/navigation';
 
 const Breadcrumbs = () => {
   const location = useLocation();
   const params = useParams();
   const { user } = useAuth();
-   const isCorporateUser = user?.user_metadata?.account_type === 'corporate';
+  const isCorporateUser = user?.user_metadata?.account_type === 'corporate';
+  
+  // Get course store for enhanced breadcrumbs
+  const courseStore = useCourseStore.getState();
+  
+  const [breadcrumbs, setBreadcrumbs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Get breadcrumbs using the config function
-  const breadcrumbs = getBreadcrumbs(location.pathname, params);
+  useEffect(() => {
+    const loadBreadcrumbs = async () => {
+      setLoading(true);
+      
+      try {
+        // Check if this is a course-related path that needs enhanced breadcrumbs
+        const isCoursePath = location.pathname.includes('/courses/');
+        
+        if (isCoursePath) {
+          // Use enhanced course breadcrumbs
+          const enhancedBreadcrumbs = await getCourseBreadcrumbs(location.pathname, params, courseStore);
+          setBreadcrumbs(enhancedBreadcrumbs);
+        } else {
+          // Use regular breadcrumbs
+          const regularBreadcrumbs = getBreadcrumbs(location.pathname, params);
+          setBreadcrumbs(regularBreadcrumbs);
+        }
+      } catch (error) {
+        // Fallback to regular breadcrumbs
+        const fallbackBreadcrumbs = getBreadcrumbs(location.pathname, params);
+        setBreadcrumbs(fallbackBreadcrumbs);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Small delay to ensure course store is populated
+    const timer = setTimeout(loadBreadcrumbs, 100);
+    return () => clearTimeout(timer);
+  }, [location.pathname, params, courseStore]);
 
   // Don't show breadcrumbs on dashboard or if only one item
   const isDashboard = location.pathname === '/app/dashboard' || location.pathname === '/corporate/dashboard';
   if (isDashboard || breadcrumbs.length <= 1) return null;
+
+  // Show loading state for course breadcrumbs
+  if (loading && location.pathname.includes('/courses/')) {
+    return (
+      <nav className="flex items-center space-x-1 text-sm text-text-muted mb-6" aria-label="Breadcrumb">
+        <div className="flex items-center">
+          <Home size={14} className="mr-1" />
+          <span>Loading...</span>
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav className="flex items-center space-x-1 text-sm text-text-muted mb-6" aria-label="Breadcrumb">

@@ -1,5 +1,5 @@
 // App.jsx - FIXED: Route components moved inside AuthProvider context
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 // Pages
@@ -7,6 +7,7 @@ import Home from './pages/public/Home';
 import About from './pages/public/About';
 import Pricing from './pages/public/Pricing';
 import Contact from './pages/public/Contact';
+import ThemeDemo from './pages/public/ThemeDemo';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/SignUp';
 import ForgotPassword from './pages/auth/ForgotPassword';
@@ -19,9 +20,13 @@ import MyCourses from './pages/courses/MyCourses';
 import CourseDetail from './pages/courses/CourseDetail';
 import LessonView from './pages/courses/LessonView';
 import CourseCompletion from './pages/courses/CourseCompletion';
+import CourseLearning from './pages/courses/CourseLearning';
+import Progress from './pages/dashboard/Progress';
+import Certificates from './pages/dashboard/Certificates';
 import CompanyDashboard from '@/pages/corporate/CompanyDashboard';
 import EmployeeManagement from '@/pages/corporate/EmployeeManagement';
 import Reports from '@/pages/corporate/Reports';
+import CompanySettings from '@/pages/corporate/CompanySettings';
 import AcceptInvitation from '@/pages/corporate/AcceptInvitation';
 import NotFound from '@/components/common/NotFound';
 
@@ -35,8 +40,34 @@ import FullPageLoader from '@/components/ui/FullPageLoader';
 import CorporateGuard from '@/components/auth/CorporateGuard';
 import AdminGuard from './components/auth/AdminGuard';
 
+// Legacy Redirect Components
+function LegacyCourseRedirect() {
+  const { courseId } = useParams();
+  console.log('🔄 Legacy redirect: /courses/:courseId -> /app/courses/:courseId', { courseId });
+  return <Navigate to={`/app/courses/${courseId}`} replace />;
+}
+
+function LegacyLearningRedirect() {
+  const { courseId } = useParams();
+  console.log('🔄 Legacy redirect: /courses/:courseId/learning -> /app/courses/:courseId/learning', { courseId });
+  return <Navigate to={`/app/courses/${courseId}/learning`} replace />;
+}
+
+function LegacyLessonRedirect() {
+  const { courseId, lessonId } = useParams();
+  console.log('🔄 Legacy redirect: /courses/:courseId/lesson/:lessonId -> /app/courses/:courseId/lesson/:lessonId', { courseId, lessonId });
+  return <Navigate to={`/app/courses/${courseId}/lesson/${lessonId}`} replace />;
+}
+
+function LegacyCompletionRedirect() {
+  const { courseId } = useParams();
+  console.log('🔄 Legacy redirect: /courses/:courseId/completion -> /app/courses/:courseId/completion', { courseId });
+  return <Navigate to={`/app/courses/${courseId}/completion`} replace />;
+}
+
 // Hooks
 import { AuthProvider, useAuth } from '@/hooks/auth/useAuth';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 // ===========================================
 // MAIN APP COMPONENT
@@ -44,37 +75,39 @@ import { AuthProvider, useAuth } from '@/hooks/auth/useAuth';
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AppRoutes />
-        
-        {/* Toast Notifications */}
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#374151',
-              color: '#fff',
-            },
-            success: {
-              duration: 3000,
-              iconTheme: {
-                primary: '#059669',
-                secondary: '#fff',
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <AppRoutes />
+          
+          {/* Toast Notifications */}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: 'var(--color-primary)',
+                color: 'var(--color-background-white)',
               },
-            },
-            error: {
-              duration: 5000,
-              iconTheme: {
-                primary: '#DC2626',
-                secondary: '#fff',
+              success: {
+                duration: 3000,
+                iconTheme: {
+                  primary: 'var(--color-success)',
+                  secondary: 'var(--color-background-white)',
+                },
               },
-            },
-          }}
-        />
-      </Router>
-    </AuthProvider>
+              error: {
+                duration: 5000,
+                iconTheme: {
+                  primary: 'var(--color-error)',
+                  secondary: 'var(--color-background-white)',
+                },
+              },
+            }}
+          />
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
@@ -145,6 +178,7 @@ function AppRoutes() {
         <Route path="about" element={<About />} />
         <Route path="pricing" element={<Pricing />} />
         <Route path="contact" element={<Contact />} />
+        <Route path="theme-demo" element={<ThemeDemo />} />
       </Route>
 
       {/* ===== AUTHENTICATION ROUTES ===== */}
@@ -200,8 +234,13 @@ function AppRoutes() {
         <Route path="courses" element={<MyCourses />} />
         <Route path="courses/catalog" element={<CourseCatalog />} />
         <Route path="courses/:courseId" element={<CourseDetail />} />
+        <Route path="courses/:courseId/learning" element={<CourseLearning />} />
         <Route path="courses/:courseId/lesson/:lessonId" element={<LessonView />} />
         <Route path="courses/:courseId/completion" element={<CourseCompletion />} />
+        
+        {/* Additional Routes */}
+        <Route path="progress" element={<Progress />} />
+        <Route path="certificates" element={<Certificates />} />
       </Route>
 
       {/* ===== CORPORATE ROUTES ===== */}
@@ -235,6 +274,15 @@ function AppRoutes() {
             </AdminGuard>
           } 
         />
+        
+        <Route 
+          path="settings" 
+          element={
+            <AdminGuard requirePermission="manage_settings">
+              <CompanySettings />
+            </AdminGuard>
+          } 
+        />
       </Route>
 
       {/* ===== SPECIAL ROUTES ===== */}
@@ -254,6 +302,18 @@ function AppRoutes() {
       <Route path="/profile" element={<Navigate to="/app/profile" replace />} />
       <Route path="/settings" element={<Navigate to="/app/settings" replace />} />
       <Route path="/courses" element={<Navigate to="/app/courses" replace />} />
+      
+      {/* Legacy course routes with proper parameter handling */}
+      <Route path="/courses/:courseId" element={<LegacyCourseRedirect />} />
+      <Route path="/courses/:courseId/learning" element={<LegacyLearningRedirect />} />
+      <Route path="/courses/:courseId/lesson/:lessonId" element={<LegacyLessonRedirect />} />
+      <Route path="/courses/:courseId/completion" element={<LegacyCompletionRedirect />} />
+      
+      {/* Additional legacy redirects */}
+      <Route path="/corporate" element={<Navigate to="/company" replace />} />
+      <Route path="/corporate/*" element={<Navigate to="/company" replace />} />
+      <Route path="/admin" element={<Navigate to="/company" replace />} />
+      <Route path="/admin/*" element={<Navigate to="/company" replace />} />
 
       {/* ===== ROOT REDIRECT ===== */}
       <Route path="/root" element={<RootRedirect />} />

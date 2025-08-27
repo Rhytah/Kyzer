@@ -1,10 +1,11 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
+import Header from './Header';
 
 const PublicLayout = () => {
   return (
-    <div className="min-h-screen bg-white">
-      {/* You can add a public header here if needed */}
+    <div className="min-h-screen bg-background-light">
+      <Header onMenuClick={() => {}} />
       <main>
         <Outlet />
       </main>

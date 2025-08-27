@@ -1,50 +1,41 @@
 // src/components/ui/Card.jsx
-import React from "react";
-import { clsx } from "clsx";
+import React from 'react';
 
-const Card = React.forwardRef(
-  (
-    {
-      children,
-      className = "",
-      padding = "default",
-      shadow = "default",
-      ...props
-    },
-    ref,
-  ) => {
-    const paddingClasses = {
-      none: "",
-      sm: "p-4",
-      default: "p-6",
-      lg: "p-8",
-    };
+const Card = ({ 
+  children, 
+  className = "", 
+  onClick, 
+  hover = false,
+  padding = "p-6"
+}) => {
+  const baseClasses = "rounded-xl border transition-all duration-200";
+  
+  const variantClasses = {
+    default: "bg-background-white border-border",
+    hover: "bg-background-white border-border hover:shadow-md hover:border-primary/20",
+    interactive: "bg-background-white border-border hover:shadow-md hover:border-primary/20 cursor-pointer"
+  };
 
-    const shadowClasses = {
-      none: "",
-      sm: "shadow-sm",
-      default: "shadow-sm hover:shadow-md",
-      lg: "shadow-lg",
-    };
+  const variant = onClick ? "interactive" : hover ? "hover" : "default";
+  
+  const classes = `${baseClasses} ${variantClasses[variant]} ${padding} ${className}`;
 
-    return (
-      <div
-        ref={ref}
-        className={clsx(
-          "bg-white rounded-xl border border-background-dark",
-          paddingClasses[padding],
-          shadowClasses[shadow],
-          "transition-shadow duration-200",
-          className,
-        )}
-        {...props}
-      >
-        {children}
-      </div>
-    );
-  },
-);
-
-Card.displayName = "Card";
+  return (
+    <div 
+      className={classes}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      } : undefined}
+    >
+      {children}
+    </div>
+  );
+};
 
 export default Card;
