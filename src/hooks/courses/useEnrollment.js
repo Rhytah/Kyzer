@@ -26,7 +26,7 @@ export const useEnrollment = () => {
 
       // Fetch enrollments with course details
       const { data: enrollmentsData, error: enrollmentsError } = await supabase
-        .from('enrollments')
+        .from('course_enrollments')
         .select(`
           *,
           courses (
@@ -37,8 +37,7 @@ export const useEnrollment = () => {
             thumbnail_url
           )
         `)
-        .eq('user_id', user.id)
-        .eq('status', 'active');
+        .eq('user_id', user.id);
 
       if (enrollmentsError) throw enrollmentsError;
 
@@ -78,7 +77,7 @@ export const useEnrollment = () => {
     try {
       // Check if already enrolled
       const { data: existing } = await supabase
-        .from('enrollments')
+        .from('course_enrollments')
         .select('id')
         .eq('user_id', user.id)
         .eq('course_id', courseId)
@@ -92,7 +91,7 @@ export const useEnrollment = () => {
 
       // Create enrollment
       const { data, error } = await supabase
-        .from('enrollments')
+        .from('course_enrollments')
         .insert({
           user_id: user.id,
           course_id: courseId,
@@ -122,7 +121,7 @@ export const useEnrollment = () => {
 
     try {
       const { error } = await supabase
-        .from('enrollments')
+        .from('course_enrollments')
         .update({ 
           progress_percentage: progressPercentage,
           last_accessed: new Date().toISOString()
@@ -158,7 +157,7 @@ export const useEnrollment = () => {
   useEffect(() => {
     loadUserStats();
   }, [user?.id]);
-
+  console.log(stats);
   return {
     enrollments,
     stats,

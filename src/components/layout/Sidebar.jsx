@@ -51,7 +51,8 @@ export default function Sidebar({ mobile = false, onClose }) {
       icon: BookOpen,
       children: [
         { name: "Enrolled", href: "/app/courses" },
-        { name: "Browse Catalog", href: "/app/courses/catalog" }
+        { name: "Browse Catalog", href: "/app/courses/catalog" },
+        { name: "Manage Courses", href: "/app/courses/management" }
       ]
     },
     { 

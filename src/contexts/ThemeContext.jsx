@@ -56,12 +56,6 @@ export const ThemeProvider = ({ children }) => {
     root.classList.add(`theme-${theme}`);
     
     // Debug: Check if theme is applied
-    console.log('🔧 Theme Context Debug:');
-    console.log('  - Current theme:', theme);
-    console.log('  - Document classes:', root.classList.toString());
-    console.log('  - CSS variable --color-primary:', getComputedStyle(root).getPropertyValue('--color-primary'));
-    console.log('  - CSS variable --color-background-light:', getComputedStyle(root).getPropertyValue('--color-background-light'));
-    
     // Store in localStorage
     localStorage.setItem('theme', theme);
   }, [theme]);

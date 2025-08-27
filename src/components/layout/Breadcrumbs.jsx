@@ -67,7 +67,7 @@ const Breadcrumbs = () => {
   return (
     <nav className="flex items-center space-x-1 text-sm text-text-muted mb-6" aria-label="Breadcrumb">
       {breadcrumbs.map((breadcrumb, index) => (
-        <div key={breadcrumb.href || index} className="flex items-center">
+        <div key={`${breadcrumb.href || 'item'}-${index}`} className="flex items-center">
           {index > 0 && <ChevronRight size={14} className="mx-2" />}
           
           {breadcrumb.href && !breadcrumb.isLast ? (

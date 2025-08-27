@@ -386,6 +386,7 @@ export default function CourseManagement() {
                   </div>
                 </div>
                 
+                {(() => { const isCreator = course.created_by === user?.id; return (
                 <div className="flex items-center gap-2 ml-4">
                   <Button
                     variant="secondary"
@@ -394,70 +395,39 @@ export default function CourseManagement() {
                   >
                     {courseLessons[course.id] ? 'Hide' : 'Show'} Structure
                   </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleTogglePublish(course.id, course.status)}
-                  >
-                    {course.status === 'published' ? (
-                      <>
-                        <EyeOff className="w-4 h-4 mr-1" />
-                        Unpublish
-                      </>
-                    ) : (
-                      <>
-                        <Eye className="w-4 h-4 mr-1" />
-                        Publish
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleEditCourse(course)}
-                  >
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleAddModule(course.id)}
-                  >
-                    <FolderOpen className="w-4 h-4 mr-1" />
-                    Add Module
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleAddLesson(course.id)}
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    Add Lesson
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteCourse(course.id)}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Course Structure Section */}
-              {(courseModules[course.id] || courseLessons[course.id]) && (
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium text-gray-900">Course Structure</h4>
-                    <div className="flex gap-2">
+                  {isCreator && (
+                    <>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleTogglePublish(course.id, course.status)}
+                      >
+                        {course.status === 'published' ? (
+                          <>
+                            <EyeOff className="w-4 h-4 mr-1" />
+                            Unpublish
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="w-4 h-4 mr-1" />
+                            Publish
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleEditCourse(course)}
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Edit
+                      </Button>
                       <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => handleAddModule(course.id)}
                       >
-                        <FolderOpen className="w-4 h-4 mr-2" />
+                        <FolderOpen className="w-4 h-4 mr-1" />
                         Add Module
                       </Button>
                       <Button
@@ -465,10 +435,48 @@ export default function CourseManagement() {
                         size="sm"
                         onClick={() => handleAddLesson(course.id)}
                       >
-                        <Plus className="w-4 h-4 mr-2" />
+                        <Plus className="w-4 h-4 mr-1" />
                         Add Lesson
                       </Button>
-                    </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteCourse(course.id)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+                ); })()}
+              </div>
+
+              {/* Course Structure Section */}
+              {(courseModules[course.id] || courseLessons[course.id]) && (
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-medium text-gray-900">Course Structure</h4>
+                    {course.created_by === user?.id && (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleAddModule(course.id)}
+                        >
+                          <FolderOpen className="w-4 h-4 mr-2" />
+                          Add Module
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleAddLesson(course.id)}
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Lesson
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="space-y-3">
@@ -497,29 +505,31 @@ export default function CourseManagement() {
                             </div>
                           </div>
                           
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditModule(module, course.id);
-                              }}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteModule(module.id, course.id);
-                              }}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          {course.created_by === user?.id && (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditModule(module, course.id);
+                                }}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteModule(module.id, course.id);
+                                }}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                         
                         {/* Module Lessons */}
@@ -550,13 +560,15 @@ export default function CourseManagement() {
                                         </div>
                                       </div>
                                       
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleEditLesson(lesson, course.id)}
-                                      >
-                                        <Edit className="w-4 h-4" />
-                                      </Button>
+                                      {course.created_by === user?.id && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleEditLesson(lesson, course.id)}
+                                        >
+                                          <Edit className="w-4 h-4" />
+                                        </Button>
+                                      )}
                                     </div>
                                   ))}
                               </div>
@@ -597,13 +609,15 @@ export default function CourseManagement() {
                                     </div>
                                   </div>
                                   
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleEditLesson(lesson, course.id)}
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </Button>
+                                  {course.created_by === user?.id && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEditLesson(lesson, course.id)}
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                  )}
                                 </div>
                               ))}
                           </div>
