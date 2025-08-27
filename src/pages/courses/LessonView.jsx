@@ -19,11 +19,13 @@ import {
   Settings,
   RotateCcw
 } from 'lucide-react'
+import { ScormPlayer } from '@/components/course'
 import { useCourseStore } from '@/store/courseStore'
 import { useAuth } from '@/hooks/auth/useAuth'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import { useToast } from '@/components/ui'
 
 export default function LessonView() {
   const { courseId, lessonId } = useParams()
@@ -46,6 +48,8 @@ export default function LessonView() {
   const [videoLoading, setVideoLoading] = useState(false)
   const [videoLoadTimeout, setVideoLoadTimeout] = useState(null)
   const [videoError, setVideoError] = useState(null)
+  const [isCompleting, setIsCompleting] = useState(false)
+  const { success, error: showError } = useToast()
 
   // Ref for video element to prevent AbortError
   const videoRef = useRef(null)
@@ -101,15 +105,16 @@ export default function LessonView() {
     }
   }, [lesson?.content_type, lesson?.content_url, videoLoading]);
 
-  // Function to save progress
-  const saveProgress = useCallback(async (time = currentTime) => {
+  // Function to save progress (supports completion override to avoid downgrades)
+  const saveProgress = useCallback(async (time = currentTime, completedOverride = null) => {
     if (user?.id && lesson && course) {
       try {
+        const completedFlag = completedOverride !== null ? completedOverride : isCompleted;
         await actions.updateLessonProgress(
           user.id,
           lesson.id,
           course.id,
-          isCompleted,
+          completedFlag,
           { 
             timeSpent: time,
             lastAccessed: new Date().toISOString()
@@ -208,6 +213,7 @@ export default function LessonView() {
   const markAsCompleted = async () => {
     if (user?.id && lesson && course) {
       try {
+        setIsCompleting(true)
         const timeSpent = videoRef.current ? videoRef.current.currentTime : currentTime;
         await actions.updateLessonProgress(
           user.id,
@@ -220,9 +226,29 @@ export default function LessonView() {
           }
         )
         setIsCompleted(true)
-        saveProgress(timeSpent)
+        // Ensure we do not downgrade completion on immediate autosave
+        await saveProgress(timeSpent, true)
+        success('Lesson marked as complete')
+        // Navigate to next lesson if available
+        const { data: lessonsData } = await actions.fetchCourseLessons(course.id)
+        if (lessonsData && Object.keys(lessonsData).length > 0) {
+          const flatLessons = [];
+          Object.values(lessonsData).forEach(moduleData => {
+            if (moduleData.lessons && Array.isArray(moduleData.lessons)) {
+              flatLessons.push(...moduleData.lessons);
+            }
+          });
+          flatLessons.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+          const currentIndex = flatLessons.findIndex(l => l.id === lesson.id)
+          const nextLesson = flatLessons[currentIndex + 1]
+          if (nextLesson) {
+            navigate(`/app/courses/${courseId}/lesson/${nextLesson.id}`)
+          }
+        }
       } catch (error) {
-        // Handle error silently or set error state if needed
+        showError('Failed to mark lesson complete')
+      } finally {
+        setIsCompleting(false)
       }
     }
   }
@@ -345,50 +371,96 @@ export default function LessonView() {
 
   const VideoPlayer = () => {
     if (lesson.content_type !== 'video') {
+      // Handle text rendering with stored format marker
+      if (lesson.content_type === 'text') {
+        const parseStoredText = (raw) => {
+          if (!raw) return { format: 'plaintext', text: '' };
+          const match = raw.match(/^<!--content_format:(markdown|html|plaintext)-->([\s\S]*)/);
+          if (match) {
+            return { format: match[1], text: match[2] };
+          }
+          return { format: 'plaintext', text: raw };
+        };
+        const escapeHtml = (unsafe) => unsafe
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll('\'', '&#039;');
+        const renderMarkdownToHtml = (md) => {
+          const escaped = escapeHtml(md);
+          let html = escaped;
+          html = html.replace(/^######\s?(.*)$/gm, '<h6>$1</h6>')
+                     .replace(/^#####\s?(.*)$/gm, '<h5>$1</h5>')
+                     .replace(/^####\s?(.*)$/gm, '<h4>$1</h4>')
+                     .replace(/^###\s?(.*)$/gm, '<h3>$1</h3>')
+                     .replace(/^##\s?(.*)$/gm, '<h2>$1</h2>')
+                     .replace(/^#\s?(.*)$/gm, '<h1>$1</h1>');
+          html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                     .replace(/\*(.*?)\*/g, '<em>$1</em>');
+          html = html.replace(/\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1<\/a>');
+          html = html.replace(/^(?:-\s.*(?:\n|$))+?/gm, (block) => {
+            const items = block.trim().split(/\n/).map(l => l.replace(/^-\s?/, '').trim()).filter(Boolean);
+            return items.length ? '<ul>' + items.map(i => `<li>${i}<\/li>`).join('') + '<\/ul>' : block;
+          });
+          html = html.replace(/^(?:\d+\.\s.*(?:\n|$))+?/gm, (block) => {
+            const items = block.trim().split(/\n/).map(l => l.replace(/^\d+\.\s?/, '').trim()).filter(Boolean);
+            return items.length ? '<ol>' + items.map(i => `<li>${i}<\/li>`).join('') + '<\/ol>' : block;
+          });
+          html = html.replace(/\n{2,}/g, '</p><p>');
+          html = `<p>${html.replace(/\n/g, '<br/>')}<\/p>`;
+          return html;
+        };
+
+        const parsed = parseStoredText(lesson.content_text);
+        const html = parsed.format === 'markdown'
+          ? renderMarkdownToHtml(parsed.text)
+          : parsed.format === 'html'
+            ? parsed.text
+            : `<p>${escapeHtml(parsed.text).replace(/\n/g, '<br/>')}<\/p>`;
+
+        return (
+          <div className="bg-gray-50 rounded-lg p-6">
+            <div
+              className="prose max-w-none text-text-medium"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          </div>
+        );
+      }
+
+      // Fallback placeholder for other non-video content types
       return (
         <div className="bg-gray-100 rounded-lg p-8 text-center">
-          <div className="text-gray-500 text-lg mb-4">
-            {lesson.content_type === 'text' ? 'Text Content' : 'Content Placeholder'}
-          </div>
-          {lesson.content_text && (
-            <div className="text-left bg-white p-4 rounded border">
-              {lesson.content_text}
-            </div>
-          )}
+          <div className="text-gray-500 text-lg mb-4">Content Placeholder</div>
         </div>
       );
     }
 
-    // Check if it's a YouTube URL
+    // Check if it's a YouTube URL → render iframe embed
     if (isYouTubeUrl(lesson.content_url)) {
       const videoId = getYouTubeVideoId(lesson.content_url);
-      return (
-        <div className="bg-gray-100 rounded-lg p-8 text-center">
-          <div className="text-gray-500 text-lg mb-4">
-            YouTube Video Detected
+      if (!videoId) {
+        return (
+          <div className="bg-gray-100 rounded-lg p-8 text-center">
+            <div className="text-gray-500 text-lg mb-4">Invalid YouTube URL</div>
+            <div className="bg-white p-6 rounded-lg border break-all">{lesson.content_url}</div>
           </div>
-          <div className="bg-white p-6 rounded-lg border">
-            <p className="text-gray-700 mb-4">
-              This lesson contains a YouTube video that cannot be played directly in the browser.
-            </p>
-            <div className="space-y-3">
-              <a
-                href={lesson.content_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                </svg>
-                Watch on YouTube
-              </a>
-              {videoId && (
-                <div className="text-sm text-gray-500">
-                  Video ID: {videoId}
-                </div>
-              )}
-            </div>
+        );
+      }
+      const embedUrl = `https://www.youtube.com/embed/${videoId}?rel=0`;
+      return (
+        <div className="w-full">
+          <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
+            <iframe
+              src={embedUrl}
+              title="YouTube video player"
+              className="absolute top-0 left-0 w-full h-full rounded-lg"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allowFullScreen
+            />
           </div>
         </div>
       );
@@ -469,6 +541,11 @@ export default function LessonView() {
           onTimeUpdate={() => {
             if (videoRef.current && lesson && course) {
               handleVideoTimeUpdate();
+            }
+          }}
+          onEnded={() => {
+            if (!isCompleted) {
+              markAsCompleted()
             }
           }}
         >
@@ -618,9 +695,29 @@ export default function LessonView() {
           <span className="text-text-dark">{lesson.title}</span>
         </div>
 
-        {/* Video Player */}
+        {/* Content Player */}
         <Card className="p-0 overflow-hidden">
-          <VideoPlayer />
+          {lesson.content_type === 'scorm' ? (
+            <ScormPlayer
+              scormUrl={lesson.content_url}
+              lessonId={lesson.id}
+              courseId={courseId}
+              onProgress={(score) => {
+                // Handle SCORM progress updates
+                console.log('SCORM progress:', score);
+              }}
+              onComplete={(completionData) => {
+                // Handle SCORM completion
+                setIsCompleted(true);
+                console.log('SCORM completed:', completionData);
+              }}
+              onError={(error) => {
+                console.error('SCORM error:', error);
+              }}
+            />
+          ) : (
+            <VideoPlayer />
+          )}
         </Card>
 
         {/* Video Error Display */}
@@ -632,14 +729,70 @@ export default function LessonView() {
           <div className="flex items-start justify-between mb-4">
             <div>
               <h1 className="text-2xl font-bold text-text-dark mb-2">{lesson.title}</h1>
-              <p className="text-text-light">{lesson.content_text || lesson.description || 'No description available'}</p>
+              {/* Render formatted content preview (respect stored format marker) */}
+              {(() => {
+                const parseStoredText = (raw) => {
+                  if (!raw) return { format: 'plaintext', text: '' };
+                  const match = raw.match(/^<!--content_format:(markdown|html|plaintext)-->([\s\S]*)/);
+                  if (match) {
+                    return { format: match[1], text: match[2] };
+                  }
+                  return { format: 'plaintext', text: raw };
+                };
+                const escapeHtml = (unsafe) => unsafe
+                  .replaceAll('&', '&amp;')
+                  .replaceAll('<', '&lt;')
+                  .replaceAll('>', '&gt;')
+                  .replaceAll('"', '&quot;')
+                  .replaceAll('\'', '&#039;');
+                const renderMarkdownToHtml = (md) => {
+                  const escaped = escapeHtml(md);
+                  let html = escaped;
+                  html = html.replace(/^######\s?(.*)$/gm, '<h6>$1</h6>')
+                             .replace(/^#####\s?(.*)$/gm, '<h5>$1</h5>')
+                             .replace(/^####\s?(.*)$/gm, '<h4>$1</h4>')
+                             .replace(/^###\s?(.*)$/gm, '<h3>$1</h3>')
+                             .replace(/^##\s?(.*)$/gm, '<h2>$1</h2>')
+                             .replace(/^#\s?(.*)$/gm, '<h1>$1</h1>');
+                  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                             .replace(/\*(.*?)\*/g, '<em>$1</em>');
+                  html = html.replace(/\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1<\/a>');
+                  html = html.replace(/^(?:-\s.*(?:\n|$))+?/gm, (block) => {
+                    const items = block.trim().split(/\n/).map(l => l.replace(/^-\s?/, '').trim()).filter(Boolean);
+                    return items.length ? '<ul>' + items.map(i => `<li>${i}<\/li>`).join('') + '<\/ul>' : block;
+                  });
+                  html = html.replace(/^(?:\d+\.\s.*(?:\n|$))+?/gm, (block) => {
+                    const items = block.trim().split(/\n/).map(l => l.replace(/^\d+\.\s?/, '').trim()).filter(Boolean);
+                    return items.length ? '<ol>' + items.map(i => `<li>${i}<\/li>`).join('') + '<\/ol>' : block;
+                  });
+                  html = html.replace(/\n{2,}/g, '</p><p>');
+                  html = `<p>${html.replace(/\n/g, '<br/>')}<\/p>`;
+                  return html;
+                };
+                const raw = lesson.content_text || lesson.description || '';
+                if (!raw) {
+                  return <p className="text-text-light">No description available</p>;
+                }
+                const parsed = parseStoredText(raw);
+                const html = parsed.format === 'markdown'
+                  ? renderMarkdownToHtml(parsed.text)
+                  : parsed.format === 'html'
+                    ? parsed.text
+                    : `<p>${escapeHtml(parsed.text).replace(/\n/g, '<br/>')}<\/p>`;
+                return (
+                  <div
+                    className="prose max-w-none text-text-light"
+                    dangerouslySetInnerHTML={{ __html: html }}
+                  />
+                );
+              })()}
             </div>
             
             <div className="flex items-center gap-2">
               {!isCompleted ? (
-                <Button onClick={markAsCompleted}>
+                <Button onClick={markAsCompleted} disabled={isCompleting}>
                   <CheckCircle className="w-4 h-4 mr-2" />
-                  Mark Complete
+                  {isCompleting ? 'Completing...' : 'Mark Complete'}
                 </Button>
               ) : (
                 <div className="flex items-center gap-2 text-success-default">

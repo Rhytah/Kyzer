@@ -1,87 +1,75 @@
 // src/components/ui/Modal.jsx
-import React, { useEffect } from "react";
-import { X } from "lucide-react";
-import { clsx } from "clsx";
+import React, { useEffect } from 'react';
+import { X } from 'lucide-react';
 
-const Modal = ({
-  isOpen,
-  onClose,
-  title,
-  children,
+const Modal = ({ 
+  isOpen, 
+  onClose, 
+  title, 
+  children, 
   size = "default",
-  className = "",
+  showCloseButton = true 
 }) => {
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen]);
-
+  // Close modal on escape key
   useEffect(() => {
     const handleEscape = (e) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         onClose();
       }
     };
 
     if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
     }
 
     return () => {
-      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
     };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
-  const sizes = {
+  const sizeClasses = {
     sm: "max-w-md",
-    default: "max-w-lg",
-    lg: "max-w-2xl",
-    xl: "max-w-4xl",
-    full: "max-w-7xl",
+    default: "max-w-2xl",
+    lg: "max-w-4xl",
+    xl: "max-w-6xl",
+    full: "max-w-full mx-4"
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
-      <div
+      <div 
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
         onClick={onClose}
       />
-
+      
       {/* Modal */}
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <div
-          className={clsx(
-            "relative w-full bg-white rounded-xl shadow-xl",
-            "transform transition-all",
-            sizes[size],
-            className,
-          )}
-        >
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className={`relative w-full ${sizeClasses[size]} bg-background-white rounded-xl shadow-xl`}>
           {/* Header */}
           {title && (
-            <div className="flex items-center justify-between p-6 border-b border-background-dark">
-              <h3 className="text-lg font-semibold text-text-dark">{title}</h3>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-background-medium rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-text-light" />
-              </button>
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <h2 className="text-xl font-semibold text-text-dark">{title}</h2>
+              {showCloseButton && (
+                <button
+                  onClick={onClose}
+                  className="p-2 rounded-lg text-text-light hover:text-text-dark hover:bg-background-light transition-colors"
+                  aria-label="Close modal"
+                >
+                  <X size={20} />
+                </button>
+              )}
             </div>
           )}
-
+          
           {/* Content */}
-          <div className={title ? "p-6" : "p-6"}>{children}</div>
+          <div className="p-6">
+            {children}
+          </div>
         </div>
       </div>
     </div>

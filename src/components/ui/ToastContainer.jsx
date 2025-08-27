@@ -43,7 +43,12 @@ export const useToast = () => {
     success,
     error,
     warning,
-    info
+    info,
+    // Compatibility aliases
+    showSuccess: success,
+    showError: error,
+    showWarning: warning,
+    showInfo: info
   };
 };
 

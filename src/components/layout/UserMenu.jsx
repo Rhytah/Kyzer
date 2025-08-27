@@ -57,7 +57,7 @@ const user_iamge = user?.user_metadata?.avatar_url;
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-border z-50">
+        <div className="absolute right-0 mt-2 w-56 bg-background-white rounded-lg shadow-lg border border-border z-50">
           <div className="py-2">
             {/* User Info */}
             <div className="px-4 py-3 border-b border-border">

@@ -9,27 +9,7 @@
 @tailwind utilities;
 
 /* Custom CSS Variables for Design System */
-:root {
-  /* Primary Colors */
-  --color-primary: #374151;
-  --color-primary-dark: #1f2937;
-  --color-primary-light: #f3f4f6;
-
-  /* Text Colors */
-  --color-text-dark: #111827;
-  --color-text-medium: #374151;
-  --color-text-light: #6b7280;
-  --color-text-muted: #9ca3af;
-
-  /* Background Colors */
-  --color-background-white: #ffffff;
-  --color-background-light: #f9fafb;
-  --color-background-medium: #f3f4f6;
-  --color-background-dark: #e5e7eb;
-
-  /* Border */
-  --color-border: #e5e7eb;
-}
+/* Note: Theme variables are now defined in themes.css */
 
 /* Base Styles */
 * {
@@ -49,6 +29,7 @@ body {
   line-height: 1.6;
   color: var(--color-text-dark);
   background-color: var(--color-background-light);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Custom Utility Classes */
@@ -113,6 +94,10 @@ body {
     border-color: var(--color-primary);
   }
 
+  .border-border {
+    border-color: var(--color-border);
+  }
+
   .hover\:bg-primary-dark:hover {
     background-color: var(--color-primary-dark);
   }
@@ -130,7 +115,8 @@ body {
   }
 
   .focus\:ring-primary\/20:focus {
-    box-shadow: 0 0 0 3px rgba(55, 65, 81, 0.2);
+    box-shadow: 0 0 0 3px var(--color-primary);
+    opacity: 0.2;
   }
 }
 

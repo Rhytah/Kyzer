@@ -22,7 +22,7 @@ const MobileNav = () => {
   };
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-lg z-30">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-background-white border-t border-border shadow-lg z-30">
       <div className="flex justify-around py-1">
         {mobileNavItems.map((item) => {
           const Icon = item.icon;

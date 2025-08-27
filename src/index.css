@@ -10,9 +10,33 @@
   }
   
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply text-text-dark bg-background-light;
     margin: 0;
     padding: 0;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* Theme transitions */
+  * {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-background-medium;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-text-light;
   }
 }
 
@@ -22,10 +46,49 @@
   }
   
   .btn-primary {
-    @apply bg-gray-900 text-white hover:bg-gray-800 focus:ring-gray-900;
+    @apply bg-primary text-background-white;
+  }
+  
+  .btn-primary:hover {
+    @apply bg-primary-dark;
   }
   
   .card {
-    @apply bg-white rounded-lg border border-gray-200 shadow-sm;
+    @apply bg-background-white border border-border rounded-lg shadow-sm;
+  }
+
+  /* Theme-aware text classes */
+  .text-theme-primary {
+    @apply text-primary;
+  }
+
+  .text-theme-secondary {
+    @apply text-text-medium;
+  }
+
+  .text-theme-muted {
+    @apply text-text-muted;
+  }
+
+  /* Theme-aware background classes */
+  .bg-theme-primary {
+    @apply bg-primary;
+  }
+
+  .bg-theme-secondary {
+    @apply bg-background-medium;
+  }
+
+  .bg-theme-muted {
+    @apply bg-background-light;
+  }
+
+  /* Theme-aware border classes */
+  .border-theme-primary {
+    @apply border-primary;
+  }
+
+  .border-theme-secondary {
+    @apply border-border;
   }
 }

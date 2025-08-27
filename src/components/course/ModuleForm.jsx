@@ -13,6 +13,7 @@ const ModuleForm = ({
   const { user } = useAuth();
   const { showSuccess, showError } = useToast();
   const { actions } = useCourseStore();
+  const isModuleTitleUnique = useCourseStore(state => state.actions.isModuleTitleUnique);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -55,6 +56,14 @@ const ModuleForm = ({
 
     if (!formData.title.trim()) {
       showError('Module title is required');
+      return;
+    }
+
+    // Uniqueness validation
+    const excludeId = module?.id || null;
+    const unique = await isModuleTitleUnique(courseId, formData.title, excludeId);
+    if (!unique) {
+      showError('A module with this title already exists in this course');
       return;
     }
 

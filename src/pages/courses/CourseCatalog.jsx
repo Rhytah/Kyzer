@@ -32,6 +32,7 @@ const CourseCatalog = () => {
   const error = useCourseStore(state => state.error);
   
   const fetchCourses = useCourseStore(state => state.actions.fetchCourses);
+  const getCourseCounts = useCourseStore(state => state.actions.getCourseCounts);
   const enrollInCourse = useCourseStore(state => state.actions.enrollInCourse);
 
   // Local state
@@ -40,6 +41,7 @@ const CourseCatalog = () => {
   const [selectedLevel, setSelectedLevel] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
   const [viewMode, setViewMode] = useState("grid");
+  const [courseCounts, setCourseCounts] = useState({}); // { [courseId]: { modules, lessons } }
 
   // Categories and levels
   // Store selectors - individual to prevent infinite loops
@@ -84,6 +86,32 @@ const CourseCatalog = () => {
       fetchCourses();
     }
   }, [fetchCourses, user?.id]);
+
+  // Load counts (modules, lessons) for visible courses
+  useEffect(() => {
+    const loadCounts = async (coursesToFetch) => {
+      const missing = coursesToFetch.filter(c => !courseCounts[c.id]);
+      if (missing.length === 0) return;
+      try {
+        const results = await Promise.all(missing.map(async (c) => {
+          const { data } = await getCourseCounts(c.id);
+          return { id: c.id, counts: data };
+        }));
+        setCourseCounts(prev => {
+          const next = { ...prev };
+          results.forEach(r => {
+            next[r.id] = r.counts || { modules: 0, lessons: 0 };
+          });
+          return next;
+        });
+      } catch (_) {
+        // ignore
+      }
+    };
+    if (courses && courses.length > 0) {
+      loadCounts(courses);
+    }
+  }, [courses, getCourseCounts]);
 
   // Check if user is enrolled in a course
   const isEnrolled = (courseId) => {
@@ -155,12 +183,31 @@ const CourseCatalog = () => {
     }
   });
 
+  const formatDuration = (totalMinutes) => {
+    const minutes = Math.max(0, Math.floor(totalMinutes || 0));
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+    if (hours > 0) return `${hours}h`;
+    return `${mins}m`;
+  };
+
   // Course card component
   const CourseCard = ({ course }) => (
     <Card className="group hover:shadow-lg transition-all duration-300 overflow-hidden">
       {/* Course Image */}
-      <div className="relative h-48 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <BookOpen className="w-16 h-16 text-indigo-400" />
+      <div className="relative h-48 overflow-hidden">
+        {course.thumbnail_url ? (
+          <img
+            src={course.thumbnail_url}
+            alt={`${course.title} thumbnail`}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+            <BookOpen className="w-16 h-16 text-indigo-400" />
+          </div>
+        )}
         
         {/* Status Badges */}
         {course.is_published && (
@@ -222,21 +269,19 @@ const CourseCatalog = () => {
 
         {/* Course Stats */}
         <div className="flex items-center gap-4 mb-4 text-sm text-gray-500">
-          {course.duration_minutes && (
-            <div className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
-              <span>{Math.floor(course.duration_minutes / 60)}h {course.duration_minutes % 60}m</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1">
+            <Clock className="w-4 h-4" />
+            <span>{formatDuration(course.duration_minutes)}</span>
+          </div>
           <div className="flex items-center gap-1">
             <BookOpen className="w-4 h-4" />
-            <span>{course.lessons?.length || 0} lessons</span>
+            <span>{(courseCounts[course.id]?.lessons) ?? (course.lessons?.length || 0)} lessons</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-4 h-4 bg-blue-100 rounded flex items-center justify-center">
               <BookOpen className="w-3 h-3 text-blue-600" />
             </div>
-            <span>{course.modules?.length || 0} modules</span>
+            <span>{(courseCounts[course.id]?.modules) ?? (course.modules?.length || 0)} modules</span>
           </div>
         </div>
 
@@ -274,8 +319,18 @@ const CourseCatalog = () => {
     <Card className="p-6 hover:shadow-md transition-shadow">
       <div className="flex gap-6">
         {/* Course Image */}
-        <div className="w-48 h-32 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
-          <BookOpen className="w-12 h-12 text-indigo-400" />
+        <div className="w-48 h-32 rounded-lg overflow-hidden flex-shrink-0">
+          {course.thumbnail_url ? (
+            <img
+              src={course.thumbnail_url}
+              alt={`${course.title} thumbnail`}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+              <BookOpen className="w-12 h-12 text-indigo-400" />
+            </div>
+          )}
         </div>
 
         {/* Course Details */}
@@ -318,22 +373,20 @@ const CourseCatalog = () => {
           </div>
 
           {/* Course Stats */}
-                      <div className="flex items-center gap-6 mb-4 text-sm text-gray-500">
-            {course.duration_minutes && (
-              <div className="flex items-center gap-1">
-                <Clock className="w-4 h-4" />
-                <span>{Math.floor(course.duration_minutes / 60)}h {course.duration_minutes % 60}m</span>
-              </div>
-            )}
+          <div className="flex items-center gap-6 mb-4 text-sm text-gray-500">
+            <div className="flex items-center gap-1">
+              <Clock className="w-4 h-4" />
+              <span>{formatDuration(course.duration_minutes)}</span>
+            </div>
             <div className="flex items-center gap-1">
               <BookOpen className="w-4 h-4" />
-              <span>{course.lessons?.length || 0} lessons</span>
+              <span>{(courseCounts[course.id]?.lessons) ?? (course.lessons?.length || 0)} lessons</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-4 h-4 bg-blue-100 rounded flex items-center justify-center">
                 <BookOpen className="w-3 h-3 text-blue-600" />
               </div>
-              <span>{course.modules?.length || 0} modules</span>
+              <span>{(courseCounts[course.id]?.modules) ?? (course.modules?.length || 0)} modules</span>
             </div>
             <div className="flex items-center gap-1">
               <Users className="w-4 h-4" />

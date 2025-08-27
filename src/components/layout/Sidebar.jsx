@@ -202,8 +202,8 @@ export default function Sidebar({ mobile = false, onClose }) {
   };
 
   const sidebarClasses = mobile
-    ? "w-64 bg-white h-full flex flex-col shadow-xl"
-    : "hidden lg:block w-64 bg-white border-r border-border min-h-screen fixed left-0 top-16 z-20";
+    ? "w-64 bg-background-white h-full flex flex-col shadow-xl"
+    : "hidden lg:block w-64 bg-background-white border-r border-border min-h-screen fixed left-0 top-16 z-20";
 
   if (corporateLoading) {
     return (

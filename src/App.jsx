@@ -7,6 +7,7 @@ import Home from './pages/public/Home';
 import About from './pages/public/About';
 import Pricing from './pages/public/Pricing';
 import Contact from './pages/public/Contact';
+import ThemeDemo from './pages/public/ThemeDemo';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/SignUp';
 import ForgotPassword from './pages/auth/ForgotPassword';
@@ -66,6 +67,7 @@ function LegacyCompletionRedirect() {
 
 // Hooks
 import { AuthProvider, useAuth } from '@/hooks/auth/useAuth';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 // ===========================================
 // MAIN APP COMPONENT
@@ -73,37 +75,39 @@ import { AuthProvider, useAuth } from '@/hooks/auth/useAuth';
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AppRoutes />
-        
-        {/* Toast Notifications */}
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#374151',
-              color: '#fff',
-            },
-            success: {
-              duration: 3000,
-              iconTheme: {
-                primary: '#059669',
-                secondary: '#fff',
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <AppRoutes />
+          
+          {/* Toast Notifications */}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: 'var(--color-primary)',
+                color: 'var(--color-background-white)',
               },
-            },
-            error: {
-              duration: 5000,
-              iconTheme: {
-                primary: '#DC2626',
-                secondary: '#fff',
+              success: {
+                duration: 3000,
+                iconTheme: {
+                  primary: 'var(--color-success)',
+                  secondary: 'var(--color-background-white)',
+                },
               },
-            },
-          }}
-        />
-      </Router>
-    </AuthProvider>
+              error: {
+                duration: 5000,
+                iconTheme: {
+                  primary: 'var(--color-error)',
+                  secondary: 'var(--color-background-white)',
+                },
+              },
+            }}
+          />
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
@@ -174,6 +178,7 @@ function AppRoutes() {
         <Route path="about" element={<About />} />
         <Route path="pricing" element={<Pricing />} />
         <Route path="contact" element={<Contact />} />
+        <Route path="theme-demo" element={<ThemeDemo />} />
       </Route>
 
       {/* ===== AUTHENTICATION ROUTES ===== */}

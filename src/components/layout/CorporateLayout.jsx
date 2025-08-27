@@ -1,23 +1,25 @@
-import React, { useRef, useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useRef, useState, useEffect } from 'react';
+import { Outlet, useLocation, Navigate } from 'react-router-dom';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Breadcrumbs from './Breadcrumbs';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import useCorporate from '@/hooks/corporate/useCorporate';
+
 const CorporateLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isLoading, isCorporateUser } = useCorporate();
-  // In CorporateLayout
-const previousPath = useRef(location.pathname);
+  const location = useLocation();
+  const previousPath = useRef(location.pathname);
 
-useEffect(() => {
-  if (location.pathname === previousPath.current) {
-    console.error('Redirect loop detected at', location.pathname);
-    return <Navigate to="/error" state={{ error: 'Redirect loop' }} replace />;
-  }
-  previousPath.current = location.pathname;
-}, [location]);
+  useEffect(() => {
+    if (location.pathname === previousPath.current) {
+      console.error('Redirect loop detected at', location.pathname);
+      return;
+    }
+    previousPath.current = location.pathname;
+  }, [location]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -26,9 +28,10 @@ useEffect(() => {
     );
   }
 
-    if (!isCorporateUser) {
+  if (!isCorporateUser) {
     return <Navigate to="/app/dashboard" replace />;
   }
+
   return (
     <div className="min-h-screen bg-background-light">
       {/* Corporate indicator */}
@@ -50,7 +53,7 @@ useEffect(() => {
               className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
               onClick={() => setSidebarOpen(false)}
             />
-            <div className="lg:hidden fixed left-0 top-0 h-full w-64 bg-white z-50 transform transition-transform duration-300">
+            <div className="lg:hidden fixed left-0 top-0 h-full w-64 bg-background-white z-50 transform transition-transform duration-300">
               <Sidebar mobile onClose={() => setSidebarOpen(false)} />
             </div>
           </>

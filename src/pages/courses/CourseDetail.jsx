@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Globe,
   Smartphone,
+  Layers
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
@@ -30,12 +31,15 @@ export default function CourseDetail() {
   // Store selectors - individual to prevent infinite loops
   const courses = useCourseStore(state => state.courses);
   const enrolledCourses = useCourseStore(state => state.enrolledCourses);
+  const courseProgress = useCourseStore(state => state.courseProgress);
   const loading = useCourseStore(state => state.loading);
   const error = useCourseStore(state => state.error);
   const fetchCourses = useCourseStore(state => state.actions.fetchCourses);
   const enrollInCourse = useCourseStore(state => state.actions.enrollInCourse);
   const fetchCourseLessons = useCourseStore(state => state.actions.fetchCourseLessons);
   const fetchCourseModules = useCourseStore(state => state.actions.fetchCourseModules);
+  const fetchCourseProgress = useCourseStore(state => state.actions.fetchCourseProgress);
+  const fetchEnrolledCourses = useCourseStore(state => state.actions.fetchEnrolledCourses);
   
   const [activeTab, setActiveTab] = useState('overview')
   const [expandedModule, setExpandedModule] = useState(null)
@@ -201,6 +205,20 @@ export default function CourseDetail() {
     loadCourseLessons()
   }, [courseId])
 
+  // Load per-user progress map for this course
+  useEffect(() => {
+    if (user?.id && courseId) {
+      fetchCourseProgress(user.id, courseId)
+    }
+  }, [user?.id, courseId, fetchCourseProgress])
+
+  // Keep enrollment with progress_percentage fresh for accurate UI
+  useEffect(() => {
+    if (user?.id) {
+      fetchEnrolledCourses(user.id)
+    }
+  }, [user?.id, fetchEnrolledCourses])
+
   useEffect(() => {
     // Fetch courses if not already loaded
     if (!courses || courses.length === 0) {
@@ -231,6 +249,40 @@ export default function CourseDetail() {
     setExpandedModule(expandedModule === moduleId ? null : moduleId)
   }
 
+  const getProgressPercentage = () => {
+    if (course?.progress_percentage !== undefined && course?.progress_percentage !== null) {
+      return course.progress_percentage
+    }
+    const progressMap = courseProgress?.[courseId]
+    if (!progressMap || lessons.length === 0) return 0
+    const completedCount = Object.values(progressMap).filter(p => p.completed).length
+    return Math.round((completedCount / lessons.length) * 100)
+  }
+
+  const getNextLessonId = () => {
+    if (!lessons || lessons.length === 0) return null
+    const progressMap = courseProgress?.[courseId] || {}
+    const next = lessons.find(l => !progressMap[l.id]?.completed)
+    return next ? next.id : lessons[0].id
+  }
+
+  const getTotalDurationMinutes = () => {
+    const sumFromLessons = lessons && lessons.length > 0
+      ? lessons.reduce((total, l) => total + (l?.duration_minutes || 0), 0)
+      : 0
+    if (sumFromLessons > 0) return sumFromLessons
+    return (course?.duration_minutes || course?.duration || 0) || 0
+  }
+
+  const formatDuration = (totalMinutes) => {
+    const minutes = Math.max(0, Math.floor(totalMinutes || 0))
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    if (hours > 0 && mins > 0) return `${hours}h ${mins}m`
+    if (hours > 0) return `${hours}h`
+    return `${mins}m`
+  }
+
   if (loading.courses) {
     return (
       <div className="flex justify-center items-center min-h-96">
@@ -253,9 +305,22 @@ export default function CourseDetail() {
 
   return (
     <div className="space-y-8">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-primary-dark to-primary-default text-white rounded-lg p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Hero Section with Cover Image */}
+      <div className="relative text-white rounded-lg overflow-hidden">
+        {course.thumbnail_url ? (
+          <>
+            <img
+              src={course.thumbnail_url}
+              alt={`${course.title} cover`}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/30" />
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-r from-primary-dark to-primary-default" />
+        )}
+        <div className="relative p-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2 mb-4">
               <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm">
@@ -273,13 +338,38 @@ export default function CourseDetail() {
                 <span className="font-medium">{course.rating || '4.5'}</span>
                 <span className="text-white/80">({(course.totalRatings || 0).toLocaleString()} ratings)</span>
               </div>
+
+              {/* Enrollment progress bar */}
+              {isEnrolled && (
+                <div className="mt-2 text-left">
+                  <div className="flex items-center justify-between text-sm text-text-muted mb-1">
+                    <span>Progress</span>
+                    <span>{getProgressPercentage()}%</span>
+                  </div>
+                  <div className="w-full bg-background-medium rounded-full h-2">
+                    <div
+                      className="h-2 rounded-full bg-primary-default"
+                      style={{ width: `${getProgressPercentage()}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4" />
                 <span>{(course.students || 0).toLocaleString()} students</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />
-                <span>{Math.floor((course.duration || course.duration_minutes || 0) / 60)} hours</span>
+                <span>{formatDuration(getTotalDurationMinutes())}</span>
+              </div>
+              {/* Modules and Lessons counts */}
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4" />
+                <span>{modules?.length || 0} modules</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                <span>{lessons?.length || 0} lessons</span>
               </div>
               <div className="flex items-center gap-2">
                 <Globe className="w-4 h-4" />
@@ -291,10 +381,8 @@ export default function CourseDetail() {
           {/* Enrollment Card */}
           <div className="lg:col-span-1">
             <Card className="p-6 bg-white text-text-dark">
-              <div className="text-center mb-6">
-                <div className="w-full h-40 bg-background-medium rounded-lg flex items-center justify-center mb-4">
-                  <Play className="w-16 h-16 text-text-muted" />
-                </div>
+              <div className="text-center mb-8">
+              
                 
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <span className="text-3xl font-bold">${course.price || 'Free'}</span>
@@ -311,25 +399,35 @@ export default function CourseDetail() {
               </div>
 
               {isEnrolled ? (
-                <div className="space-y-3">
-                  <Link to={`/app/courses/${courseId}/learning`}>
-                    <Button className="w-full" size="lg">
-                      <Play className="w-5 h-5 mr-2" />
-                      Start Learning
-                    </Button>
-                  </Link>
-                  {lessons.length > 0 && (
-                    <Link to={`/app/courses/${courseId}/lesson/${lessons[0].id}`}>
-                      <Button variant="outline" className="w-full" size="lg">
-                        <BookOpen className="w-4 h-4 mr-2" />
-                        Continue Lesson
-                      </Button>
-                    </Link>
-                  )}
-                  <div className="text-center text-sm text-success-default">
-                    ✓ You're enrolled in this course
-                  </div>
-                </div>
+                (() => {
+                  const progressPct = getProgressPercentage();
+                  const hasStarted = progressPct > 0 || !!course?.last_accessed;
+                  const nextLessonId = getNextLessonId();
+                  return (
+                    <div className="space-y-3">
+                      {hasStarted ? (
+                        nextLessonId && (
+                          <Link to={`/app/courses/${courseId}/lesson/${nextLessonId}`}>
+                            <Button className="w-full" size="lg">
+                              <BookOpen className="w-4 h-4 mr-2" />
+                              Continue ({progressPct}%)
+                            </Button>
+                          </Link>
+                        )
+                      ) : (
+                        <Link to={`/app/courses/${courseId}/learning`}>
+                          <Button className="w-full" size="lg">
+                            <Play className="w-5 h-5 mr-2" />
+                            Start Learning
+                          </Button>
+                        </Link>
+                      )}
+                      <div className="text-center text-sm text-success-default">
+                        ✓ You're enrolled in this course
+                      </div>
+                    </div>
+                  );
+                })()
               ) : (
                 <div className="space-y-3">
                   <Button className="w-full" size="lg" onClick={handleEnroll}>
@@ -359,6 +457,7 @@ export default function CourseDetail() {
             </Card>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Navigation Tabs */}
@@ -460,7 +559,12 @@ export default function CourseDetail() {
                           <div className="text-left">
                             <h3 className="font-semibold text-text-dark">{module.title}</h3>
                             <p className="text-sm text-text-light">
-                              {courseStructure[module.id]?.lessons?.length || 0} lessons • {module.estimated_duration || 0} min
+                              {(() => {
+                                const lessonList = courseStructure[module.id]?.lessons || [];
+                                const lessonCount = lessonList.length;
+                                const totalMins = lessonList.reduce((sum, l) => sum + (l?.duration_minutes || 0), 0);
+                                return `${lessonCount} lessons • ${totalMins} min`;
+                              })()}
                             </p>
                           </div>
                         </div>

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, Search, Bell } from 'lucide-react';
-import { useAuth } from '@hooks/auth/useAuth';
+import { useAuth } from '@/hooks/auth/useAuth';
 import kyzerLogo from "../../assets/images/Kyzerlogo.png";
 import UserMenu from './UserMenu';
+import ThemeSwitcher from '@/components/ui/ThemeSwitcher';
 
 const Header = ({ onMenuClick }) => {
   const [showSearch, setShowSearch] = useState(false);
@@ -13,7 +14,7 @@ const Header = ({ onMenuClick }) => {
   const homeRoute = '/';
 
   return (
-    <header className="bg-white border-b border-border shadow-sm sticky top-0 z-30">
+    <header className="bg-background-white border-b border-border shadow-sm sticky top-0 z-30">
       <div className="px-4 sm:px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Left Section */}
@@ -53,6 +54,9 @@ const Header = ({ onMenuClick }) => {
             >
               <Search size={20} />
             </button>
+
+            {/* Theme Switcher */}
+            <ThemeSwitcher />
 
             {/* Notifications */}
             <button className="p-2 rounded-lg text-text-medium hover:text-text-dark hover:bg-background-light transition-colors relative">

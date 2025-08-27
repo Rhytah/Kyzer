@@ -522,6 +522,49 @@ export default function Progress() {
       {/* Content based on data availability */}
       {enrolledCourses && enrolledCourses.length > 0 ? (
         <>
+          {/* In-Progress Snapshot */}
+          {enrolledCourses.some(c => (c.progress_percentage || 0) > 0 && (c.progress_percentage || 0) < 100) && (
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-text-dark">In Progress</h2>
+                <span className="text-sm text-text-light">
+                  {enrolledCourses.filter(c => (c.progress_percentage || 0) > 0 && (c.progress_percentage || 0) < 100).length} courses
+                </span>
+              </div>
+              <div className="space-y-3">
+                {enrolledCourses
+                  .filter(c => (c.progress_percentage || 0) > 0 && (c.progress_percentage || 0) < 100)
+                  .slice(0, 6)
+                  .map(course => (
+                    <div key={course.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-12 h-8 rounded overflow-hidden bg-background-medium flex items-center justify-center flex-shrink-0">
+                          {course.thumbnail_url ? (
+                            <img src={course.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <BookOpen className="w-4 h-4 text-text-muted" />
+                          )}
+                        </div>
+                        <div className="truncate">
+                          <p className="text-sm font-medium text-text-dark truncate">{course.title}</p>
+                          <p className="text-xs text-text-muted">{course.progress_percentage || 0}% complete</p>
+                        </div>
+                      </div>
+                      <div className="w-40 flex items-center gap-2">
+                        <div className="flex-1 bg-background-medium h-2 rounded-full">
+                          <div
+                            className="h-2 rounded-full bg-primary-default"
+                            style={{ width: `${course.progress_percentage || 0}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-text-muted whitespace-nowrap">{course.progress_percentage || 0}%</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </Card>
+          )}
+
           {/* Progress Chart */}
           <Card className="p-6">
             <div className="flex items-center justify-between mb-6">

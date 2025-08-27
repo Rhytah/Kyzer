@@ -531,12 +531,29 @@ export default function MyCourses() {
     return 'bg-primary-default'
   }
 
+  const formatDuration = (totalMinutes) => {
+    const minutes = Math.max(0, Math.floor(totalMinutes || 0))
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    if (hours > 0 && mins > 0) return `${hours}h ${mins}m`
+    if (hours > 0) return `${hours}h`
+    return `${mins}m`
+  }
+
   const CourseCard = ({ course }) => (
     <Card className="overflow-hidden hover:shadow-lg transition-all duration-300">
       <div className="relative">
-        <div className="w-full h-48 bg-background-medium flex items-center justify-center">
-          <BookOpen className="w-16 h-16 text-text-muted" />
-        </div>
+        {course.thumbnail_url ? (
+          <img
+            src={course.thumbnail_url}
+            alt={`${course.title} thumbnail`}
+            className="w-full h-48 object-cover"
+          />
+        ) : (
+          <div className="w-full h-48 bg-background-medium flex items-center justify-center">
+            <BookOpen className="w-16 h-16 text-text-muted" />
+          </div>
+        )}
         
         {/* Progress Overlay */}
         <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white p-3">
@@ -594,7 +611,7 @@ export default function MyCourses() {
         <div className="flex items-center gap-4 mb-4 text-sm text-text-muted">
           <div className="flex items-center gap-1">
             <Clock className="w-4 h-4" />
-            <span>{Math.floor((course.duration_minutes || 0) / 60)}h {(course.duration_minutes || 0) % 60}m total</span>
+            <span>{formatDuration(course.duration_minutes)} total</span>
           </div>
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4 fill-warning-default text-warning-default" />
@@ -648,13 +665,15 @@ export default function MyCourses() {
   )
 
   const getTabCounts = () => {
-    const counts = {
+    const inProgress = courses.filter(c => (c.progress_percentage || 0) > 0 && (c.progress_percentage || 0) < 100).length
+    const completed = courses.filter(c => (c.progress_percentage || 0) === 100).length
+    const notStarted = courses.filter(c => (c.progress_percentage || 0) === 0).length
+    return {
       all: courses.length,
-      'in-progress': courses.filter(c => c.status === 'in_progress').length,
-      completed: courses.filter(c => c.status === 'completed').length,
-      'not-started': courses.filter(c => c.status === 'not_started').length
+      'in-progress': inProgress,
+      completed: completed,
+      'not-started': notStarted
     }
-    return counts
   }
 
   const tabCounts = getTabCounts()
@@ -697,9 +716,9 @@ export default function MyCourses() {
         
         <Card className="p-6 text-center">
           <div className="text-3xl font-bold text-warning-default mb-2">
-            {courses.filter(c => c.status === 'active').length}
+            {courses.filter(c => (c.progress_percentage || 0) > 0 && (c.progress_percentage || 0) < 100).length}
           </div>
-          <div className="text-text-light">Active</div>
+          <div className="text-text-light">In Progress</div>
         </Card>
         
         <Card className="p-6 text-center">

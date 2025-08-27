@@ -15,6 +15,7 @@ export default function CourseForm({ course = null, onSuccess, onCancel }) {
   // Store selectors - individual to prevent infinite loops
   const createCourse = useCourseStore(state => state.actions.createCourse);
   const updateCourse = useCourseStore(state => state.actions.updateCourse);
+  const isCourseTitleUnique = useCourseStore(state => state.actions.isCourseTitleUnique);
   const categories = useCourseStore(state => state.categories);
   const loadingCategories = useCourseStore(state => state.loading.categories);
   const fetchCategories = useCourseStore(state => state.actions.fetchCategories);
@@ -87,7 +88,7 @@ export default function CourseForm({ course = null, onSuccess, onCancel }) {
     }));
   };
 
-  const validateForm = () => {
+  const validateForm = async () => {
     if (!formData.title.trim()) {
       setError('Course title is required');
       return false;
@@ -100,6 +101,12 @@ export default function CourseForm({ course = null, onSuccess, onCancel }) {
       setError('Course slug is required');
       return false;
     }
+    // Uniqueness check
+    const unique = await isCourseTitleUnique(formData.title, course?.id || null);
+    if (!unique) {
+      setError('A course with this title already exists');
+      return false;
+    }
     return true;
   };
 
@@ -107,7 +114,7 @@ export default function CourseForm({ course = null, onSuccess, onCancel }) {
     e.preventDefault();
     setError('');
 
-    if (!validateForm()) return;
+    if (!(await validateForm())) return;
 
     setLoading(true);
 

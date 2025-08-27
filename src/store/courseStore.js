@@ -218,7 +218,7 @@ const useCourseStore = create((set, get) => ({
             completed,
             completed_at: completed ? new Date().toISOString() : null,
             metadata: metadata,
-          })
+          }, { onConflict: 'user_id,lesson_id,course_id' })
           .select()
           .single();
 
@@ -508,6 +508,18 @@ const useCourseStore = create((set, get) => ({
     // Course Management: Create new course
     createCourse: async (courseData, createdBy) => {
       try {
+        // Enforce unique course title (case-insensitive)
+        if (courseData?.title) {
+          const { data: existing } = await supabase
+            .from(TABLES.COURSES)
+            .select('id')
+            .ilike('title', courseData.title)
+            .limit(1);
+          if (existing && existing.length > 0) {
+            return { data: null, error: 'A course with this title already exists' };
+          }
+        }
+
         const { data, error } = await supabase
           .from(TABLES.COURSES)
           .insert({
@@ -535,6 +547,19 @@ const useCourseStore = create((set, get) => ({
     // Course Management: Update course
     updateCourse: async (courseId, updates) => {
       try {
+        // Enforce unique course title on update (case-insensitive)
+        if (updates?.title) {
+          const { data: existing } = await supabase
+            .from(TABLES.COURSES)
+            .select('id')
+            .ilike('title', updates.title)
+            .neq('id', courseId)
+            .limit(1);
+          if (existing && existing.length > 0) {
+            return { data: null, error: 'A course with this title already exists' };
+          }
+        }
+
         const { data, error } = await supabase
           .from(TABLES.COURSES)
           .update({
@@ -603,6 +628,20 @@ const useCourseStore = create((set, get) => ({
     // Lesson Management: Create lesson
     createLesson: async (lessonData, courseId, createdBy) => {
       try {
+        // Enforce unique lesson title within the course when module is not specified
+        if (lessonData?.title && !lessonData?.module_id) {
+          const { data: existing } = await supabase
+            .from(TABLES.LESSONS)
+            .select('id')
+            .eq('course_id', courseId)
+            .is('module_id', null)
+            .ilike('title', lessonData.title)
+            .limit(1);
+          if (existing && existing.length > 0) {
+            return { data: null, error: 'A lesson with this title already exists in this course' };
+          }
+        }
+
         // Get current lesson count for order_index
         const { data: existingLessons } = await supabase
           .from(TABLES.LESSONS)
@@ -639,6 +678,36 @@ const useCourseStore = create((set, get) => ({
     // Lesson Management: Update lesson
     updateLesson: async (lessonId, updates) => {
       try {
+        // Enforce unique lesson title within its module (or course if unassigned)
+        if (updates?.title) {
+          const { data: current } = await supabase
+            .from(TABLES.LESSONS)
+            .select('course_id,module_id')
+            .eq('id', lessonId)
+            .single();
+
+          if (current?.course_id !== undefined) {
+            let query = supabase
+              .from(TABLES.LESSONS)
+              .select('id')
+              .eq('course_id', current.course_id)
+              .ilike('title', updates.title)
+              .neq('id', lessonId)
+              .limit(1);
+
+            if (current.module_id) {
+              query = query.eq('module_id', current.module_id);
+            } else {
+              query = query.is('module_id', null);
+            }
+
+            const { data: existing } = await query;
+            if (existing && existing.length > 0) {
+              return { data: null, error: 'A lesson with this title already exists in this module/course' };
+            }
+          }
+        }
+
         const { data, error } = await supabase
           .from(TABLES.LESSONS)
           .update({
@@ -707,6 +776,26 @@ const useCourseStore = create((set, get) => ({
         return { data: data || [], error: null };
       } catch (error) {
         return { data: [], error: error.message };
+      }
+    },
+
+    // Lightweight counts for modules and lessons per course
+    getCourseCounts: async (courseId) => {
+      try {
+        const [{ count: modulesCount }, { count: lessonsCount }] = await Promise.all([
+          supabase
+            .from(TABLES.COURSE_MODULES)
+            .select('id', { count: 'exact', head: true })
+            .eq('course_id', courseId),
+          supabase
+            .from(TABLES.LESSONS)
+            .select('id', { count: 'exact', head: true })
+            .eq('course_id', courseId),
+        ]);
+
+        return { data: { modules: modulesCount || 0, lessons: lessonsCount || 0 }, error: null };
+      } catch (error) {
+        return { data: { modules: 0, lessons: 0 }, error: error.message };
       }
     },
 
@@ -837,6 +926,19 @@ const useCourseStore = create((set, get) => ({
     // Module Management: Create new module
     createModule: async (moduleData, courseId, createdBy) => {
       try {
+        // Enforce unique module title within a course (case-insensitive)
+        if (moduleData?.title) {
+          const { data: existing } = await supabase
+            .from(TABLES.COURSE_MODULES)
+            .select('id')
+            .eq('course_id', courseId)
+            .ilike('title', moduleData.title)
+            .limit(1);
+          if (existing && existing.length > 0) {
+            return { data: null, error: 'A module with this title already exists in this course' };
+          }
+        }
+
         // Get current module count for order_index
         const { data: existingModules } = await supabase
           .from(TABLES.COURSE_MODULES)
@@ -882,6 +984,28 @@ const useCourseStore = create((set, get) => ({
     // Module Management: Update module
     updateModule: async (moduleId, updates) => {
       try {
+        // Enforce unique module title within a course on update (case-insensitive)
+        if (updates?.title) {
+          const { data: current } = await supabase
+            .from(TABLES.COURSE_MODULES)
+            .select('course_id')
+            .eq('id', moduleId)
+            .single();
+
+          if (current?.course_id) {
+            const { data: existing } = await supabase
+              .from(TABLES.COURSE_MODULES)
+              .select('id')
+              .eq('course_id', current.course_id)
+              .ilike('title', updates.title)
+              .neq('id', moduleId)
+              .limit(1);
+            if (existing && existing.length > 0) {
+              return { data: null, error: 'A module with this title already exists in this course' };
+            }
+          }
+        }
+
         const { data, error } = await supabase
           .from(TABLES.COURSE_MODULES)
           .update({
@@ -968,6 +1092,27 @@ const useCourseStore = create((set, get) => ({
     // Enhanced Lesson Management: Create lesson with module support
     createLesson: async (lessonData, courseId, moduleId, createdBy) => {
       try {
+        // Enforce unique lesson title within the module (or course if moduleId is null)
+        if (lessonData?.title) {
+          let query = supabase
+            .from(TABLES.LESSONS)
+            .select('id')
+            .eq('course_id', courseId)
+            .ilike('title', lessonData.title)
+            .limit(1);
+
+          if (moduleId) {
+            query = query.eq('module_id', moduleId);
+          } else {
+            query = query.is('module_id', null);
+          }
+
+          const { data: existing } = await query;
+          if (existing && existing.length > 0) {
+            return { data: null, error: 'A lesson with this title already exists in this module/course' };
+          }
+        }
+
         // Get current lesson count for order_index within the module
         const { data: existingLessons } = await supabase
           .from(TABLES.LESSONS)
@@ -1048,6 +1193,59 @@ const useCourseStore = create((set, get) => ({
         return { data: sortedGroupedLessons, error: null };
       } catch (error) {
         return { data: {}, error: error.message };
+      }
+    },
+
+    // Title uniqueness helpers
+    isCourseTitleUnique: async (title, excludeId = null) => {
+      try {
+        let query = supabase
+          .from(TABLES.COURSES)
+          .select('id')
+          .ilike('title', title)
+          .limit(1);
+        if (excludeId) query = query.neq('id', excludeId);
+        const { data } = await query;
+        return !data || data.length === 0;
+      } catch (error) {
+        return false;
+      }
+    },
+
+    isModuleTitleUnique: async (courseId, title, excludeId = null) => {
+      try {
+        let query = supabase
+          .from(TABLES.COURSE_MODULES)
+          .select('id')
+          .eq('course_id', courseId)
+          .ilike('title', title)
+          .limit(1);
+        if (excludeId) query = query.neq('id', excludeId);
+        const { data } = await query;
+        return !data || data.length === 0;
+      } catch (error) {
+        return false;
+      }
+    },
+
+    isLessonTitleUnique: async (courseId, moduleId, title, excludeId = null) => {
+      try {
+        let query = supabase
+          .from(TABLES.LESSONS)
+          .select('id')
+          .eq('course_id', courseId)
+          .ilike('title', title)
+          .limit(1);
+        if (moduleId) {
+          query = query.eq('module_id', moduleId);
+        } else {
+          query = query.is('module_id', null);
+        }
+        if (excludeId) query = query.neq('id', excludeId);
+        const { data } = await query;
+        return !data || data.length === 0;
+      } catch (error) {
+        return false;
       }
     },
   },

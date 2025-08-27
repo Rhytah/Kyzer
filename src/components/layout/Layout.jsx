@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { useAuth } from '@hooks/auth/useAuth';
+import { useAuth } from '@/hooks/auth/useAuth';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
@@ -55,7 +55,7 @@ export default function Layout() {
               className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
               onClick={() => setSidebarOpen(false)}
             />
-            <div className="lg:hidden fixed left-0 top-0 h-full w-64 bg-white z-50">
+            <div className="lg:hidden fixed left-0 top-0 h-full w-64 bg-background-white z-50">
               <Sidebar 
                 mobile 
                 onClose={() => setSidebarOpen(false)} 

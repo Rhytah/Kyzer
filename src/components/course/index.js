@@ -10,3 +10,6 @@ export { default as LearnerTypeSelector } from './LearnerTypeSelector';
 export { default as QuickReviewPath } from './QuickReviewPath';
 export { default as SelfPacedLearningFlow } from './SelfPacedLearningFlow';
 export { default as TestOutAssessment } from './TestOutAssessment';
+export { default as ScormPlayer } from './ScormPlayer';
+export { default as ScormUpload } from './ScormUpload';
+export { default as ScormManagement } from './ScormManagement';

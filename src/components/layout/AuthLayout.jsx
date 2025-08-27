@@ -4,7 +4,7 @@ import kyzerLogo from "../../assets/images/Kyzerlogo.png"
 
 export default function AuthLayout({ children }) {
   return (
-    <div className="min-h-screen bg-white flex">
+    <div className="min-h-screen bg-background-white flex">
       {/* Left Side - Auth Form */}
       <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 max-w-md mx-auto lg:mx-0 lg:max-w-none lg:w-1/2">
         {/* Logo */}

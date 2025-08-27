@@ -42,6 +42,7 @@ export default function CourseManagement() {
   const toggleCoursePublish = useCourseStore(state => state.actions.toggleCoursePublish);
   const fetchCourseLessons = useCourseStore(state => state.actions.fetchCourseLessons);
   const fetchCourseModules = useCourseStore(state => state.actions.fetchCourseModules);
+  const getCourseCounts = useCourseStore(state => state.actions.getCourseCounts);
   const createModule = useCourseStore(state => state.actions.createModule);
   const updateModule = useCourseStore(state => state.actions.updateModule);
   const deleteModule = useCourseStore(state => state.actions.deleteModule);
@@ -64,6 +65,31 @@ export default function CourseManagement() {
       fetchCourses();
     }
   }, [fetchCourses, user?.id]);
+
+  // Load counts when courses change
+  useEffect(() => {
+    const loadCounts = async () => {
+      const updates = {};
+      for (const c of courses) {
+        const result = await getCourseCounts(c.id);
+        updates[c.id] = result.data || { modules: 0, lessons: 0 };
+      }
+      setCourseModules(prev => {
+        const merged = { ...prev };
+        Object.keys(updates).forEach(id => {
+          // keep arrays for expanded view; counts will be read from countsMap
+          if (!merged[id]) merged[id] = [];
+        });
+        return merged;
+      });
+      setCountsMap(updates);
+    };
+    if (courses && courses.length > 0) {
+      loadCounts();
+    }
+  }, [courses, getCourseCounts]);
+
+  const [countsMap, setCountsMap] = useState({});
 
   const handleCourseSuccess = (courseData) => {
     setShowCourseForm(false);
@@ -340,11 +366,11 @@ export default function CourseManagement() {
                     </div>
                     <div className="flex items-center gap-1">
                       <BookOpen className="w-4 h-4" />
-                      <span>{courseLessons[course.id]?.length || 0} lessons</span>
+                      <span>{countsMap[course.id]?.lessons ?? (courseLessons[course.id]?.length || 0)} lessons</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <FolderOpen className="w-4 h-4" />
-                      <span>{courseModules[course.id]?.length || 0} modules</span>
+                      <span>{countsMap[course.id]?.modules ?? (courseModules[course.id]?.length || 0)} modules</span>
                     </div>
                     {course.category && (
                       <span 

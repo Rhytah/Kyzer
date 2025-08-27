@@ -3,6 +3,7 @@ import { Card, Button, Modal } from '@/components/ui';
 import { useCourseStore } from '@/store/courseStore';
 import { useAuth } from '@/hooks/auth/useAuth';
 import { useToast } from '@/components/ui';
+import { ModuleForm } from '@/components/course';
 import { 
   ChevronDown, 
   ChevronRight, 
