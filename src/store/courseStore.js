@@ -18,6 +18,8 @@ const useCourseStore = create((set, get) => ({
     enrollments: false,
     progress: false,
     quiz: false,
+    quizzes: false,
+    quizQuestions: false,
     categories: false,
     modules: false, // New: Loading state for modules
   },
@@ -25,6 +27,159 @@ const useCourseStore = create((set, get) => ({
 
   // Actions
   actions: {
+    // Quiz Management: Fetch quizzes for a course
+    fetchQuizzes: async (courseId) => {
+      set((state) => ({ loading: { ...state.loading, quizzes: true }, error: null }));
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.QUIZZES)
+          .select('*')
+          .eq('course_id', courseId)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        set((state) => ({ loading: { ...state.loading, quizzes: false } }));
+        return { data: data || [], error: null };
+      } catch (error) {
+        set((state) => ({ loading: { ...state.loading, quizzes: false }, error: error.message }));
+        return { data: [], error };
+      }
+    },
+
+    // Quiz Management: Create quiz
+    createQuiz: async (quizData, courseId, createdBy) => {
+      try {
+        // Determine user_id from auth if not provided
+        let userId = createdBy;
+        if (!userId) {
+          const { data: authData } = await supabase.auth.getUser();
+          userId = authData?.user?.id || null;
+        }
+        const { data, error } = await supabase
+          .from(TABLES.QUIZZES)
+          .insert({
+            title: quizData.title,
+            description: quizData.description ?? null,
+            pass_threshold: quizData.pass_threshold ?? 70,
+            time_limit_minutes: quizData.time_limit_minutes ?? null,
+            lesson_id: quizData.lesson_id ?? null,
+            course_id: courseId,
+            user_id: userId, // matches schema
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    // Quiz Management: Update quiz
+    updateQuiz: async (quizId, updates) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.QUIZZES)
+          .update({ ...updates, updated_at: new Date().toISOString() })
+          .eq('id', quizId)
+          .select()
+          .single();
+        if (error) throw error;
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    // Quiz Management: Delete quiz
+    deleteQuiz: async (quizId) => {
+      try {
+        const { error } = await supabase.from(TABLES.QUIZZES).delete().eq('id', quizId);
+        if (error) throw error;
+        return { success: true, error: null };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    },
+
+    // Quiz Questions: Fetch
+    fetchQuizQuestions: async (quizId) => {
+      set((state) => ({ loading: { ...state.loading, quizQuestions: true }, error: null }));
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.QUIZ_QUESTIONS)
+          .select('*')
+          .eq('quiz_id', quizId)
+          .order('order_index', { ascending: true });
+        if (error) throw error;
+        set((state) => ({ loading: { ...state.loading, quizQuestions: false } }));
+        return { data: data || [], error: null };
+      } catch (error) {
+        set((state) => ({ loading: { ...state.loading, quizQuestions: false }, error: error.message }));
+        return { data: [], error };
+      }
+    },
+
+    // Quiz Questions: Upsert a list (create/update with order)
+    upsertQuizQuestions: async (quizId, questions) => {
+      try {
+        if (!Array.isArray(questions)) return { data: [], error: 'Invalid questions array' };
+        const mapToDbType = (t) => {
+          if (t === 'single') return 'multiple_choice';
+          if (t === 'multiple') return 'multiple_select';
+          if (t === 'true_false') return 'true_false';
+          if (t === 'short') return 'short_answer';
+          return t || 'multiple_choice';
+        };
+        const payload = questions.map((q, idx) => ({
+          quiz_id: quizId,
+          question_type: mapToDbType(q.question_type),
+          question_text: q.question_text,           // map app -> DB
+          options: q.options || null,
+          correct_answer: q.correct_answer,
+          order_index: q.order_index ?? idx + 1,
+          updated_at: new Date().toISOString(),
+        }));
+        // Replace-all strategy to avoid requiring a unique index
+        const del = await supabase.from(TABLES.QUIZ_QUESTIONS).delete().eq('quiz_id', quizId);
+        if (del.error) throw del.error;
+        const { data, error } = await supabase
+          .from(TABLES.QUIZ_QUESTIONS)
+          .insert(payload)
+          .select();
+        if (error) throw error;
+        return { data: data || [], error: null };
+      } catch (error) {
+        return { data: [], error: error.message };
+      }
+    },
+
+    // Quiz Questions: Delete
+    deleteQuizQuestion: async (questionId) => {
+      try {
+        const { error } = await supabase.from(TABLES.QUIZ_QUESTIONS).delete().eq('id', questionId);
+        if (error) throw error;
+        return { success: true, error: null };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    },
+
+    // Fetch quizzes linked to a lesson
+    fetchQuizzesByLesson: async (lessonId) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.QUIZZES)
+          .select('*')
+          .eq('lesson_id', lessonId)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        return { data: data || [], error: null };
+      } catch (error) {
+        return { data: [], error: error.message };
+      }
+    },
     // Fetch all courses
     fetchCourses: async (filters = {}, userId = null) => {
       set((state) => ({
@@ -432,6 +587,49 @@ const useCourseStore = create((set, get) => ({
       } catch (error) {
         set({ certificates: [] });
         return { data: [], error };
+      }
+    },
+
+    // Get a certificate for a user and course (if any)
+    getCertificateForCourse: async (userId, courseId) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.CERTIFICATES)
+          .select('*')
+          .eq('user_id', userId)
+          .eq('course_id', courseId)
+          .limit(1);
+
+        if (error) throw error;
+        const certificate = Array.isArray(data) && data.length > 0 ? data[0] : null;
+        return { data: certificate, error: null };
+      } catch (error) {
+        return { data: null, error };
+      }
+    },
+
+    // Create a certificate record upon completion
+    createCertificate: async (userId, courseId) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.CERTIFICATES)
+          .insert({
+            user_id: userId,
+            course_id: courseId,
+            issued_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Refresh local certificates cache (best effort)
+        const { data: updated } = await get().actions.fetchCertificates(userId);
+        set({ certificates: updated || [] });
+
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error };
       }
     },
 

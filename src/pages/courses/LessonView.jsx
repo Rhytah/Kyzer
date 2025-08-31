@@ -1,6 +1,7 @@
 // src/pages/courses/LessonView.jsx
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import ReactPlayer from 'react-player'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { 
   Play, 
   Pause,
@@ -17,7 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Settings,
-  RotateCcw
+  RotateCcw,
+  
 } from 'lucide-react'
 import { ScormPlayer } from '@/components/course'
 import { useCourseStore } from '@/store/courseStore'
@@ -26,11 +28,13 @@ import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { useToast } from '@/components/ui'
+ 
 
 export default function LessonView() {
   const { courseId, lessonId } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const location = useLocation()
   
   // Store selectors - individual to prevent infinite loops
   const courses = useCourseStore(state => state.courses)
@@ -46,32 +50,48 @@ export default function LessonView() {
   const [showNotes, setShowNotes] = useState(false)
   const [notes, setNotes] = useState('')
   const [videoLoading, setVideoLoading] = useState(false)
-  const [videoLoadTimeout, setVideoLoadTimeout] = useState(null)
   const [videoError, setVideoError] = useState(null)
   const [isCompleting, setIsCompleting] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
+  const [haltVideo, setHaltVideo] = useState(false)
+  const [playerKey, setPlayerKey] = useState(0)
+  // Quiz state
+  const [quiz, setQuiz] = useState(null)
+  const [quizQuestions, setQuizQuestions] = useState([])
+  const [quizStarted, setQuizStarted] = useState(false)
+  const [quizAnswers, setQuizAnswers] = useState({})
+  const [quizTimeLeftSec, setQuizTimeLeftSec] = useState(null)
+  const quizTimerRef = useRef(null)
+  const quizBlockRef = useRef(null)
+  const [quizzesByLesson, setQuizzesByLesson] = useState({})
   const { success, error: showError } = useToast()
 
-  // Ref for video element to prevent AbortError
-  const videoRef = useRef(null)
+  // Player refs
+  const playerRef = useRef(null)
+  const videoReadyRef = useRef(false)
+  const videoTimeoutRef = useRef(null)
 
-  // Effect to sync video state when video element is available
+  // Effect to sync playback position when using ReactPlayer
   useEffect(() => {
-    if (videoRef.current && lesson?.content_type === 'video') {
-      // Set initial video state
-      videoRef.current.currentTime = currentTime;
+    if (playerRef.current && lesson?.content_type === 'video' && currentTime > 0) {
+      try {
+        playerRef.current.seekTo(currentTime, 'seconds')
+      } catch (_) {}
     }
-  }, [lesson?.content_type, currentTime]);
+  }, [lesson?.content_type, currentTime])
 
   // Effect to handle video loading timeout
   useEffect(() => {
     if (lesson?.content_type === 'video' && lesson?.content_url && !isYouTubeUrl(lesson.content_url)) {
-      // Set loading state
       setVideoLoading(true);
       setVideoError(null);
-      
-      // Set a shorter timeout to prevent infinite loading (15 seconds)
-      const timeout = setTimeout(() => {
-        if (videoLoading) {
+      setHaltVideo(false);
+      videoReadyRef.current = false;
+      if (videoTimeoutRef.current) {
+        clearTimeout(videoTimeoutRef.current);
+      }
+      videoTimeoutRef.current = setTimeout(() => {
+        if (!videoReadyRef.current) {
           setVideoError({
             error: null,
             errorCode: 'TIMEOUT',
@@ -81,29 +101,26 @@ export default function LessonView() {
             src: lesson.content_url
           });
           setVideoLoading(false);
-          
-          // Force stop the video loading
-          if (videoRef.current) {
-            try {
-              videoRef.current.pause();
-              videoRef.current.removeAttribute('src');
-              videoRef.current.load();
-            } catch (error) {
-              // Silently handle any errors during force stop
-            }
-          }
+          setHaltVideo(true);
         }
-      }, 15000); // Reduced from 30 to 15 seconds
-      
-      setVideoLoadTimeout(timeout);
-      
+      }, 45000);
       return () => {
-        if (timeout) {
-          clearTimeout(timeout);
+        if (videoTimeoutRef.current) {
+          clearTimeout(videoTimeoutRef.current);
+          videoTimeoutRef.current = null;
         }
       };
     }
-  }, [lesson?.content_type, lesson?.content_url, videoLoading]);
+  }, [lesson?.content_type, lesson?.content_url]);
+
+  // Effect to track PDF loading state when URL changes
+  useEffect(() => {
+    if (lesson?.content_type === 'pdf' && lesson?.content_url) {
+      setPdfLoading(true)
+    } else {
+      setPdfLoading(false)
+    }
+  }, [lesson?.content_type, lesson?.content_url])
 
   // Function to save progress (supports completion override to avoid downgrades)
   const saveProgress = useCallback(async (time = currentTime, completedOverride = null) => {
@@ -120,23 +137,13 @@ export default function LessonView() {
             lastAccessed: new Date().toISOString()
           }
         )
-      } catch (error) {
+      } catch (_) {
         // Handle error silently or set error state if needed
       }
     }
   }, [user?.id, lesson, course, isCompleted, currentTime, actions])
 
-  // Function to handle video time updates for progress tracking
-  const handleVideoTimeUpdate = useCallback(() => {
-    if (videoRef.current && lesson && course) {
-      const newTime = videoRef.current.currentTime;
-      setCurrentTime(newTime);
-      // Auto-save progress every 30 seconds, but only if we have the necessary data
-      if (newTime > 0 && newTime % 30 < 1) {
-        saveProgress(newTime);
-      }
-    }
-  }, [saveProgress, lesson, course]);
+  // ReactPlayer onProgress will update time; no separate handler needed
 
   // Load course and lesson data from store
   useEffect(() => {
@@ -172,6 +179,26 @@ export default function LessonView() {
             flatLessons.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
             
             setLessons(flatLessons)
+
+            // Fetch quizzes for the whole course to build lesson->quizzes map
+            try {
+              const { data: courseQuizzes } = await actions.fetchQuizzes(courseId)
+              if (courseQuizzes && Array.isArray(courseQuizzes)) {
+                const map = {};
+                // order quizzes by created_at ascending so they appear stable
+                const sorted = [...courseQuizzes].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                sorted.forEach(q => {
+                  if (!q.lesson_id) return;
+                  if (!map[q.lesson_id]) map[q.lesson_id] = [];
+                  map[q.lesson_id].push(q);
+                })
+                setQuizzesByLesson(map)
+              } else {
+                setQuizzesByLesson({})
+              }
+            } catch (_) {
+              setQuizzesByLesson({})
+            }
             // Find the current lesson
             const foundLesson = flatLessons.find(l => l.id === lessonId)
             if (foundLesson) {
@@ -184,11 +211,26 @@ export default function LessonView() {
                 const lessonProgress = progress?.[lessonId]
                 setIsCompleted(lessonProgress?.completed || false)
               }
+              // Load quiz linked to this lesson
+              try {
+                const { data: quizzes } = await actions.fetchQuizzesByLesson(foundLesson.id)
+                if (quizzes && quizzes.length > 0) {
+                  setQuiz(quizzes[0])
+                  const { data: qs } = await actions.fetchQuizQuestions(quizzes[0].id)
+                  setQuizQuestions(qs || [])
+                } else {
+                  setQuiz(null)
+                  setQuizQuestions([])
+                }
+              } catch (_) {
+                setQuiz(null)
+                setQuizQuestions([])
+              }
             }
           }
         }
         setLoading(false)
-      } catch (error) {
+      } catch (_) {
         // Handle error silently or set error state if needed
         setLoading(false)
       }
@@ -199,22 +241,45 @@ export default function LessonView() {
     }
   }, [courseId, lessonId, courses, actions, user?.id])
 
+  // If URL contains #quiz, scroll to quiz section once quiz is loaded
+  useEffect(() => {
+    if (location.hash === '#quiz' && quiz && quizQuestions.length > 0 && quizBlockRef.current) {
+      quizBlockRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [location.hash, quiz, quizQuestions])
+
+  // Manage quiz timer
+  useEffect(() => {
+    if (!quizStarted) return
+    if (!quiz || !quiz.time_limit_minutes || quiz.time_limit_minutes <= 0) return
+    if (quizTimeLeftSec === null) return
+    if (quizTimeLeftSec <= 0) {
+      // Auto submit on time up
+      handleSubmitQuiz()
+      return
+    }
+    quizTimerRef.current = setTimeout(() => setQuizTimeLeftSec((s) => (s !== null ? s - 1 : s)), 1000)
+    return () => {
+      if (quizTimerRef.current) clearTimeout(quizTimerRef.current)
+    }
+  }, [quizStarted, quiz, quizTimeLeftSec])
+
   useEffect(() => {
     // Auto-save progress every 30 seconds
     const interval = setInterval(() => {
-      if (videoRef.current && videoRef.current.currentTime > 0 && lesson && course) {
-        saveProgress(videoRef.current.currentTime)
+      if (currentTime > 0 && lesson && course) {
+        saveProgress(currentTime)
       }
     }, 30000)
 
     return () => clearInterval(interval)
-  }, [saveProgress, lesson, course])
+  }, [saveProgress, lesson, course, currentTime])
 
   const markAsCompleted = async () => {
     if (user?.id && lesson && course) {
       try {
         setIsCompleting(true)
-        const timeSpent = videoRef.current ? videoRef.current.currentTime : currentTime;
+        const timeSpent = currentTime;
         await actions.updateLessonProgress(
           user.id,
           lesson.id,
@@ -252,6 +317,8 @@ export default function LessonView() {
       }
     }
   }
+
+  
 
   const goToNextLesson = async () => {
     if (course && lesson) {
@@ -345,6 +412,61 @@ export default function LessonView() {
     return hasVideoExtension;
   };
 
+  const quizLocked = !!(lesson?.is_required && !isCompleted)
+
+  const startQuiz = () => {
+    if (quizLocked) {
+      showError('Complete this required lesson to unlock the quiz')
+      return
+    }
+    setQuizStarted(true)
+    setQuizAnswers({})
+    if (quiz?.time_limit_minutes && quiz.time_limit_minutes > 0) {
+      setQuizTimeLeftSec(quiz.time_limit_minutes * 60)
+    } else {
+      setQuizTimeLeftSec(null)
+    }
+  }
+
+  const setAnswer = (qIndex, value) => {
+    setQuizAnswers((prev) => ({ ...prev, [qIndex]: value }))
+  }
+
+  const handleSubmitQuiz = useCallback(async () => {
+    // Calculate score
+    let score = 0
+    const max = quizQuestions.length
+    quizQuestions.forEach((q, idx) => {
+      const type = q.question_type
+      const correct = q.correct_answer
+      const ans = quizAnswers[idx]
+      if (type === 'multiple_choice') {
+        if (typeof ans === 'number' && ans === correct) score += 1
+      } else if (type === 'multiple_select') {
+        const aSet = new Set(Array.isArray(ans) ? ans : [])
+        const cSet = new Set(Array.isArray(correct) ? correct : [])
+        if (aSet.size === cSet.size && [...aSet].every(v => cSet.has(v))) score += 1
+      } else if (type === 'true_false') {
+        if (typeof ans === 'boolean' && ans === !!correct) score += 1
+      } else if (type === 'short_answer') {
+        if ((ans || '').toString().trim().toLowerCase() === ((correct || '').toString().trim().toLowerCase())) score += 1
+      }
+    })
+    try {
+      if (user?.id && quiz?.id) {
+        await actions.submitQuizAttempt(user.id, quiz.id, quizAnswers, score)
+      }
+      success(`Quiz submitted. Score ${score}/${max}`)
+    } catch (_) {
+      showError('Failed to submit quiz')
+    } finally {
+      setQuizStarted(false)
+      setQuizTimeLeftSec(null)
+    }
+  }, [user?.id, quiz?.id, quizQuestions, quizAnswers, actions, success, showError])
+
+  // (Removed unused getMimeTypeFromUrl)
+
   // Helper function to check if URL is a YouTube URL
   const isYouTubeUrl = (url) => {
     if (!url) return false;
@@ -419,12 +541,47 @@ export default function LessonView() {
             ? parsed.text
             : `<p>${escapeHtml(parsed.text).replace(/\n/g, '<br/>')}<\/p>`;
 
-        return (
+      return (
           <div className="bg-gray-50 rounded-lg p-6">
             <div
               className="prose max-w-none text-text-medium"
               dangerouslySetInnerHTML={{ __html: html }}
             />
+          </div>
+        );
+      }
+      // Handle PDF rendering
+      if (lesson.content_type === 'pdf') {
+        const pdfUrl = lesson.content_url;
+        return (
+          <div className="bg-gray-50 rounded-lg p-4">
+            {pdfUrl ? (
+              <div className="border rounded-lg overflow-hidden">
+                <div className="relative">
+                  <iframe
+                    src={pdfUrl}
+                    title="PDF Document"
+                    className="w-full h-[70vh]"
+                    loading="lazy"
+                    onLoad={() => setPdfLoading(false)}
+                  />
+                  {pdfLoading && (
+                    <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-600"></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center text-gray-500 p-8">No PDF available.</div>
+            )}
+            {pdfUrl && (
+              <div className="mt-3 flex justify-end">
+                <Button variant="secondary" onClick={() => window.open(pdfUrl, '_blank')}>
+                  Open in new tab
+                </Button>
+            </div>
+          )}
           </div>
         );
       }
@@ -459,6 +616,7 @@ export default function LessonView() {
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               referrerPolicy="strict-origin-when-cross-origin"
+              loading="lazy"
               allowFullScreen
             />
           </div>
@@ -477,84 +635,83 @@ export default function LessonView() {
             <p className="text-gray-700 mb-4">
               The provided URL is not a valid video file. Please provide a direct link to a video file (e.g., .mp4, .webm).
             </p>
-            <div className="text-sm text-gray-500 break-all">
-              Current URL: {lesson.content_url}
+            <div className="text-sm text-gray-500 break-all">Current URL: {lesson.content_url}</div>
+            {lesson.content_url?.toLowerCase().endsWith('.mov') && (
+              <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-3 mt-3 text-left">
+                This appears to be a .mov file. Web playback for MOV is unreliable across browsers/CDNs.
+                Please convert to MP4 (H.264 + AAC) before upload for best compatibility.
             </div>
+            )}
           </div>
         </div>
       );
     }
 
-    // Valid video URL - render video player
+    // Valid video URL - render ReactPlayer for robust playback
     return (
       <div className="relative">
-        <video
-          ref={videoRef}
-          className="w-full rounded-lg shadow-lg"
+        <ReactPlayer
+          key={playerKey}
+          ref={playerRef}
+          url={haltVideo ? undefined : lesson.content_url}
           controls
-          preload="metadata"
-          onLoadStart={() => {
-            setVideoLoading(true);
-            setVideoError(null);
-            if (videoLoadTimeout) {
-              clearTimeout(videoLoadTimeout);
+          width="100%"
+          height="100%"
+          playsInline
+          config={{ file: { attributes: { preload: 'metadata' } } }}
+          onReady={() => {
+            videoReadyRef.current = true;
+            setVideoLoading(false);
+            if (videoTimeoutRef.current) {
+              clearTimeout(videoTimeoutRef.current);
+              videoTimeoutRef.current = null;
             }
           }}
-          onCanPlay={() => {
+          onStart={() => {
+            videoReadyRef.current = true;
             setVideoLoading(false);
-            if (videoLoadTimeout) {
-              clearTimeout(videoLoadTimeout);
-            }
-          }}
-          onCanPlayThrough={() => {
-            setVideoLoading(false);
-            if (videoLoadTimeout) {
-              clearTimeout(videoLoadTimeout);
+            if (videoTimeoutRef.current) {
+              clearTimeout(videoTimeoutRef.current);
+              videoTimeoutRef.current = null;
             }
           }}
           onWaiting={() => setVideoLoading(true)}
-          onProgress={() => setVideoLoading(false)}
-          onError={(e) => {
+          onPlaying={() => {
+            videoReadyRef.current = true;
             setVideoLoading(false);
-            setVideoError({
-              error: e.target.error,
-              errorCode: e.target.error?.code,
-              errorMessage: e.target.error?.message,
-              networkState: e.target.networkState,
-              readyState: e.target.readyState,
-              src: lesson.content_url
-            });
-            if (videoLoadTimeout) {
-              clearTimeout(videoLoadTimeout);
+            if (videoTimeoutRef.current) {
+              clearTimeout(videoTimeoutRef.current);
+              videoTimeoutRef.current = null;
             }
           }}
-                     onPlay={() => {
-             if (videoRef.current) {
-               videoRef.current.currentTime = currentTime || 0;
-             }
-           }}
-                     onPause={() => {
-             if (videoRef.current && lesson && course) {
-               saveProgress(videoRef.current.currentTime);
-             }
-           }}
-          onTimeUpdate={() => {
-            if (videoRef.current && lesson && course) {
-              handleVideoTimeUpdate();
+          onError={() => {
+            setVideoLoading(false);
+            setHaltVideo(true);
+            setVideoError({
+              error: null,
+              errorCode: 'UNKNOWN',
+              errorMessage: 'Playback error',
+              src: lesson.content_url
+            });
+            if (videoTimeoutRef.current) {
+              clearTimeout(videoTimeoutRef.current);
+              videoTimeoutRef.current = null;
+            }
+          }}
+          onProgress={({ playedSeconds }) => {
+            const t = playedSeconds || 0;
+            setCurrentTime(t);
+            // Throttle saves to ~30s cadence
+            if (lesson && course && t > 0 && t % 30 < 1) {
+              saveProgress(t);
             }
           }}
           onEnded={() => {
             if (!isCompleted) {
-              markAsCompleted()
+              markAsCompleted();
             }
           }}
-        >
-          <source src={lesson.content_url} type="video/mp4" />
-          <source src={lesson.content_url} type="video/webm" />
-          <source src={lesson.content_url} type="video/ogg" />
-          Your browser does not support the video tag.
-        </video>
-        
+        />
         {videoLoading && (
           <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
             <div className="text-white text-center">
@@ -613,9 +770,10 @@ export default function LessonView() {
                 variant="outline" 
                 size="sm"
                 onClick={() => {
-                  if (videoRef.current) {
-                    videoRef.current.load();
-                  }
+                  setVideoError(null);
+                  setHaltVideo(false);
+                  setVideoLoading(true);
+                  setPlayerKey((k) => k + 1);
                 }}
               >
                 Retry Loading
@@ -624,17 +782,8 @@ export default function LessonView() {
                 variant="ghost" 
                 size="sm"
                 onClick={() => {
-                  if (videoRef.current) {
-                    try {
-                      videoRef.current.pause();
-                      videoRef.current.removeAttribute('src');
-                      videoRef.current.load();
-                      setVideoLoading(false);
-                      setVideoError(null);
-                    } catch (error) {
-                      // Silently handle any errors during force stop
-                    }
-                  }
+                  setHaltVideo(true);
+                  setVideoLoading(false);
                 }}
               >
                 Stop Loading
@@ -702,17 +851,13 @@ export default function LessonView() {
               scormUrl={lesson.content_url}
               lessonId={lesson.id}
               courseId={courseId}
-              onProgress={(score) => {
-                // Handle SCORM progress updates
-                console.log('SCORM progress:', score);
-              }}
+              onProgress={() => {}}
               onComplete={(completionData) => {
                 // Handle SCORM completion
                 setIsCompleted(true);
-                console.log('SCORM completed:', completionData);
               }}
-              onError={(error) => {
-                console.error('SCORM error:', error);
+              onError={() => {
+                showError('Failed to load SCORM content');
               }}
             />
           ) : (
@@ -800,6 +945,7 @@ export default function LessonView() {
                   <span className="font-medium">Completed</span>
                 </div>
               )}
+              
             </div>
           </div>
 
@@ -869,6 +1015,94 @@ export default function LessonView() {
             </div>
           )}
         </Card>
+
+        {/* Quiz block (below the lesson content) */}
+        {quiz && quizQuestions.length > 0 && (
+          <div ref={quizBlockRef}>
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold text-text-dark">Quiz: {quiz.title}</h3>
+                {quiz?.time_limit_minutes ? (
+                  <span className="text-sm text-text-muted">Time limit: {quiz.time_limit_minutes} min</span>
+                ) : null}
+              </div>
+              {!quizStarted ? (
+                <div className="space-y-3">
+                  {quizLocked && (
+                    <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-3">
+                      Complete this required lesson to unlock the quiz.
+                    </div>
+                  )}
+                  <p className="text-text-light">Pass threshold: {quiz.pass_threshold ?? 70}%</p>
+                  <Button onClick={startQuiz} disabled={quizLocked}>Start Quiz</Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {quiz?.time_limit_minutes ? (
+                    <div className="text-sm text-text-muted">Time left: {formatTime(quizTimeLeftSec || 0)}</div>
+                  ) : null}
+                  {quizQuestions.map((q, idx) => (
+                    <div key={idx} className="border rounded p-4">
+                      <div className="font-medium mb-2">{idx + 1}. {q.question_text}</div>
+                      {q.question_type === 'multiple_choice' && (
+                        <div className="space-y-2">
+                          {(q.options || []).map((opt, oi) => (
+                            <label key={oi} className="flex items-center gap-2">
+                              <input type="radio" name={`q-${idx}`} checked={quizAnswers[idx] === oi} onChange={() => setAnswer(idx, oi)} />
+                              <span>{opt}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                      {q.question_type === 'multiple_select' && (
+                        <div className="space-y-2">
+                          {(q.options || []).map((opt, oi) => (
+                            <label key={oi} className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={Array.isArray(quizAnswers[idx]) ? quizAnswers[idx].includes(oi) : false}
+                                onChange={(e) => {
+                                  const prev = new Set(Array.isArray(quizAnswers[idx]) ? quizAnswers[idx] : [])
+                                  if (e.target.checked) prev.add(oi); else prev.delete(oi)
+                                  setAnswer(idx, Array.from(prev))
+                                }}
+                              />
+                              <span>{opt}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                      {q.question_type === 'true_false' && (
+                        <div className="flex gap-4">
+                          <label className="flex items-center gap-2">
+                            <input type="radio" name={`q-${idx}`} checked={quizAnswers[idx] === true} onChange={() => setAnswer(idx, true)} />
+                            <span>True</span>
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input type="radio" name={`q-${idx}`} checked={quizAnswers[idx] === false} onChange={() => setAnswer(idx, false)} />
+                            <span>False</span>
+                          </label>
+                        </div>
+                      )}
+                      {q.question_type === 'short_answer' && (
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 border rounded"
+                          value={(quizAnswers[idx] || '').toString()}
+                          onChange={(e) => setAnswer(idx, e.target.value)}
+                          placeholder="Your answer"
+                        />
+                      )}
+                    </div>
+                  ))}
+                  <div className="flex justify-end">
+                    <Button onClick={handleSubmitQuiz}>Submit Quiz</Button>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
 
         {/* Resources */}
         {lesson.content_url && (
@@ -951,33 +1185,55 @@ export default function LessonView() {
           <h3 className="font-semibold text-text-dark mb-4">Course Content</h3>
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {lessons.map((courseLesson, index) => (
-              <button
-                key={courseLesson.id}
-                onClick={() => navigate(`/app/courses/${courseId}/lesson/${courseLesson.id}`)}
-                className={`w-full text-left p-3 rounded-lg transition-colors ${
-                  courseLesson.id === lessonId
-                    ? 'bg-primary-light text-primary-default'
-                    : 'hover:bg-background-light'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0">
-                    {courseProgress[courseId]?.[courseLesson.id]?.completed ? (
-                      <CheckCircle className="w-5 h-5 text-success-default" />
-                    ) : courseLesson.id === lessonId ? (
-                      <Play className="w-5 h-5 text-primary-default" />
-                    ) : (
-                      <div className="w-5 h-5 rounded-full border border-background-dark flex items-center justify-center">
-                        <span className="text-xs">{index + 1}</span>
-                      </div>
-                    )}
+              <div key={courseLesson.id}>
+                <button
+                  onClick={() => navigate(`/app/courses/${courseId}/lesson/${courseLesson.id}`)}
+                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    courseLesson.id === lessonId
+                      ? 'bg-primary-light text-primary-default'
+                      : 'hover:bg-background-light'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex-shrink-0">
+                      {courseProgress[courseId]?.[courseLesson.id]?.completed ? (
+                        <CheckCircle className="w-5 h-5 text-success-default" />
+                      ) : courseLesson.id === lessonId ? (
+                        <Play className="w-5 h-5 text-primary-default" />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full border border-background-dark flex items-center justify-center">
+                          <span className="text-xs">{index + 1}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-sm truncate">{courseLesson.title}</h4>
+                      <p className="text-xs text-text-light">{formatTime(courseLesson.duration_minutes * 60 || 0)}</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-sm truncate">{courseLesson.title}</h4>
-                    <p className="text-xs text-text-light">{formatTime(courseLesson.duration_minutes * 60 || 0)}</p>
+                </button>
+                {Array.isArray(quizzesByLesson[courseLesson.id]) && quizzesByLesson[courseLesson.id].length > 0 && (
+                  <div className="pl-10 py-1 space-y-1">
+                    {quizzesByLesson[courseLesson.id].map((qz, qi) => (
+                      <button
+                        key={`${courseLesson.id}-${qz.id}`}
+                        onClick={() => {
+                          if (courseLesson.id === lessonId) {
+                            if (quizBlockRef.current) {
+                              quizBlockRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                            }
+                          } else {
+                            navigate(`/app/courses/${courseId}/lesson/${courseLesson.id}#quiz`)
+                          }
+                        }}
+                        className="w-full text-left text-xs text-text-medium hover:text-primary-default"
+                      >
+                        • Quiz{quizzesByLesson[courseLesson.id].length > 1 ? ` ${qi + 1}` : ''}: {qz.title}
+                      </button>
+                    ))}
                   </div>
-                </div>
-              </button>
+                )}
+              </div>
             ))}
           </div>
         </Card>
@@ -993,6 +1249,7 @@ export default function LessonView() {
             Ask a Question
           </Button>
         </Card>
+        
       </div>
     </div>
   )

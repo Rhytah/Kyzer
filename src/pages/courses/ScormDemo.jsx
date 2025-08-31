@@ -21,7 +21,7 @@ const ScormDemo = () => {
   };
 
   const handleScormComplete = (completionData) => {
-    console.log('SCORM Completed:', completionData);
+    console.log("SCORM Completed:", completionData);
     alert(`SCORM package completed! Score: ${completionData.score}%, Status: ${completionData.status}`);
   };
 

@@ -26,7 +26,9 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import CourseForm from '@/components/course/CourseForm';
 import LessonForm from '@/components/course/LessonForm';
 import ModuleForm from '@/components/course/ModuleForm';
+import QuizForm from '@/components/course/QuizForm';
 import { useToast } from '@/components/ui';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 
 export default function CourseManagement() {
   const { user } = useAuth();
@@ -46,17 +48,24 @@ export default function CourseManagement() {
   const createModule = useCourseStore(state => state.actions.createModule);
   const updateModule = useCourseStore(state => state.actions.updateModule);
   const deleteModule = useCourseStore(state => state.actions.deleteModule);
+  const fetchQuizzes = useCourseStore(state => state.actions.fetchQuizzes);
+  const deleteQuiz = useCourseStore(state => state.actions.deleteQuiz);
 
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [showLessonForm, setShowLessonForm] = useState(false);
   const [showModuleForm, setShowModuleForm] = useState(false);
+  const [showQuizForm, setShowQuizForm] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
   const [editingLesson, setEditingLesson] = useState(null);
   const [editingModule, setEditingModule] = useState(null);
+  const [editingQuiz, setEditingQuiz] = useState(null);
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [courseLessons, setCourseLessons] = useState({});
   const [courseModules, setCourseModules] = useState({});
+  const [courseQuizzes, setCourseQuizzes] = useState({});
   const [expandedModules, setExpandedModules] = useState({});
+  const [confirmDelete, setConfirmDelete] = useState({ open: false, courseId: null, courseTitle: '' });
+  const [confirmDeleteModule, setConfirmDeleteModule] = useState({ open: false, moduleId: null, courseId: null, moduleTitle: '' });
 
   useEffect(() => {
     if (user?.id) {
@@ -113,20 +122,33 @@ export default function CourseManagement() {
     }
   };
 
+  const handleQuizSuccess = () => {
+    setShowQuizForm(false);
+    setEditingQuiz(null);
+    if (selectedCourseId) {
+      loadCourseQuizzes(selectedCourseId);
+    }
+  };
+
   const handleEditCourse = (course) => {
     setEditingCourse(course);
     setShowCourseForm(true);
   };
 
   const handleDeleteCourse = async (courseId) => {
-    if (window.confirm('Are you sure you want to delete this course? This action cannot be undone.')) {
-      const result = await deleteCourse(courseId);
-      if (result.success) {
-        success('Course deleted successfully!');
-      } else {
-        showError(result.error || 'Failed to delete course');
-      }
+    setConfirmDelete({ open: true, courseId, courseTitle: (courses.find(c => c.id === courseId)?.title) || '' });
+  };
+
+  const confirmDeleteCourse = async () => {
+    const { courseId } = confirmDelete;
+    if (!courseId) return;
+    const result = await deleteCourse(courseId);
+    if (result.success) {
+      success('Course deleted successfully!');
+    } else {
+      showError(result.error || 'Failed to delete course');
     }
+    setConfirmDelete({ open: false, courseId: null, courseTitle: '' });
   };
 
   const handleTogglePublish = async (courseId, currentStatus) => {
@@ -153,6 +175,52 @@ export default function CourseManagement() {
     setShowLessonForm(true);
   };
 
+  
+  const handleAddQuizForLesson = (lesson, courseId) => {
+    setEditingQuiz({ lesson_id: lesson.id });
+    setSelectedCourseId(courseId);
+    setShowQuizForm(true);
+  };
+
+  const handleAddQuiz = (courseId) => {
+    setSelectedCourseId(courseId);
+    setShowQuizForm(true);
+  };
+
+  const handleEditQuiz = (quiz, courseId) => {
+    setEditingQuiz(quiz);
+    setSelectedCourseId(courseId);
+    setShowQuizForm(true);
+  };
+
+  const handleDeleteQuiz = async (quiz, courseId) => {
+    const res = await deleteQuiz(quiz.id);
+    if (res.success) {
+      success('Quiz deleted successfully!');
+      loadCourseQuizzes(courseId);
+    } else {
+      showError(res.error || 'Failed to delete quiz');
+    }
+  };
+
+  const [confirmDeleteLesson, setConfirmDeleteLesson] = useState({ open: false, lessonId: null, courseId: null, lessonTitle: '' });
+  const deleteLesson = useCourseStore(state => state.actions.deleteLesson);
+  const handleDeleteLesson = (lesson, courseId) => {
+    setConfirmDeleteLesson({ open: true, lessonId: lesson.id, courseId, lessonTitle: lesson.title || '' });
+  };
+  const confirmDeleteLessonAction = async () => {
+    const { lessonId, courseId } = confirmDeleteLesson;
+    if (!lessonId || !courseId) return;
+    const result = await deleteLesson(lessonId);
+    if (result?.success !== false) {
+      success('Lesson deleted successfully!');
+      loadCourseLessons(courseId);
+    } else {
+      showError(result.error || 'Failed to delete lesson');
+    }
+    setConfirmDeleteLesson({ open: false, lessonId: null, courseId: null, lessonTitle: '' });
+  };
+
   const handleAddModule = (courseId) => {
     setSelectedCourseId(courseId);
     setShowModuleForm(true);
@@ -164,17 +232,22 @@ export default function CourseManagement() {
     setShowModuleForm(true);
   };
 
-  const handleDeleteModule = async (moduleId, courseId) => {
-    if (window.confirm('Are you sure you want to delete this module? All lessons in this module will become unassigned.')) {
-      const result = await deleteModule(moduleId, courseId);
-      if (result.success) {
-        success('Module deleted successfully!');
-        loadCourseModules(courseId);
-        loadCourseLessons(courseId);
-      } else {
-        showError(result.error || 'Failed to delete module');
-      }
+  const handleDeleteModule = async (moduleId, courseId, moduleTitle = '') => {
+    setConfirmDeleteModule({ open: true, moduleId, courseId, moduleTitle });
+  };
+
+  const confirmDeleteModuleAction = async () => {
+    const { moduleId, courseId } = confirmDeleteModule;
+    if (!moduleId || !courseId) return;
+    const result = await deleteModule(moduleId, courseId);
+    if (result.success) {
+      success('Module deleted successfully!');
+      loadCourseModules(courseId);
+      loadCourseLessons(courseId);
+    } else {
+      showError(result.error || 'Failed to delete module');
     }
+    setConfirmDeleteModule({ open: false, moduleId: null, courseId: null, moduleTitle: '' });
   };
 
   const toggleModuleExpansion = (moduleId) => {
@@ -215,6 +288,16 @@ export default function CourseManagement() {
     }
   };
 
+  const loadCourseQuizzes = async (courseId) => {
+    const result = await fetchQuizzes(courseId);
+    if (result.data) {
+      setCourseQuizzes(prev => ({
+        ...prev,
+        [courseId]: result.data
+      }));
+    }
+  };
+
   const toggleLessonsView = (courseId) => {
     if (courseLessons[courseId]) {
       setCourseLessons(prev => {
@@ -225,6 +308,7 @@ export default function CourseManagement() {
     } else {
       loadCourseLessons(courseId);
       loadCourseModules(courseId);
+      loadCourseQuizzes(courseId);
     }
   };
 
@@ -304,6 +388,24 @@ export default function CourseManagement() {
               onCancel={() => {
                 setShowModuleForm(false);
                 setEditingModule(null);
+                setSelectedCourseId(null);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Quiz Form Modal */}
+      {showQuizForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <QuizForm
+              quiz={editingQuiz}
+              courseId={selectedCourseId}
+              onSuccess={handleQuizSuccess}
+              onCancel={() => {
+                setShowQuizForm(false);
+                setEditingQuiz(null);
                 setSelectedCourseId(null);
               }}
             />
@@ -439,6 +541,14 @@ export default function CourseManagement() {
                         Add Lesson
                       </Button>
                       <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleAddQuiz(course.id)}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Add Quiz
+                      </Button>
+                      <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDeleteCourse(course.id)}
@@ -453,7 +563,7 @@ export default function CourseManagement() {
               </div>
 
               {/* Course Structure Section */}
-              {(courseModules[course.id] || courseLessons[course.id]) && (
+              {(courseModules[course.id] || courseLessons[course.id] || courseQuizzes[course.id]) && (
                 <div className="border-t border-gray-200 pt-4 mt-4">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="font-medium text-gray-900">Course Structure</h4>
@@ -474,6 +584,14 @@ export default function CourseManagement() {
                         >
                           <Plus className="w-4 h-4 mr-2" />
                           Add Lesson
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleAddQuiz(course.id)}
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Quiz
                         </Button>
                       </div>
                     )}
@@ -522,7 +640,7 @@ export default function CourseManagement() {
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDeleteModule(module.id, course.id);
+                                  handleDeleteModule(module.id, course.id, module.title);
                                 }}
                                 className="text-red-600 hover:text-red-700"
                               >
@@ -561,13 +679,30 @@ export default function CourseManagement() {
                                       </div>
                                       
                                       {course.created_by === user?.id && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleEditLesson(lesson, course.id)}
-                                        >
-                                          <Edit className="w-4 h-4" />
-                                        </Button>
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleEditLesson(lesson, course.id)}
+                                          >
+                                            <Edit className="w-4 h-4" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleAddQuizForLesson(lesson, course.id)}
+                                          >
+                                            <Plus className="w-4 h-4" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleDeleteLesson(lesson, course.id)}
+                                            className="text-red-600 hover:text-red-700"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </Button>
+                                        </div>
                                       )}
                                     </div>
                                   ))}
@@ -610,16 +745,53 @@ export default function CourseManagement() {
                                   </div>
                                   
                                   {course.created_by === user?.id && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleEditLesson(lesson, course.id)}
-                                    >
-                                      <Edit className="w-4 h-4" />
-                                    </Button>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleEditLesson(lesson, course.id)}
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteLesson(lesson, course.id)}
+                                        className="text-red-600 hover:text-red-700"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </div>
                                   )}
                                 </div>
                               ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Display Quizzes */}
+                    {courseQuizzes[course.id]?.length > 0 && (
+                      <div className="border border-gray-200 rounded-lg">
+                        <div className="p-3 bg-purple-50 border-l-4 border-purple-400">
+                          <h5 className="font-medium text-gray-900 mb-2">Quizzes</h5>
+                          <div className="space-y-2">
+                            {courseQuizzes[course.id].map(quiz => (
+                              <div key={quiz.id} className="flex items-center justify-between p-2 bg-white rounded border">
+                                <div>
+                                  <h6 className="font-medium text-gray-900">{quiz.title}</h6>
+                                  <p className="text-xs text-gray-500">Pass: {quiz.pass_threshold ?? 0}% • Time limit: {quiz.time_limit_minutes ?? 0} min</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button variant="ghost" size="sm" onClick={() => handleEditQuiz(quiz, course.id)}>
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleDeleteQuiz(quiz, course.id)}>
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>
@@ -631,6 +803,28 @@ export default function CourseManagement() {
           ))
         )}
       </div>
+      {/* Delete confirmation modal */}
+      <ConfirmDialog
+        isOpen={confirmDelete.open}
+        onClose={() => setConfirmDelete({ open: false, courseId: null, courseTitle: '' })}
+        onConfirm={confirmDeleteCourse}
+        title="Delete Course"
+        description={`Are you sure you want to delete "${confirmDelete.courseTitle}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmVariant="danger"
+      />
+      {/* Delete lesson confirmation modal */}
+      <ConfirmDialog
+        isOpen={confirmDeleteLesson.open}
+        onClose={() => setConfirmDeleteLesson({ open: false, lessonId: null, courseId: null, lessonTitle: '' })}
+        onConfirm={confirmDeleteLessonAction}
+        title="Delete Lesson"
+        description={`Are you sure you want to delete "${confirmDeleteLesson.lessonTitle || 'this lesson'}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmVariant="danger"
+      />
     </div>
   );
-} 
+}
