@@ -33,11 +33,11 @@ export default function Certificates() {
       if (user?.id) {
         try {
           await fetchCertificates(user.id);
-        } catch (error) {
-          console.error('Error loading certificates:', error);
         } finally {
           setLoading(false);
         }
+      } else {
+        setLoading(false);
       }
     };
 

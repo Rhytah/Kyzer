@@ -48,6 +48,9 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
   const [isUploading, setIsUploading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [splitPreview, setSplitPreview] = useState(false);
+  const [pdfSourceType, setPdfSourceType] = useState('external'); // 'external' | 'upload'
+  const [pdfFile, setPdfFile] = useState(null);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState('');
 
   // Initialize form with lesson data if editing
   useEffect(() => {
@@ -294,6 +297,72 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     return html;
   };
 
+  const isYouTubeUrl = (url) => {
+    if (!url) return false;
+    return url.includes('youtube.com') || url.includes('youtu.be');
+  };
+
+  const getYouTubeVideoId = (url) => {
+    if (!isYouTubeUrl(url)) return null;
+    if (url.includes('youtu.be/')) {
+      return url.split('youtu.be/')[1]?.split('?')[0];
+    }
+    if (url.includes('youtube.com/watch')) {
+      const urlParams = new URLSearchParams(url.split('?')[1]);
+      return urlParams.get('v');
+    }
+    return null;
+  };
+
+  // Preserve original filename on upload with safe sanitization and collision handling
+  const sanitizeFileName = (name) => {
+    const trimmed = (name || '').trim();
+    // replace spaces with dashes and strip disallowed chars, keep dots/underscores/hyphens
+    const replaced = trimmed.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9._-]/g, '');
+    // Avoid hidden or empty names
+    return replaced.length ? replaced.toLowerCase() : `file-${Date.now()}`;
+  };
+
+  const isConflictError = (err) => {
+    const code = err?.statusCode || err?.code;
+    const msg = (err?.message || '').toLowerCase();
+    return code === '409' || msg.includes('already exists') || msg.includes('duplicate') || msg.includes('conflict') || msg.includes('resource already');
+  };
+
+  const splitBaseExt = (safeName) => {
+    const lastDot = safeName.lastIndexOf('.');
+    if (lastDot <= 0 || lastDot === safeName.length - 1) {
+      return { base: safeName, ext: '' };
+    }
+    return { base: safeName.substring(0, lastDot), ext: safeName.substring(lastDot) };
+  };
+
+  const uploadPreservingName = async (subdir, file) => {
+    const safeName = sanitizeFileName(file?.name || 'upload');
+    const { base, ext } = splitBaseExt(safeName);
+    let candidatePath = `${subdir}/${safeName}`;
+    try {
+      await uploadFile(STORAGE_BUCKETS.COURSE_CONTENT, candidatePath, file);
+      return candidatePath;
+    } catch (err) {
+      if (!isConflictError(err)) throw err;
+    }
+    // On conflict, try suffixes -1..-50
+    for (let index = 1; index <= 50; index++) {
+      candidatePath = `${subdir}/${base}-${index}${ext}`;
+      try {
+        await uploadFile(STORAGE_BUCKETS.COURSE_CONTENT, candidatePath, file);
+        return candidatePath;
+      } catch (err) {
+        if (!isConflictError(err)) throw err;
+      }
+    }
+    // If all candidates conflicted, fallback to timestamp once
+    candidatePath = `${subdir}/${base}-${Date.now()}${ext}`;
+    await uploadFile(STORAGE_BUCKETS.COURSE_CONTENT, candidatePath, file);
+    return candidatePath;
+  };
+
   const handleVideoFileChange = (e) => {
     const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
     setVideoFile(file);
@@ -308,8 +377,9 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
   useEffect(() => {
     return () => {
       if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
     };
-  }, [videoPreviewUrl]);
+  }, [videoPreviewUrl, pdfPreviewUrl]);
 
   const validateForm = async () => {
     if (!formData.title.trim()) {
@@ -322,9 +392,9 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
           setError('Please select a video file to upload');
           return false;
         }
-        const allowedTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
+        const allowedTypes = ['video/mp4', 'video/webm', 'video/ogg'];
         if (!validateFileType(videoFile, allowedTypes)) {
-          setError('Unsupported video format. Allowed: MP4, WebM, Ogg, MOV');
+          setError('Unsupported video format. Allowed: MP4, WebM, Ogg');
           return false;
         }
         if (!validateFileSize(videoFile, 500)) { // 500 MB max
@@ -345,6 +415,31 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
       if (!['plaintext', 'markdown', 'html'].includes(formData.content_format)) {
         setError('Please select a valid content format');
         return false;
+      }
+    } else if (formData.content_type === 'pdf') {
+      if (pdfSourceType === 'upload') {
+        if (!pdfFile) {
+          setError('Please select a PDF file to upload');
+          return false;
+        }
+        const allowedTypes = ['application/pdf'];
+        if (!validateFileType(pdfFile, allowedTypes)) {
+          setError('Unsupported file type. Only PDF is allowed');
+          return false;
+        }
+        if (!validateFileSize(pdfFile, 100)) { // 100 MB max
+          setError('PDF file is too large (max 100MB)');
+          return false;
+        }
+      } else {
+        if (!formData.content_url.trim()) {
+          setError('Please provide a PDF URL');
+          return false;
+        }
+        if (!/\.pdf(?:\?|#|$)/i.test(formData.content_url.trim())) {
+          setError('The URL should point to a .pdf resource');
+          return false;
+        }
       }
     } else {
       if (!formData.content_text.trim() && !formData.content_url.trim()) {
@@ -394,12 +489,21 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
       // Handle video upload if selected
       if (formData.content_type === 'video' && videoSourceType === 'upload' && videoFile) {
         setIsUploading(true);
-        const safeName = videoFile.name.replace(/\s+/g, '-').toLowerCase();
-        const path = `lessons/videos/${courseId}/${Date.now()}-${safeName}`;
-        await uploadFile(STORAGE_BUCKETS.COURSE_CONTENT, path, videoFile);
+        const subdir = `lessons/videos/${courseId}`;
+        const path = await uploadPreservingName(subdir, videoFile);
         const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, path);
         lessonData.content_url = publicUrl;
         if (lessonData.content_text) lessonData.content_text = '';
+        setIsUploading(false);
+      }
+
+      // Handle PDF upload if selected
+      if (formData.content_type === 'pdf' && pdfSourceType === 'upload' && pdfFile) {
+        setIsUploading(true);
+        const subdir = `lessons/pdfs/${courseId}`;
+        const path = await uploadPreservingName(subdir, pdfFile);
+        const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, path);
+        lessonData.content_url = publicUrl;
         setIsUploading(false);
       }
 
@@ -484,10 +588,9 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
               >
                 <option value="video">Video</option>
                 <option value="text">Text</option>
-                <option value="scorm">SCORM Package</option>
+                {/* <option value="scorm">SCORM Package</option> */}
                 <option value="pdf">PDF</option>
-                <option value="quiz">Quiz</option>
-                <option value="interactive">Interactive</option>
+                {/* <option value="interactive">Interactive</option> */}
               </select>
             </div>
 
@@ -589,17 +692,44 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                       name="content_url"
                       value={formData.content_url}
                       onChange={handleInputChange}
-                      placeholder="https://youtube.com/watch?v=... or public video URL"
+                      placeholder="https://youtube.com/watch?v=... or direct video URL (mp4, webm)"
                       type="url"
                     />
 
                     {formData.content_url && (
                       <div className="mt-3">
-                        <video
-                          src={formData.content_url}
-                          controls
-                          className="w-full rounded border"
-                        />
+                        {isYouTubeUrl(formData.content_url) ? (
+                          (() => {
+                            const vid = getYouTubeVideoId(formData.content_url);
+                            if (!vid) {
+                              return (
+                                <div className="text-sm text-gray-600">
+                                  Invalid YouTube URL. Please use the full watch URL.
+                                </div>
+                              );
+                            }
+                            const embed = `https://www.youtube.com/embed/${vid}?rel=0`;
+                            return (
+                              <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
+                                <iframe
+                                  src={embed}
+                                  title="YouTube preview"
+                                  className="absolute top-0 left-0 w-full h-full rounded border"
+                                  frameBorder="0"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                  referrerPolicy="strict-origin-when-cross-origin"
+                                  allowFullScreen
+                                />
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <video
+                            src={formData.content_url}
+                            controls
+                            className="w-full rounded border"
+                          />
+                        )}
                       </div>
                     )}
                   </div>
@@ -618,6 +748,90 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                     {videoPreviewUrl && (
                       <div className="mt-3">
                         <video src={videoPreviewUrl} controls className="w-full rounded border" />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {formData.content_type === 'pdf' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    PDF Source
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="pdf_source"
+                        value="external"
+                        checked={pdfSourceType === 'external'}
+                        onChange={() => setPdfSourceType('external')}
+                      />
+                      <span className="text-sm text-gray-700">External Link</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="pdf_source"
+                        value="upload"
+                        checked={pdfSourceType === 'upload'}
+                        onChange={() => setPdfSourceType('upload')}
+                      />
+                      <span className="text-sm text-gray-700">Upload File</span>
+                    </label>
+                  </div>
+                </div>
+
+                {pdfSourceType === 'external' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      PDF URL
+                    </label>
+                    <Input
+                      name="content_url"
+                      value={formData.content_url}
+                      onChange={handleInputChange}
+                      placeholder="https://example.com/file.pdf"
+                      type="url"
+                    />
+
+                    {formData.content_url && (
+                      <div className="mt-3 border rounded-lg overflow-hidden">
+                        <iframe
+                          src={formData.content_url}
+                          title="PDF Preview"
+                          className="w-full h-96"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Upload PDF File
+                    </label>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(e) => {
+                        const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+                        setPdfFile(file);
+                        if (file) {
+                          const objectUrl = URL.createObjectURL(file);
+                          setPdfPreviewUrl(objectUrl);
+                        } else {
+                          setPdfPreviewUrl('');
+                        }
+                      }}
+                      className="block w-full text-sm text-gray-700"
+                    />
+
+                    {pdfPreviewUrl && (
+                      <div className="mt-3 border rounded-lg overflow-hidden">
+                        <iframe src={pdfPreviewUrl} title="PDF Preview" className="w-full h-96" />
                       </div>
                     )}
                   </div>

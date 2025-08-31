@@ -358,11 +358,13 @@ export const validateFileSize = (file, maxSizeInMB) => {
 
 export const uploadFile = async (bucket, path, file, options = {}) => {
   try {
+    const contentType = (file && file.type) ? file.type : undefined;
     const { data, error } = await supabase.storage
       .from(bucket)
       .upload(path, file, {
         cacheControl: '3600',
         upsert: false,
+        contentType,
         ...options
       });
 
