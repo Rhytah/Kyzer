@@ -51,6 +51,10 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
   const [pdfSourceType, setPdfSourceType] = useState('external'); // 'external' | 'upload'
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState('');
+  const [pptSourceType, setPptSourceType] = useState('external'); // 'external' | 'upload'
+  const [pptFile, setPptFile] = useState(null);
+  const [pptPreviewUrl, setPptPreviewUrl] = useState('');
+  const [scormFile, setScormFile] = useState(null);
 
   // Initialize form with lesson data if editing
   useEffect(() => {
@@ -378,8 +382,9 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     return () => {
       if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
       if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+      if (pptPreviewUrl) URL.revokeObjectURL(pptPreviewUrl);
     };
-  }, [videoPreviewUrl, pdfPreviewUrl]);
+  }, [videoPreviewUrl, pdfPreviewUrl, pptPreviewUrl]);
 
   const validateForm = async () => {
     if (!formData.title.trim()) {
@@ -440,6 +445,55 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
           setError('The URL should point to a .pdf resource');
           return false;
         }
+      }
+    } else if (formData.content_type === 'ppt') {
+      if (pptSourceType === 'upload') {
+        if (!pptFile) {
+          setError('Please select a PowerPoint file to upload');
+          return false;
+        }
+        const allowedTypes = [
+          'application/vnd.ms-powerpoint',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          'application/vnd.ms-powerpoint.presentation.macroEnabled.12'
+        ];
+        if (!validateFileType(pptFile, allowedTypes)) {
+          setError('Unsupported file type. Allowed: PPT, PPTX');
+          return false;
+        }
+        if (!validateFileSize(pptFile, 200)) { // 200 MB max
+          setError('PowerPoint file is too large (max 200MB)');
+          return false;
+        }
+      } else {
+        if (!formData.content_url.trim()) {
+          setError('Please provide a PowerPoint URL');
+          return false;
+        }
+        const url = formData.content_url.trim();
+        const decodedUrl = decodeURIComponent(url);
+        const isPowerPointFile = /\.(ppt|pptx)(?:\?|#|$|&|%20|%2E|%3F|%23)/i.test(url) || 
+                                /\.(ppt|pptx)(?:\?|#|$|&)/i.test(decodedUrl);
+        const isGoogleSlides = /docs\.google\.com\/presentation\/d\/[a-zA-Z0-9_-]+/i.test(url);
+        
+        if (!isPowerPointFile && !isGoogleSlides) {
+          setError('The URL should point to a .ppt/.pptx file or a Google Slides presentation');
+          return false;
+        }
+      }
+    } else if (formData.content_type === 'scorm') {
+      if (!scormFile) {
+        setError('Please select a SCORM package file to upload');
+        return false;
+      }
+      const allowedTypes = ['application/zip', 'application/x-zip-compressed'];
+      if (!validateFileType(scormFile, allowedTypes)) {
+        setError('Unsupported file type. Only ZIP files are allowed for SCORM packages');
+        return false;
+      }
+      if (!validateFileSize(scormFile, 100)) { // 100 MB max
+        setError('SCORM package is too large (max 100MB)');
+        return false;
       }
     } else {
       if (!formData.content_text.trim() && !formData.content_url.trim()) {
@@ -505,6 +559,35 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, path);
         lessonData.content_url = publicUrl;
         setIsUploading(false);
+      }
+
+      // Handle PPT upload if selected
+      if (formData.content_type === 'ppt' && pptSourceType === 'upload' && pptFile) {
+        setIsUploading(true);
+        const subdir = `lessons/presentations/${courseId}`;
+        const path = await uploadPreservingName(subdir, pptFile);
+        const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, path);
+        lessonData.content_url = publicUrl;
+        setIsUploading(false);
+      }
+
+      // Handle SCORM upload if selected
+      if (formData.content_type === 'scorm' && scormFile) {
+        setIsUploading(true);
+        try {
+          // For SCORM packages, upload the ZIP file and get the public URL
+          const subdir = `lessons/scorm/${courseId}`;
+          const path = await uploadPreservingName(subdir, scormFile);
+          const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, path);
+          
+          // Store the public URL so it can be accessed directly
+          lessonData.content_url = publicUrl;
+          setIsUploading(false);
+        } catch (error) {
+          setError('Failed to upload SCORM package: ' + error.message);
+          setIsUploading(false);
+          return;
+        }
       }
 
       let result;
@@ -588,8 +671,9 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
               >
                 <option value="video">Video</option>
                 <option value="text">Text</option>
-                {/* <option value="scorm">SCORM Package</option> */}
+                <option value="scorm">SCORM Package</option>
                 <option value="pdf">PDF</option>
+                <option value="ppt">PowerPoint</option>
                 {/* <option value="interactive">Interactive</option> */}
               </select>
             </div>
@@ -839,6 +923,180 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
               </div>
             )}
 
+            {formData.content_type === 'ppt' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    PowerPoint Source
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="ppt_source"
+                        value="external"
+                        checked={pptSourceType === 'external'}
+                        onChange={() => setPptSourceType('external')}
+                      />
+                      <span className="text-sm text-gray-700">External Link</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="ppt_source"
+                        value="upload"
+                        checked={pptSourceType === 'upload'}
+                        onChange={() => setPptSourceType('upload')}
+                      />
+                      <span className="text-sm text-gray-700">Upload File</span>
+                    </label>
+                  </div>
+                </div>
+
+                {pptSourceType === 'external' ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Presentation URL
+                    </label>
+                    <Input
+                      name="content_url"
+                      value={formData.content_url}
+                      onChange={handleInputChange}
+                      placeholder="https://example.com/presentation.pptx or https://docs.google.com/presentation/d/..."
+                      type="url"
+                    />
+
+                    {formData.content_url && (
+                      <div className="mt-3 border rounded-lg overflow-hidden">
+                        {(() => {
+                          const url = formData.content_url.trim();
+                          const isGoogleSlides = /docs\.google\.com\/presentation\/d\/[a-zA-Z0-9_-]+/i.test(url);
+                          
+                          if (isGoogleSlides) {
+                            // Convert Google Slides edit URL to embed URL
+                            const presentationId = url.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1];
+                            const embedUrl = presentationId 
+                              ? `https://docs.google.com/presentation/d/${presentationId}/embed`
+                              : url;
+                            
+                            return (
+                              <iframe
+                                src={embedUrl}
+                                title="Google Slides Preview"
+                                className="w-full h-96"
+                                frameBorder="0"
+                                allowFullScreen
+                              />
+                            );
+                          } else {
+                            return (
+                              <iframe
+                                src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`}
+                                title="PowerPoint Preview"
+                                className="w-full h-96"
+                                frameBorder="0"
+                              />
+                            );
+                          }
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Upload PowerPoint File
+                    </label>
+                    <input
+                      type="file"
+                      accept=".ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                      onChange={(e) => {
+                        const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+                        setPptFile(file);
+                        if (file) {
+                          const objectUrl = URL.createObjectURL(file);
+                          setPptPreviewUrl(objectUrl);
+                        } else {
+                          setPptPreviewUrl('');
+                        }
+                      }}
+                      className="block w-full text-sm text-gray-700"
+                    />
+
+                    {pptPreviewUrl && (
+                      <div className="mt-3 border rounded-lg overflow-hidden">
+                        <iframe
+                          src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(pptPreviewUrl)}`}
+                          title="PowerPoint Preview"
+                          className="w-full h-96"
+                          frameBorder="0"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {formData.content_type === 'scorm' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    SCORM Package Upload
+                  </label>
+                  <input
+                    type="file"
+                    accept=".zip,application/zip,application/x-zip-compressed"
+                    onChange={(e) => {
+                      const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+                      setScormFile(file);
+                    }}
+                    className="block w-full text-sm text-gray-700"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Upload a SCORM 1.2 or 2004 compliant package (.zip file). Maximum size: 100MB.
+                  </p>
+                </div>
+
+                {scormFile && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-blue-600 text-sm font-medium">ZIP</span>
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-blue-900 truncate">
+                          {scormFile.name}
+                        </p>
+                        <p className="text-xs text-blue-700">
+                          {(scormFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="text-sm font-medium text-blue-900 mb-2">SCORM Package Information</h4>
+                  <ul className="text-xs text-blue-700 space-y-1">
+                    <li>• Must be a valid SCORM 1.2 or 2004 compliant package</li>
+                    <li>• Should contain imsmanifest.xml file in the root</li>
+                    <li>• All assets and resources should be included in the package</li>
+                    <li>• Package will be uploaded and made available to learners</li>
+                  </ul>
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                    <p className="text-xs text-yellow-800">
+                      <strong>Note:</strong> SCORM packages require server-side processing for full functionality. 
+                      The package will be uploaded successfully and learners can access it, but full SCORM tracking 
+                      requires additional server configuration.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {formData.content_type === 'text' && (
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -961,7 +1219,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
             )}
 
             {/* Fallback fields for other types */}
-            {formData.content_type !== 'video' && formData.content_type !== 'text' && (
+            {formData.content_type !== 'video' && formData.content_type !== 'text' && formData.content_type !== 'pdf' && formData.content_type !== 'ppt' && formData.content_type !== 'scorm' && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
