@@ -1,5 +1,5 @@
 // src/pages/courses/LessonView.jsx
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react'
 import ReactPlayer from 'react-player'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { 
@@ -28,7 +28,30 @@ import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { useToast } from '@/components/ui'
- 
+
+// Custom hook for intersection observer (lazy loading)
+const useIntersectionObserver = (options = {}) => {
+  const [isIntersecting, setIsIntersecting] = useState(false)
+  const [hasIntersected, setHasIntersected] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const element = ref.current
+    if (!element) return
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setIsIntersecting(entry.isIntersecting)
+      if (entry.isIntersecting && !hasIntersected) {
+        setHasIntersected(true)
+      }
+    }, options)
+
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [options, hasIntersected])
+
+  return [ref, isIntersecting, hasIntersected]
+}
 
 export default function LessonView() {
   const { courseId, lessonId } = useParams()
@@ -477,14 +500,13 @@ export default function LessonView() {
 
   // (Removed unused getMimeTypeFromUrl)
 
-  // Helper function to check if URL is a YouTube URL
-  const isYouTubeUrl = (url) => {
+  // Memoized helper functions
+  const isYouTubeUrl = useCallback((url) => {
     if (!url) return false;
     return url.includes('youtube.com') || url.includes('youtu.be');
-  };
+  }, []);
 
-  // Helper function to extract YouTube video ID
-  const getYouTubeVideoId = (url) => {
+  const getYouTubeVideoId = useCallback((url) => {
     if (!isYouTubeUrl(url)) return null;
     
     // Handle youtu.be format
@@ -499,163 +521,252 @@ export default function LessonView() {
     }
     
     return null;
-  };
+  }, [isYouTubeUrl]);
 
-  const VideoPlayer = () => {
+  // Memoized markdown rendering functions
+  const escapeHtml = useCallback((unsafe) => {
+    return unsafe
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll('\'', '&#039;');
+  }, []);
+
+  const renderMarkdownToHtml = useCallback((md) => {
+    const escaped = escapeHtml(md);
+    let html = escaped;
+    html = html.replace(/^######\s?(.*)$/gm, '<h6>$1</h6>')
+               .replace(/^#####\s?(.*)$/gm, '<h5>$1</h5>')
+               .replace(/^####\s?(.*)$/gm, '<h4>$1</h4>')
+               .replace(/^###\s?(.*)$/gm, '<h3>$1</h3>')
+               .replace(/^##\s?(.*)$/gm, '<h2>$1</h2>')
+               .replace(/^#\s?(.*)$/gm, '<h1>$1</h1>');
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+               .replace(/\*(.*?)\*/g, '<em>$1</em>');
+    html = html.replace(/\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1<\/a>');
+    html = html.replace(/^(?:-\s.*(?:\n|$))+?/gm, (block) => {
+      const items = block.trim().split(/\n/).map(l => l.replace(/^-\s?/, '').trim()).filter(Boolean);
+      return items.length ? '<ul>' + items.map(i => `<li>${i}<\/li>`).join('') + '<\/ul>' : block;
+    });
+    html = html.replace(/^(?:\d+\.\s.*(?:\n|$))+?/gm, (block) => {
+      const items = block.trim().split(/\n/).map(l => l.replace(/^\d+\.\s?/, '').trim()).filter(Boolean);
+      return items.length ? '<ol>' + items.map(i => `<li>${i}<\/li>`).join('') + '<\/ol>' : block;
+    });
+    html = html.replace(/\n{2,}/g, '</p><p>');
+    html = `<p>${html.replace(/\n/g, '<br/>')}<\/p>`;
+    return html;
+  }, [escapeHtml]);
+
+  const parseStoredText = useCallback((raw) => {
+    if (!raw) return { format: 'plaintext', text: '' };
+    const match = raw.match(/^<!--content_format:(markdown|html|plaintext)-->([\s\S]*)/);
+    if (match) {
+      return { format: match[1], text: match[2] };
+    }
+    return { format: 'plaintext', text: raw };
+  }, []);
+
+  // Memoized values for the main component
+  const lessonDescriptionHtml = useMemo(() => {
+    const raw = lesson?.content_text || lesson?.description || '';
+    if (!raw) {
+      return <p className="text-text-light">No description available</p>;
+    }
+    const parsed = parseStoredText(raw);
+    const html = parsed.format === 'markdown'
+      ? renderMarkdownToHtml(parsed.text)
+      : parsed.format === 'html'
+        ? parsed.text
+        : `<p>${escapeHtml(parsed.text).replace(/\n/g, '<br/>')}<\/p>`;
+    return (
+      <div
+        className="prose max-w-none text-text-light"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    );
+  }, [lesson?.content_text, lesson?.description, parseStoredText, renderMarkdownToHtml, escapeHtml]);
+
+  const lessonContentParagraphs = useMemo(() => {
+    if (!lesson?.content_text) {
+      return <p className="text-text-muted">No content available for this lesson.</p>;
+    }
+    return lesson.content_text.split('\n\n').map((paragraph, index) => (
+      <p key={index} className="mb-4">{paragraph}</p>
+    ));
+  }, [lesson?.content_text]);
+
+  const courseProgressData = useMemo(() => {
+    const progressPercentage = course && courseProgress[courseId] ? 
+      Math.round((Object.values(courseProgress[courseId]).filter(p => p.completed).length / lessons.length) * 100) : 0;
+    
+    return {
+      percentage: progressPercentage,
+      completedCount: course && courseProgress[courseId] ? 
+        Object.values(courseProgress[courseId]).filter(p => p.completed).length : 0,
+      totalCount: lessons.length
+    };
+  }, [course, courseProgress, courseId, lessons.length]);
+
+  // Memoized LazyIframe component for performance
+  const LazyIframe = memo(({ src, title, className, onLoad, frameBorder, allowFullScreen }) => {
+    const [ref, isIntersecting, hasIntersected] = useIntersectionObserver({
+      threshold: 0.1,
+      rootMargin: '50px'
+    });
+
+    return (
+      <div ref={ref} className={className}>
+        {hasIntersected ? (
+          <iframe
+            src={src}
+            title={title}
+            className="w-full h-full"
+            loading="lazy"
+            onLoad={onLoad}
+            frameBorder={frameBorder}
+            allowFullScreen={allowFullScreen}
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+            <div className="text-gray-500">Loading...</div>
+          </div>
+        )}
+      </div>
+    );
+  });
+
+  LazyIframe.displayName = 'LazyIframe';
+
+  // Memoized PDF Viewer component
+  const PDFViewer = memo(({ pdfUrl, onLoad }) => {
+    return (
+      <div className="bg-gray-50 rounded-lg p-4">
+        {pdfUrl ? (
+          <div className="border rounded-lg overflow-hidden">
+            <div className="relative">
+              <LazyIframe
+                src={pdfUrl}
+                title="PDF Document"
+                className="w-full h-[70vh]"
+                onLoad={onLoad}
+                frameBorder="0"
+              />
+              {pdfLoading && (
+                <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-600"></div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center text-gray-500 p-8">No PDF available.</div>
+        )}
+        {pdfUrl && (
+          <div className="mt-3 flex justify-end">
+            <Button variant="secondary" onClick={() => window.open(pdfUrl, '_blank')}>
+              Open in new tab
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  });
+
+  PDFViewer.displayName = 'PDFViewer';
+
+  // Memoized PPT Viewer component
+  const PPTViewer = memo(({ pptUrl, onLoad }) => {
+    const isGoogleSlides = useMemo(() => {
+      return /docs\.google\.com\/presentation\/d\/[a-zA-Z0-9_-]+/i.test(pptUrl);
+    }, [pptUrl]);
+
+    const embedUrl = useMemo(() => {
+      if (!pptUrl) return null;
+      
+      if (isGoogleSlides) {
+        const presentationId = pptUrl.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1];
+        return presentationId 
+          ? `https://docs.google.com/presentation/d/${presentationId}/embed`
+          : pptUrl;
+      } else {
+        return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(pptUrl)}`;
+      }
+    }, [pptUrl, isGoogleSlides]);
+
+    return (
+      <div className="bg-gray-50 rounded-lg p-4">
+        {pptUrl ? (
+          <div className="border rounded-lg overflow-hidden">
+            <div className="relative">
+              <LazyIframe
+                src={embedUrl}
+                title={isGoogleSlides ? "Google Slides Presentation" : "PowerPoint Presentation"}
+                className="w-full h-[70vh]"
+                onLoad={onLoad}
+                frameBorder="0"
+                allowFullScreen={isGoogleSlides}
+              />
+              {pptLoading && (
+                <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-600"></div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center text-gray-500 p-8">No presentation available.</div>
+        )}
+        {pptUrl && (
+          <div className="mt-3 flex justify-end">
+            <Button variant="secondary" onClick={() => window.open(pptUrl, '_blank')}>
+              Open in new tab
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  });
+
+  PPTViewer.displayName = 'PPTViewer';
+
+  // Memoized Text Content component
+  const TextContentViewer = memo(({ contentText }) => {
+    const parsed = useMemo(() => parseStoredText(contentText), [contentText, parseStoredText]);
+    
+    const html = useMemo(() => {
+      return parsed.format === 'markdown'
+        ? renderMarkdownToHtml(parsed.text)
+        : parsed.format === 'html'
+          ? parsed.text
+          : `<p>${escapeHtml(parsed.text).replace(/\n/g, '<br/>')}<\/p>`;
+    }, [parsed, renderMarkdownToHtml, escapeHtml]);
+
+    return (
+      <div className="bg-gray-50 rounded-lg p-6">
+        <div
+          className="prose max-w-none text-text-medium"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      </div>
+    );
+  });
+
+  TextContentViewer.displayName = 'TextContentViewer';
+
+  const VideoPlayer = memo(() => {
     if (lesson.content_type !== 'video') {
       // Handle text rendering with stored format marker
       if (lesson.content_type === 'text') {
-        const parseStoredText = (raw) => {
-          if (!raw) return { format: 'plaintext', text: '' };
-          const match = raw.match(/^<!--content_format:(markdown|html|plaintext)-->([\s\S]*)/);
-          if (match) {
-            return { format: match[1], text: match[2] };
-          }
-          return { format: 'plaintext', text: raw };
-        };
-        const escapeHtml = (unsafe) => unsafe
-          .replaceAll('&', '&amp;')
-          .replaceAll('<', '&lt;')
-          .replaceAll('>', '&gt;')
-          .replaceAll('"', '&quot;')
-          .replaceAll('\'', '&#039;');
-        const renderMarkdownToHtml = (md) => {
-          const escaped = escapeHtml(md);
-          let html = escaped;
-          html = html.replace(/^######\s?(.*)$/gm, '<h6>$1</h6>')
-                     .replace(/^#####\s?(.*)$/gm, '<h5>$1</h5>')
-                     .replace(/^####\s?(.*)$/gm, '<h4>$1</h4>')
-                     .replace(/^###\s?(.*)$/gm, '<h3>$1</h3>')
-                     .replace(/^##\s?(.*)$/gm, '<h2>$1</h2>')
-                     .replace(/^#\s?(.*)$/gm, '<h1>$1</h1>');
-          html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                     .replace(/\*(.*?)\*/g, '<em>$1</em>');
-          html = html.replace(/\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1<\/a>');
-          html = html.replace(/^(?:-\s.*(?:\n|$))+?/gm, (block) => {
-            const items = block.trim().split(/\n/).map(l => l.replace(/^-\s?/, '').trim()).filter(Boolean);
-            return items.length ? '<ul>' + items.map(i => `<li>${i}<\/li>`).join('') + '<\/ul>' : block;
-          });
-          html = html.replace(/^(?:\d+\.\s.*(?:\n|$))+?/gm, (block) => {
-            const items = block.trim().split(/\n/).map(l => l.replace(/^\d+\.\s?/, '').trim()).filter(Boolean);
-            return items.length ? '<ol>' + items.map(i => `<li>${i}<\/li>`).join('') + '<\/ol>' : block;
-          });
-          html = html.replace(/\n{2,}/g, '</p><p>');
-          html = `<p>${html.replace(/\n/g, '<br/>')}<\/p>`;
-          return html;
-        };
-
-        const parsed = parseStoredText(lesson.content_text);
-        const html = parsed.format === 'markdown'
-          ? renderMarkdownToHtml(parsed.text)
-          : parsed.format === 'html'
-            ? parsed.text
-            : `<p>${escapeHtml(parsed.text).replace(/\n/g, '<br/>')}<\/p>`;
-
-      return (
-          <div className="bg-gray-50 rounded-lg p-6">
-            <div
-              className="prose max-w-none text-text-medium"
-              dangerouslySetInnerHTML={{ __html: html }}
-            />
-          </div>
-        );
+        return <TextContentViewer contentText={lesson.content_text} />;
       }
       // Handle PDF rendering
       if (lesson.content_type === 'pdf') {
-        const pdfUrl = lesson.content_url;
-        return (
-          <div className="bg-gray-50 rounded-lg p-4">
-            {pdfUrl ? (
-              <div className="border rounded-lg overflow-hidden">
-                <div className="relative">
-                  <iframe
-                    src={pdfUrl}
-                    title="PDF Document"
-                    className="w-full h-[70vh]"
-                    loading="lazy"
-                    onLoad={() => setPdfLoading(false)}
-                  />
-                  {pdfLoading && (
-                    <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-600"></div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center text-gray-500 p-8">No PDF available.</div>
-            )}
-            {pdfUrl && (
-              <div className="mt-3 flex justify-end">
-                <Button variant="secondary" onClick={() => window.open(pdfUrl, '_blank')}>
-                  Open in new tab
-                </Button>
-            </div>
-          )}
-          </div>
-        );
+        return <PDFViewer pdfUrl={lesson.content_url} onLoad={() => setPdfLoading(false)} />;
       }
       // Handle PPT rendering
       if (lesson.content_type === 'ppt') {
-        const pptUrl = lesson.content_url;
-        return (
-          <div className="bg-gray-50 rounded-lg p-4">
-            {pptUrl ? (
-              <div className="border rounded-lg overflow-hidden">
-                <div className="relative">
-                  {(() => {
-                    const isGoogleSlides = /docs\.google\.com\/presentation\/d\/[a-zA-Z0-9_-]+/i.test(pptUrl);
-                    
-                    if (isGoogleSlides) {
-                      // Convert Google Slides edit URL to embed URL
-                      const presentationId = pptUrl.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1];
-                      const embedUrl = presentationId 
-                        ? `https://docs.google.com/presentation/d/${presentationId}/embed`
-                        : pptUrl;
-                      
-                      return (
-                        <iframe
-                          src={embedUrl}
-                          title="Google Slides Presentation"
-                          className="w-full h-[70vh]"
-                          loading="lazy"
-                          onLoad={() => setPptLoading(false)}
-                          frameBorder="0"
-                          allowFullScreen
-                        />
-                      );
-                    } else {
-                      return (
-                        <iframe
-                          src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(pptUrl)}`}
-                          title="PowerPoint Presentation"
-                          className="w-full h-[70vh]"
-                          loading="lazy"
-                          onLoad={() => setPptLoading(false)}
-                          frameBorder="0"
-                        />
-                      );
-                    }
-                  })()}
-                  {pptLoading && (
-                    <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-600"></div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center text-gray-500 p-8">No presentation available.</div>
-            )}
-            {pptUrl && (
-              <div className="mt-3 flex justify-end">
-                <Button variant="secondary" onClick={() => window.open(pptUrl, '_blank')}>
-                  Open in new tab
-                </Button>
-              </div>
-            )}
-          </div>
-        );
+        return <PPTViewer pptUrl={lesson.content_url} onLoad={() => setPptLoading(false)} />;
       }
 
       // Fallback placeholder for other non-video content types
@@ -794,10 +905,12 @@ export default function LessonView() {
         )}
       </div>
     );
-  };
+  });
+
+  VideoPlayer.displayName = 'VideoPlayer';
 
   // Video Error Display Component
-  const VideoErrorDisplay = () => {
+  const VideoErrorDisplay = memo(() => {
     if (!videoError) return null;
     
     const getErrorMessage = () => {
@@ -876,7 +989,9 @@ export default function LessonView() {
         </div>
       </Card>
     );
-  };
+  });
+
+  VideoErrorDisplay.displayName = 'VideoErrorDisplay';
 
   if (loading) {
     return (
@@ -947,62 +1062,7 @@ export default function LessonView() {
             <div>
               <h1 className="text-2xl font-bold text-text-dark mb-2">{lesson.title}</h1>
               {/* Render formatted content preview (respect stored format marker) */}
-              {(() => {
-                const parseStoredText = (raw) => {
-                  if (!raw) return { format: 'plaintext', text: '' };
-                  const match = raw.match(/^<!--content_format:(markdown|html|plaintext)-->([\s\S]*)/);
-                  if (match) {
-                    return { format: match[1], text: match[2] };
-                  }
-                  return { format: 'plaintext', text: raw };
-                };
-                const escapeHtml = (unsafe) => unsafe
-                  .replaceAll('&', '&amp;')
-                  .replaceAll('<', '&lt;')
-                  .replaceAll('>', '&gt;')
-                  .replaceAll('"', '&quot;')
-                  .replaceAll('\'', '&#039;');
-                const renderMarkdownToHtml = (md) => {
-                  const escaped = escapeHtml(md);
-                  let html = escaped;
-                  html = html.replace(/^######\s?(.*)$/gm, '<h6>$1</h6>')
-                             .replace(/^#####\s?(.*)$/gm, '<h5>$1</h5>')
-                             .replace(/^####\s?(.*)$/gm, '<h4>$1</h4>')
-                             .replace(/^###\s?(.*)$/gm, '<h3>$1</h3>')
-                             .replace(/^##\s?(.*)$/gm, '<h2>$1</h2>')
-                             .replace(/^#\s?(.*)$/gm, '<h1>$1</h1>');
-                  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                             .replace(/\*(.*?)\*/g, '<em>$1</em>');
-                  html = html.replace(/\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1<\/a>');
-                  html = html.replace(/^(?:-\s.*(?:\n|$))+?/gm, (block) => {
-                    const items = block.trim().split(/\n/).map(l => l.replace(/^-\s?/, '').trim()).filter(Boolean);
-                    return items.length ? '<ul>' + items.map(i => `<li>${i}<\/li>`).join('') + '<\/ul>' : block;
-                  });
-                  html = html.replace(/^(?:\d+\.\s.*(?:\n|$))+?/gm, (block) => {
-                    const items = block.trim().split(/\n/).map(l => l.replace(/^\d+\.\s?/, '').trim()).filter(Boolean);
-                    return items.length ? '<ol>' + items.map(i => `<li>${i}<\/li>`).join('') + '<\/ol>' : block;
-                  });
-                  html = html.replace(/\n{2,}/g, '</p><p>');
-                  html = `<p>${html.replace(/\n/g, '<br/>')}<\/p>`;
-                  return html;
-                };
-                const raw = lesson.content_text || lesson.description || '';
-                if (!raw) {
-                  return <p className="text-text-light">No description available</p>;
-                }
-                const parsed = parseStoredText(raw);
-                const html = parsed.format === 'markdown'
-                  ? renderMarkdownToHtml(parsed.text)
-                  : parsed.format === 'html'
-                    ? parsed.text
-                    : `<p>${escapeHtml(parsed.text).replace(/\n/g, '<br/>')}<\/p>`;
-                return (
-                  <div
-                    className="prose max-w-none text-text-light"
-                    dangerouslySetInnerHTML={{ __html: html }}
-                  />
-                );
-              })()}
+              {lessonDescriptionHtml}
             </div>
             
             <div className="flex items-center gap-2">
@@ -1062,13 +1122,7 @@ export default function LessonView() {
             <div>
               <h3 className="text-lg font-semibold text-text-dark mb-4">Lesson Content</h3>
               <div className="prose max-w-none text-text-medium">
-                {lesson.content_text ? (
-                  lesson.content_text.split('\n\n').map((paragraph, index) => (
-                    <p key={index} className="mb-4">{paragraph}</p>
-                  ))
-                ) : (
-                  <p className="text-text-muted">No content available for this lesson.</p>
-                )}
+                {lessonContentParagraphs}
               </div>
             </div>
           ) : (
@@ -1227,28 +1281,17 @@ export default function LessonView() {
           <div className="mb-4">
             <div className="flex justify-between text-sm mb-2">
               <span className="text-text-medium">Overall Progress</span>
-              <span className="font-medium">
-                {course && courseProgress[courseId] ? 
-                  Math.round((Object.values(courseProgress[courseId]).filter(p => p.completed).length / lessons.length) * 100) : 0
-                }%
-              </span>
+              <span className="font-medium">{courseProgressData.percentage}%</span>
             </div>
             <div className="w-full bg-background-medium rounded-full h-2">
               <div 
                 className="bg-primary-default h-2 rounded-full" 
-                style={{ 
-                  width: `${course && courseProgress[courseId] ? 
-                    (Object.values(courseProgress[courseId]).filter(p => p.completed).length / lessons.length) * 100 : 0
-                  }%` 
-                }}
+                style={{ width: `${courseProgressData.percentage}%` }}
               ></div>
             </div>
           </div>
           <p className="text-sm text-text-light">
-            {course && courseProgress[courseId] ? 
-              `${Object.values(courseProgress[courseId]).filter(p => p.completed).length} of ${lessons.length} lessons completed` :
-              `0 of ${lessons.length} lessons completed`
-            }
+            {courseProgressData.completedCount} of {courseProgressData.totalCount} lessons completed
           </p>
         </Card>
 

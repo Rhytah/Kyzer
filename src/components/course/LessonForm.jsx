@@ -54,6 +54,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
   const [pptSourceType, setPptSourceType] = useState('external'); // 'external' | 'upload'
   const [pptFile, setPptFile] = useState(null);
   const [pptPreviewUrl, setPptPreviewUrl] = useState('');
+  const [scormFile, setScormFile] = useState(null);
 
   // Initialize form with lesson data if editing
   useEffect(() => {
@@ -480,6 +481,20 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
           return false;
         }
       }
+    } else if (formData.content_type === 'scorm') {
+      if (!scormFile) {
+        setError('Please select a SCORM package file to upload');
+        return false;
+      }
+      const allowedTypes = ['application/zip', 'application/x-zip-compressed'];
+      if (!validateFileType(scormFile, allowedTypes)) {
+        setError('Unsupported file type. Only ZIP files are allowed for SCORM packages');
+        return false;
+      }
+      if (!validateFileSize(scormFile, 100)) { // 100 MB max
+        setError('SCORM package is too large (max 100MB)');
+        return false;
+      }
     } else {
       if (!formData.content_text.trim() && !formData.content_url.trim()) {
         setError('Provide content text or a content URL');
@@ -554,6 +569,25 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, path);
         lessonData.content_url = publicUrl;
         setIsUploading(false);
+      }
+
+      // Handle SCORM upload if selected
+      if (formData.content_type === 'scorm' && scormFile) {
+        setIsUploading(true);
+        try {
+          // For SCORM packages, upload the ZIP file and get the public URL
+          const subdir = `lessons/scorm/${courseId}`;
+          const path = await uploadPreservingName(subdir, scormFile);
+          const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, path);
+          
+          // Store the public URL so it can be accessed directly
+          lessonData.content_url = publicUrl;
+          setIsUploading(false);
+        } catch (error) {
+          setError('Failed to upload SCORM package: ' + error.message);
+          setIsUploading(false);
+          return;
+        }
       }
 
       let result;
@@ -637,7 +671,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
               >
                 <option value="video">Video</option>
                 <option value="text">Text</option>
-                {/* <option value="scorm">SCORM Package</option> */}
+                <option value="scorm">SCORM Package</option>
                 <option value="pdf">PDF</option>
                 <option value="ppt">PowerPoint</option>
                 {/* <option value="interactive">Interactive</option> */}
@@ -1004,6 +1038,65 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
               </div>
             )}
 
+            {formData.content_type === 'scorm' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    SCORM Package Upload
+                  </label>
+                  <input
+                    type="file"
+                    accept=".zip,application/zip,application/x-zip-compressed"
+                    onChange={(e) => {
+                      const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+                      setScormFile(file);
+                    }}
+                    className="block w-full text-sm text-gray-700"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Upload a SCORM 1.2 or 2004 compliant package (.zip file). Maximum size: 100MB.
+                  </p>
+                </div>
+
+                {scormFile && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-blue-600 text-sm font-medium">ZIP</span>
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-blue-900 truncate">
+                          {scormFile.name}
+                        </p>
+                        <p className="text-xs text-blue-700">
+                          {(scormFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="text-sm font-medium text-blue-900 mb-2">SCORM Package Information</h4>
+                  <ul className="text-xs text-blue-700 space-y-1">
+                    <li>• Must be a valid SCORM 1.2 or 2004 compliant package</li>
+                    <li>• Should contain imsmanifest.xml file in the root</li>
+                    <li>• All assets and resources should be included in the package</li>
+                    <li>• Package will be uploaded and made available to learners</li>
+                  </ul>
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                    <p className="text-xs text-yellow-800">
+                      <strong>Note:</strong> SCORM packages require server-side processing for full functionality. 
+                      The package will be uploaded successfully and learners can access it, but full SCORM tracking 
+                      requires additional server configuration.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {formData.content_type === 'text' && (
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -1126,7 +1219,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
             )}
 
             {/* Fallback fields for other types */}
-            {formData.content_type !== 'video' && formData.content_type !== 'text' && formData.content_type !== 'pdf' && formData.content_type !== 'ppt' && (
+            {formData.content_type !== 'video' && formData.content_type !== 'text' && formData.content_type !== 'pdf' && formData.content_type !== 'ppt' && formData.content_type !== 'scorm' && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
