@@ -53,6 +53,7 @@ export default function LessonView() {
   const [videoError, setVideoError] = useState(null)
   const [isCompleting, setIsCompleting] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
+  const [pptLoading, setPptLoading] = useState(false)
   const [haltVideo, setHaltVideo] = useState(false)
   const [playerKey, setPlayerKey] = useState(0)
   // Quiz state
@@ -119,6 +120,15 @@ export default function LessonView() {
       setPdfLoading(true)
     } else {
       setPdfLoading(false)
+    }
+  }, [lesson?.content_type, lesson?.content_url])
+
+  // Effect to track PPT loading state when URL changes
+  useEffect(() => {
+    if (lesson?.content_type === 'ppt' && lesson?.content_url) {
+      setPptLoading(true)
+    } else {
+      setPptLoading(false)
     }
   }, [lesson?.content_type, lesson?.content_url])
 
@@ -582,6 +592,68 @@ export default function LessonView() {
                 </Button>
             </div>
           )}
+          </div>
+        );
+      }
+      // Handle PPT rendering
+      if (lesson.content_type === 'ppt') {
+        const pptUrl = lesson.content_url;
+        return (
+          <div className="bg-gray-50 rounded-lg p-4">
+            {pptUrl ? (
+              <div className="border rounded-lg overflow-hidden">
+                <div className="relative">
+                  {(() => {
+                    const isGoogleSlides = /docs\.google\.com\/presentation\/d\/[a-zA-Z0-9_-]+/i.test(pptUrl);
+                    
+                    if (isGoogleSlides) {
+                      // Convert Google Slides edit URL to embed URL
+                      const presentationId = pptUrl.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1];
+                      const embedUrl = presentationId 
+                        ? `https://docs.google.com/presentation/d/${presentationId}/embed`
+                        : pptUrl;
+                      
+                      return (
+                        <iframe
+                          src={embedUrl}
+                          title="Google Slides Presentation"
+                          className="w-full h-[70vh]"
+                          loading="lazy"
+                          onLoad={() => setPptLoading(false)}
+                          frameBorder="0"
+                          allowFullScreen
+                        />
+                      );
+                    } else {
+                      return (
+                        <iframe
+                          src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(pptUrl)}`}
+                          title="PowerPoint Presentation"
+                          className="w-full h-[70vh]"
+                          loading="lazy"
+                          onLoad={() => setPptLoading(false)}
+                          frameBorder="0"
+                        />
+                      );
+                    }
+                  })()}
+                  {pptLoading && (
+                    <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-600"></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center text-gray-500 p-8">No presentation available.</div>
+            )}
+            {pptUrl && (
+              <div className="mt-3 flex justify-end">
+                <Button variant="secondary" onClick={() => window.open(pptUrl, '_blank')}>
+                  Open in new tab
+                </Button>
+              </div>
+            )}
           </div>
         );
       }
