@@ -55,6 +55,20 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
   const [pptFile, setPptFile] = useState(null);
   const [pptPreviewUrl, setPptPreviewUrl] = useState('');
   const [scormFile, setScormFile] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+  const [audioFile, setAudioFile] = useState(null);
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState('');
+  
+  // Existing content state for editing
+  const [existingContent, setExistingContent] = useState({
+    videoUrl: '',
+    pdfUrl: '',
+    pptUrl: '',
+    imageUrl: '',
+    audioUrl: '',
+    scormUrl: ''
+  });
 
   // Initialize form with lesson data if editing
   useEffect(() => {
@@ -80,8 +94,26 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         is_required: lesson.is_required !== undefined ? lesson.is_required : true,
         module_id: lesson.module_id || '' // Assuming lesson object has module_id
       });
-      if ((lesson.content_type || 'video') === 'video') {
-        if (lesson.content_url) setVideoSourceType('external');
+      
+      // Set existing content URLs for previews
+      setExistingContent({
+        videoUrl: lesson.content_type === 'video' ? lesson.content_url : '',
+        pdfUrl: lesson.content_type === 'pdf' ? lesson.content_url : '',
+        pptUrl: lesson.content_type === 'ppt' ? lesson.content_url : '',
+        imageUrl: lesson.content_type === 'image' ? lesson.content_url : '',
+        audioUrl: lesson.audio_attachment_url || '',
+        scormUrl: lesson.content_type === 'scorm' ? lesson.content_url : ''
+      });
+      
+      // Set source types based on existing content
+      if (lesson.content_type === 'video' && lesson.content_url) {
+        setVideoSourceType('external');
+      }
+      if (lesson.content_type === 'pdf' && lesson.content_url) {
+        setPdfSourceType('external');
+      }
+      if (lesson.content_type === 'ppt' && lesson.content_url) {
+        setPptSourceType('external');
       }
     }
   }, [lesson]);
@@ -373,8 +405,36 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     if (file) {
       const objectUrl = URL.createObjectURL(file);
       setVideoPreviewUrl(objectUrl);
+      // Clear existing content when new file is selected
+      setExistingContent(prev => ({ ...prev, videoUrl: '' }));
     } else {
       setVideoPreviewUrl('');
+    }
+  };
+
+  const handleImageFileChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    setImageFile(file);
+    if (file) {
+      const objectUrl = URL.createObjectURL(file);
+      setImagePreviewUrl(objectUrl);
+      // Clear existing content when new file is selected
+      setExistingContent(prev => ({ ...prev, imageUrl: '' }));
+    } else {
+      setImagePreviewUrl('');
+    }
+  };
+
+  const handleAudioFileChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    setAudioFile(file);
+    if (file) {
+      const objectUrl = URL.createObjectURL(file);
+      setAudioPreviewUrl(objectUrl);
+      // Clear existing content when new file is selected
+      setExistingContent(prev => ({ ...prev, audioUrl: '' }));
+    } else {
+      setAudioPreviewUrl('');
     }
   };
 
@@ -383,8 +443,10 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
       if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
       if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
       if (pptPreviewUrl) URL.revokeObjectURL(pptPreviewUrl);
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+      if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
     };
-  }, [videoPreviewUrl, pdfPreviewUrl, pptPreviewUrl]);
+  }, [videoPreviewUrl, pdfPreviewUrl, pptPreviewUrl, imagePreviewUrl, audioPreviewUrl]);
 
   const validateForm = async () => {
     if (!formData.title.trim()) {
@@ -423,18 +485,23 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
       }
     } else if (formData.content_type === 'pdf') {
       if (pdfSourceType === 'upload') {
-        if (!pdfFile) {
+        // For PDF upload, require either a new file or existing content
+        if (!pdfFile && !existingContent.pdfUrl) {
           setError('Please select a PDF file to upload');
           return false;
         }
-        const allowedTypes = ['application/pdf'];
-        if (!validateFileType(pdfFile, allowedTypes)) {
-          setError('Unsupported file type. Only PDF is allowed');
-          return false;
-        }
-        if (!validateFileSize(pdfFile, 100)) { // 100 MB max
-          setError('PDF file is too large (max 100MB)');
-          return false;
+        
+        // Only validate file if a new file is being uploaded
+        if (pdfFile) {
+          const allowedTypes = ['application/pdf'];
+          if (!validateFileType(pdfFile, allowedTypes)) {
+            setError('Unsupported file type. Only PDF is allowed');
+            return false;
+          }
+          if (!validateFileSize(pdfFile, 100)) { // 100 MB max
+            setError('PDF file is too large (max 100MB)');
+            return false;
+          }
         }
       } else {
         if (!formData.content_url.trim()) {
@@ -448,22 +515,27 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
       }
     } else if (formData.content_type === 'ppt') {
       if (pptSourceType === 'upload') {
-        if (!pptFile) {
+        // For PPT upload, require either a new file or existing content
+        if (!pptFile && !existingContent.pptUrl) {
           setError('Please select a PowerPoint file to upload');
           return false;
         }
-        const allowedTypes = [
-          'application/vnd.ms-powerpoint',
-          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-          'application/vnd.ms-powerpoint.presentation.macroEnabled.12'
-        ];
-        if (!validateFileType(pptFile, allowedTypes)) {
-          setError('Unsupported file type. Allowed: PPT, PPTX');
-          return false;
-        }
-        if (!validateFileSize(pptFile, 200)) { // 200 MB max
-          setError('PowerPoint file is too large (max 200MB)');
-          return false;
+        
+        // Only validate file if a new file is being uploaded
+        if (pptFile) {
+          const allowedTypes = [
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'application/vnd.ms-powerpoint.presentation.macroEnabled.12'
+          ];
+          if (!validateFileType(pptFile, allowedTypes)) {
+            setError('Unsupported file type. Allowed: PPT, PPTX');
+            return false;
+          }
+          if (!validateFileSize(pptFile, 200)) { // 200 MB max
+            setError('PowerPoint file is too large (max 200MB)');
+            return false;
+          }
         }
       } else {
         if (!formData.content_url.trim()) {
@@ -482,22 +554,59 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         }
       }
     } else if (formData.content_type === 'scorm') {
-      if (!scormFile) {
+      // For SCORM, require either a new file or existing content
+      if (!scormFile && !existingContent.scormUrl) {
         setError('Please select a SCORM package file to upload');
         return false;
       }
-      const allowedTypes = ['application/zip', 'application/x-zip-compressed'];
-      if (!validateFileType(scormFile, allowedTypes)) {
-        setError('Unsupported file type. Only ZIP files are allowed for SCORM packages');
+      
+      // Only validate file if a new file is being uploaded
+      if (scormFile) {
+        const allowedTypes = ['application/zip', 'application/x-zip-compressed'];
+        if (!validateFileType(scormFile, allowedTypes)) {
+          setError('Unsupported file type. Only ZIP files are allowed for SCORM packages');
+          return false;
+        }
+        if (!validateFileSize(scormFile, 100)) { // 100 MB max
+          setError('SCORM package is too large (max 100MB)');
+          return false;
+        }
+      }
+    } else if (formData.content_type === 'image') {
+      // For image lessons, require either a new file or existing content
+      if (!imageFile && !existingContent.imageUrl) {
+        setError('Please select an image file to upload or provide an image URL');
         return false;
       }
-      if (!validateFileSize(scormFile, 100)) { // 100 MB max
-        setError('SCORM package is too large (max 100MB)');
-        return false;
+      
+      // Only validate file if a new file is being uploaded
+      if (imageFile) {
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+        if (!validateFileType(imageFile, allowedTypes)) {
+          setError('Unsupported image format. Allowed: JPEG, PNG, GIF, WebP, SVG');
+          return false;
+        }
+        if (!validateFileSize(imageFile, 50)) { // 50 MB max
+          setError('Image file is too large (max 50MB)');
+          return false;
+        }
       }
     } else {
       if (!formData.content_text.trim() && !formData.content_url.trim()) {
         setError('Provide content text or a content URL');
+        return false;
+      }
+    }
+
+    // Validate audio attachment if provided
+    if (audioFile) {
+      const allowedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a', 'audio/aac', 'audio/webm'];
+      if (!validateFileType(audioFile, allowedTypes)) {
+        setError('Unsupported audio format. Allowed: MP3, WAV, OGG, M4A, AAC, WebM');
+        return false;
+      }
+      if (!validateFileSize(audioFile, 100)) { // 100 MB max
+        setError('Audio file is too large (max 100MB)');
         return false;
       }
     }
@@ -590,6 +699,40 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         }
       }
 
+      // Handle image upload if selected
+      if (formData.content_type === 'image' && imageFile) {
+        setIsUploading(true);
+        try {
+          const subdir = `lessons/images/${courseId}`;
+          const path = await uploadPreservingName(subdir, imageFile);
+          const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, path);
+          
+          lessonData.content_url = publicUrl;
+          setIsUploading(false);
+        } catch (error) {
+          setError('Failed to upload image: ' + error.message);
+          setIsUploading(false);
+          return;
+        }
+      }
+
+      // Handle audio attachment upload if selected
+      if (audioFile) {
+        setIsUploading(true);
+        try {
+          const subdir = `lessons/audio-attachments/${courseId}`;
+          const path = await uploadPreservingName(subdir, audioFile);
+          const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, path);
+          
+          lessonData.audio_attachment_url = publicUrl;
+          setIsUploading(false);
+        } catch (error) {
+          setError('Failed to upload audio attachment: ' + error.message);
+          setIsUploading(false);
+          return;
+        }
+      }
+
       let result;
       if (isEditing) {
         result = await updateLesson(lesson.id, lessonData);
@@ -674,6 +817,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                 <option value="scorm">SCORM Package</option>
                 <option value="pdf">PDF</option>
                 <option value="ppt">PowerPoint</option>
+                <option value="image">Image</option>
                 {/* <option value="interactive">Interactive</option> */}
               </select>
             </div>
@@ -906,6 +1050,8 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                         if (file) {
                           const objectUrl = URL.createObjectURL(file);
                           setPdfPreviewUrl(objectUrl);
+                          // Clear existing content when new file is selected
+                          setExistingContent(prev => ({ ...prev, pdfUrl: '' }));
                         } else {
                           setPdfPreviewUrl('');
                         }
@@ -1016,6 +1162,8 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                         if (file) {
                           const objectUrl = URL.createObjectURL(file);
                           setPptPreviewUrl(objectUrl);
+                          // Clear existing content when new file is selected
+                          setExistingContent(prev => ({ ...prev, pptUrl: '' }));
                         } else {
                           setPptPreviewUrl('');
                         }
@@ -1050,6 +1198,10 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                     onChange={(e) => {
                       const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
                       setScormFile(file);
+                      // Clear existing content when new file is selected
+                      if (file) {
+                        setExistingContent(prev => ({ ...prev, scormUrl: '' }));
+                      }
                     }}
                     className="block w-full text-sm text-gray-700"
                   />
@@ -1096,6 +1248,69 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                 </div>
               </div>
             )}
+
+            {formData.content_type === 'image' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Image Upload
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.svg"
+                    onChange={handleImageFileChange}
+                    className="block w-full text-sm text-gray-700"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Upload an image file. Supported formats: JPEG, PNG, GIF, WebP, SVG. Maximum size: 50MB.
+                  </p>
+                </div>
+
+                {imagePreviewUrl && (
+                  <div className="space-y-3">
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                            <span className="text-green-600 text-sm font-medium">IMG</span>
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-green-900 truncate">
+                            {imageFile.name}
+                          </p>
+                          <p className="text-xs text-green-700">
+                            {(imageFile.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Image Preview</h4>
+                      <div className="max-w-md">
+                        <img
+                          src={imagePreviewUrl}
+                          alt="Preview"
+                          className="max-w-full h-auto rounded-lg shadow-sm"
+                          style={{ maxHeight: '300px' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="text-sm font-medium text-blue-900 mb-2">Image Lesson Information</h4>
+                  <ul className="text-xs text-blue-700 space-y-1">
+                    <li>• Images will be displayed in the lesson view</li>
+                    <li>• Supported formats: JPEG, PNG, GIF, WebP, SVG</li>
+                    <li>• Maximum file size: 50MB</li>
+                    <li>• Images are optimized for web display</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
 
             {formData.content_type === 'text' && (
               <div>
@@ -1218,8 +1433,229 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
               </div>
             )}
 
+            {/* Existing Content Preview Section - Show when editing */}
+            {isEditing && (
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Current Content Preview</h3>
+                <div className="space-y-4">
+                  {/* Video Preview */}
+                  {formData.content_type === 'video' && existingContent.videoUrl && (
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Current Video</h4>
+                      {isYouTubeUrl(existingContent.videoUrl) ? (
+                        <div className="aspect-video">
+                          <iframe
+                            src={`https://www.youtube.com/embed/${getYouTubeVideoId(existingContent.videoUrl)}`}
+                            title="Video Preview"
+                            className="w-full h-full rounded-lg"
+                            allowFullScreen
+                          />
+                        </div>
+                      ) : (
+                        <video
+                          controls
+                          className="w-full max-w-md rounded-lg"
+                          src={existingContent.videoUrl}
+                        >
+                          Your browser does not support the video tag.
+                        </video>
+                      )}
+                    </div>
+                  )}
+
+                  {/* PDF Preview */}
+                  {formData.content_type === 'pdf' && existingContent.pdfUrl && (
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Current PDF</h4>
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                          <span className="text-red-600 text-sm font-medium">PDF</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">PDF Document</p>
+                          <a
+                            href={existingContent.pdfUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:text-blue-800"
+                          >
+                            View PDF in new tab
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PowerPoint Preview */}
+                  {formData.content_type === 'ppt' && existingContent.pptUrl && (
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Current PowerPoint</h4>
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                          <span className="text-orange-600 text-sm font-medium">PPT</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">PowerPoint Presentation</p>
+                          <a
+                            href={existingContent.pptUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:text-blue-800"
+                          >
+                            View presentation in new tab
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Image Preview */}
+                  {formData.content_type === 'image' && existingContent.imageUrl && (
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Current Image</h4>
+                      <div className="max-w-md">
+                        <img
+                          src={existingContent.imageUrl}
+                          alt="Current image"
+                          className="max-w-full h-auto rounded-lg shadow-sm"
+                          style={{ maxHeight: '300px' }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SCORM Preview */}
+                  {formData.content_type === 'scorm' && existingContent.scormUrl && (
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Current SCORM Package</h4>
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-blue-600 text-sm font-medium">ZIP</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">SCORM Package</p>
+                          <a
+                            href={existingContent.scormUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:text-blue-800"
+                          >
+                            Download SCORM package
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Audio Attachment Preview */}
+                  {existingContent.audioUrl && (
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Current Audio Attachment</h4>
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                          <span className="text-green-600 text-sm font-medium">🎵</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Audio Narration</p>
+                        </div>
+                      </div>
+                      <audio
+                        controls
+                        className="w-full max-w-md"
+                        src={existingContent.audioUrl}
+                      >
+                        Your browser does not support the audio element.
+                      </audio>
+                    </div>
+                  )}
+
+                  {/* Text Content Preview */}
+                  {formData.content_type === 'text' && formData.content_text && (
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Current Text Content</h4>
+                      <div className="prose prose-sm max-w-none">
+                        {formData.content_format === 'markdown' ? (
+                          <div dangerouslySetInnerHTML={{ 
+                            __html: formData.content_text.replace(/\n/g, '<br>') 
+                          }} />
+                        ) : formData.content_format === 'html' ? (
+                          <div dangerouslySetInnerHTML={{ __html: formData.content_text }} />
+                        ) : (
+                          <div className="whitespace-pre-wrap">{formData.content_text}</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Audio Attachment Section - Available for all lesson types */}
+            <div className="border-t border-gray-200 pt-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Audio Attachment (Optional)</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Attach Audio File
+                  </label>
+                  <input
+                    type="file"
+                    accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.webm"
+                    onChange={handleAudioFileChange}
+                    className="block w-full text-sm text-gray-700"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Add an audio narration, explanation, or supplementary audio content. Supported formats: MP3, WAV, OGG, M4A, AAC, WebM. Maximum size: 100MB.
+                  </p>
+                </div>
+
+                {audioPreviewUrl && (
+                  <div className="space-y-3">
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                            <span className="text-green-600 text-sm font-medium">🎵</span>
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-green-900 truncate">
+                            {audioFile.name}
+                          </p>
+                          <p className="text-xs text-green-700">
+                            {(audioFile.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Audio Preview</h4>
+                      <audio
+                        controls
+                        className="w-full"
+                        src={audioPreviewUrl}
+                      >
+                        Your browser does not support the audio element.
+                      </audio>
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="text-sm font-medium text-blue-900 mb-2">Audio Attachment Information</h4>
+                  <ul className="text-xs text-blue-700 space-y-1">
+                    <li>• Audio will be displayed alongside the main lesson content</li>
+                    <li>• Perfect for adding narration to text lessons or supplementary explanations</li>
+                    <li>• Supported formats: MP3, WAV, OGG, M4A, AAC, WebM</li>
+                    <li>• Maximum file size: 100MB</li>
+                    <li>• Audio is optimized for web playback with built-in controls</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
             {/* Fallback fields for other types */}
-            {formData.content_type !== 'video' && formData.content_type !== 'text' && formData.content_type !== 'pdf' && formData.content_type !== 'ppt' && formData.content_type !== 'scorm' && (
+            {formData.content_type !== 'video' && formData.content_type !== 'text' && formData.content_type !== 'pdf' && formData.content_type !== 'ppt' && formData.content_type !== 'scorm' && formData.content_type !== 'image' && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -528,13 +528,31 @@ const useCourseStore = create((set, get) => ({
     },
 
     // Submit quiz attempt
-    submitQuizAttempt: async (userId, quizId, answers, score) => {
+    submitQuizAttempt: async (userId, quizId, answers, score, maxScore = null) => {
       set((state) => ({
         loading: { ...state.loading, quiz: true },
         error: null,
       }));
 
       try {
+        // Get quiz details to determine pass threshold
+        const { data: quizData, error: quizError } = await supabase
+          .from(TABLES.QUIZZES)
+          .select('pass_threshold, lesson_id, course_id')
+          .eq('id', quizId)
+          .single();
+
+        if (quizError) throw quizError;
+
+        // Calculate if quiz was passed
+        const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+        const passThreshold = quizData.pass_threshold || 70;
+        const passed = percentage >= passThreshold;
+        
+        // Log for debugging (remove in production)
+        console.log(`Quiz completion check: Score ${score}/${maxScore} = ${percentage}%, Threshold: ${passThreshold}%, Passed: ${passed}`);
+
+        // Insert quiz attempt with completion status
         const { data, error } = await supabase
           .from(TABLES.QUIZ_ATTEMPTS)
           .insert({
@@ -542,12 +560,32 @@ const useCourseStore = create((set, get) => ({
             quiz_id: quizId,
             answers,
             score,
+            max_score: maxScore,
+            percentage: percentage,
+            passed: passed,
             completed_at: new Date().toISOString(),
           })
           .select()
           .single();
 
         if (error) throw error;
+
+        // If quiz was passed, mark lesson as completed
+        if (passed && quizData.lesson_id && quizData.course_id) {
+          await get().actions.updateLessonProgress(
+            userId, 
+            quizData.lesson_id, 
+            quizData.course_id, 
+            true, 
+            { 
+              completed_via: 'quiz',
+              quiz_id: quizId,
+              quiz_score: score,
+              quiz_percentage: percentage,
+              completed_at: new Date().toISOString()
+            }
+          );
+        }
 
         // Update local quiz attempts
         set((state) => ({
@@ -558,13 +596,30 @@ const useCourseStore = create((set, get) => ({
           loading: { ...state.loading, quiz: false },
         }));
 
-        return { data, error: null };
+        return { data: { ...data, passed, percentage }, error: null };
       } catch (error) {
         set((state) => ({
           error: error.message,
           loading: { ...state.loading, quiz: false },
         }));
         return { data: null, error };
+      }
+    },
+
+    // Fetch quiz attempts for a user and quiz
+    fetchQuizAttempts: async (userId, quizId) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.QUIZ_ATTEMPTS)
+          .select('*')
+          .eq('user_id', userId)
+          .eq('quiz_id', quizId)
+          .order('completed_at', { ascending: false });
+
+        if (error) throw error;
+        return { data: data || [], error: null };
+      } catch (error) {
+        return { data: [], error };
       }
     },
 

@@ -22,6 +22,7 @@ import {
   
 } from 'lucide-react'
 import { ScormPlayer } from '@/components/course'
+import QuizResult from '@/components/quiz/QuizResult'
 import { useCourseStore } from '@/store/courseStore'
 import { useAuth } from '@/hooks/auth/useAuth'
 import Button from '@/components/ui/Button'
@@ -88,6 +89,13 @@ export default function LessonView() {
   const quizTimerRef = useRef(null)
   const quizBlockRef = useRef(null)
   const [quizzesByLesson, setQuizzesByLesson] = useState({})
+  
+  // Quiz results state
+  const [showQuizResult, setShowQuizResult] = useState(false)
+  const [quizResult, setQuizResult] = useState(null)
+  const [quizStartTime, setQuizStartTime] = useState(null)
+  const [quizCompleted, setQuizCompleted] = useState(false)
+  const [quizCompletionData, setQuizCompletionData] = useState(null)
   const { success, error: showError } = useToast()
 
   // Player refs
@@ -454,6 +462,7 @@ export default function LessonView() {
     }
     setQuizStarted(true)
     setQuizAnswers({})
+    setQuizStartTime(Date.now())
     if (quiz?.time_limit_minutes && quiz.time_limit_minutes > 0) {
       setQuizTimeLeftSec(quiz.time_limit_minutes * 60)
     } else {
@@ -485,18 +494,156 @@ export default function LessonView() {
         if ((ans || '').toString().trim().toLowerCase() === ((correct || '').toString().trim().toLowerCase())) score += 1
       }
     })
+    
+    // Calculate time spent
+    const timeSpent = quizStartTime ? Math.floor((Date.now() - quizStartTime) / 1000) : 0
+    
     try {
       if (user?.id && quiz?.id) {
-        await actions.submitQuizAttempt(user.id, quiz.id, quizAnswers, score)
+        const result = await actions.submitQuizAttempt(user.id, quiz.id, quizAnswers, score, max)
+        
+        // Update quiz result with completion status
+        if (result.data) {
+          setQuizResult(prev => ({
+            ...prev,
+            passed: result.data.passed,
+            percentage: result.data.percentage
+          }))
+          
+          // If quiz was passed, mark as completed
+          if (result.data.passed) {
+            setQuizCompleted(true)
+            setQuizCompletionData({
+              score: result.data.score,
+              maxScore: result.data.max_score,
+              percentage: result.data.percentage,
+              completedAt: new Date().toISOString()
+            })
+            
+            // Update quiz completion status for navigation
+            setQuizCompletionStatus(prev => ({
+              ...prev,
+              [quiz.id]: true
+            }))
+          }
+        }
       }
-      success(`Quiz submitted. Score ${score}/${max}`)
+      
+      // Set quiz result data
+      setQuizResult({
+        score,
+        maxScore: max,
+        timeSpent,
+        userAnswers: { ...quizAnswers },
+        passed: result?.data?.passed || false,
+        percentage: result?.data?.percentage || 0
+      })
+      
+      // Show detailed results instead of just a toast
+      setShowQuizResult(true)
+      
     } catch (_) {
       showError('Failed to submit quiz')
     } finally {
       setQuizStarted(false)
       setQuizTimeLeftSec(null)
     }
-  }, [user?.id, quiz?.id, quizQuestions, quizAnswers, actions, success, showError])
+  }, [user?.id, quiz?.id, quizQuestions, quizAnswers, quizStartTime, actions, showError])
+
+  // Handle quiz result actions
+  const handleRetakeQuiz = () => {
+    setShowQuizResult(false)
+    setQuizResult(null)
+    setQuizCompleted(false)
+    setQuizCompletionData(null)
+    startQuiz()
+  }
+
+  const handleCloseQuizResult = () => {
+    setShowQuizResult(false)
+    setQuizResult(null)
+  }
+
+  // Check if quiz has been completed
+  const checkQuizCompletion = useCallback(async () => {
+    if (!user?.id || !quiz?.id) return
+
+    try {
+      const { data: attempts } = await actions.fetchQuizAttempts(user.id, quiz.id)
+      if (attempts && attempts.length > 0) {
+        // Find the most recent attempt
+        const latestAttempt = attempts.sort((a, b) => 
+          new Date(b.completed_at) - new Date(a.completed_at)
+        )[0]
+        
+        if (latestAttempt.passed) {
+          setQuizCompleted(true)
+          setQuizCompletionData({
+            score: latestAttempt.score,
+            maxScore: latestAttempt.max_score,
+            percentage: latestAttempt.percentage,
+            completedAt: latestAttempt.completed_at
+          })
+        }
+      }
+    } catch (error) {
+      // Silently handle error - quiz completion check is not critical
+    }
+  }, [user?.id, quiz?.id, actions])
+
+  // Check quiz completion when quiz loads
+  useEffect(() => {
+    if (quiz && user) {
+      checkQuizCompletion()
+    }
+  }, [quiz, user, checkQuizCompletion])
+
+  // Helper function to check if a quiz is completed
+  const isQuizCompleted = useCallback(async (quizId) => {
+    if (!user?.id || !quizId) return false
+    
+    try {
+      const { data: attempts } = await actions.fetchQuizAttempts(user.id, quizId)
+      if (attempts && attempts.length > 0) {
+        // Find the most recent attempt
+        const latestAttempt = attempts.sort((a, b) => 
+          new Date(b.completed_at) - new Date(a.completed_at)
+        )[0]
+        return latestAttempt.passed || false
+      }
+      return false
+    } catch (error) {
+      return false
+    }
+  }, [user?.id, actions])
+
+  // State to track quiz completion status for navigation
+  const [quizCompletionStatus, setQuizCompletionStatus] = useState({})
+
+  // Load quiz completion status for all quizzes
+  const loadQuizCompletionStatus = useCallback(async () => {
+    if (!user?.id || !quizzesByLesson) return
+
+    const status = {}
+    for (const [lessonId, quizzes] of Object.entries(quizzesByLesson)) {
+      for (const quiz of quizzes) {
+        try {
+          const completed = await isQuizCompleted(quiz.id)
+          status[quiz.id] = completed
+        } catch (error) {
+          status[quiz.id] = false
+        }
+      }
+    }
+    setQuizCompletionStatus(status)
+  }, [user?.id, quizzesByLesson, isQuizCompleted])
+
+  // Load quiz completion status when quizzes are loaded
+  useEffect(() => {
+    if (Object.keys(quizzesByLesson).length > 0) {
+      loadQuizCompletionStatus()
+    }
+  }, [quizzesByLesson, loadQuizCompletionStatus])
 
   // (Removed unused getMimeTypeFromUrl)
 
@@ -754,6 +901,108 @@ export default function LessonView() {
 
   TextContentViewer.displayName = 'TextContentViewer';
 
+  // Memoized Image Viewer component
+  const ImageViewer = memo(({ imageUrl }) => {
+    return (
+      <div className="bg-gray-50 rounded-lg p-4">
+        {imageUrl ? (
+          <div className="text-center">
+            <img
+              src={imageUrl}
+              alt="Lesson Image"
+              className="max-w-full h-auto mx-auto rounded-lg shadow-sm"
+              style={{ maxHeight: '70vh' }}
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'block';
+              }}
+            />
+            <div 
+              className="hidden text-center text-gray-500 p-8"
+              style={{ display: 'none' }}
+            >
+              <div className="text-gray-500 text-lg mb-4">Failed to load image</div>
+              <p className="text-sm">The image could not be displayed.</p>
+            </div>
+            <div className="mt-3 flex justify-center">
+              <Button variant="secondary" onClick={() => window.open(imageUrl, '_blank')}>
+                Open in new tab
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center text-gray-500 p-8">No image available.</div>
+        )}
+      </div>
+    );
+  });
+
+  ImageViewer.displayName = 'ImageViewer';
+
+  // Memoized Audio Player component
+  const AudioPlayer = memo(({ audioUrl }) => {
+    return (
+      <div className="bg-gray-50 rounded-lg p-6">
+        {audioUrl ? (
+          <div className="text-center">
+            <div className="mb-4">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-blue-600 text-2xl">🎵</span>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Audio Lesson</h3>
+              <p className="text-sm text-gray-600">Use the controls below to play the audio content</p>
+            </div>
+            
+            <div className="max-w-md mx-auto">
+              <audio
+                controls
+                className="w-full h-12"
+                preload="metadata"
+                onError={(e) => {
+                  console.error('Audio playback error:', e);
+                }}
+              >
+                <source src={audioUrl} type="audio/mpeg" />
+                <source src={audioUrl} type="audio/wav" />
+                <source src={audioUrl} type="audio/ogg" />
+                <source src={audioUrl} type="audio/m4a" />
+                <source src={audioUrl} type="audio/aac" />
+                <source src={audioUrl} type="audio/webm" />
+                Your browser does not support the audio element.
+              </audio>
+            </div>
+
+            <div className="mt-4 flex justify-center space-x-3">
+              <Button 
+                variant="secondary" 
+                onClick={() => window.open(audioUrl, '_blank')}
+                className="text-sm"
+              >
+                Download Audio
+              </Button>
+            </div>
+
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-700">
+                💡 <strong>Tip:</strong> You can use the built-in controls to play, pause, seek, and adjust volume.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center text-gray-500 p-8">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span className="text-gray-400 text-2xl">🎵</span>
+            </div>
+            <div className="text-gray-500 text-lg mb-2">No audio available</div>
+            <p className="text-sm">The audio content could not be loaded.</p>
+          </div>
+        )}
+      </div>
+    );
+  });
+
+  AudioPlayer.displayName = 'AudioPlayer';
+
   const VideoPlayer = memo(() => {
     if (lesson.content_type !== 'video') {
       // Handle text rendering with stored format marker
@@ -767,6 +1016,10 @@ export default function LessonView() {
       // Handle PPT rendering
       if (lesson.content_type === 'ppt') {
         return <PPTViewer pptUrl={lesson.content_url} onLoad={() => setPptLoading(false)} />;
+      }
+      // Handle image rendering
+      if (lesson.content_type === 'image') {
+        return <ImageViewer imageUrl={lesson.content_url} />;
       }
 
       // Fallback placeholder for other non-video content types
@@ -1052,6 +1305,22 @@ export default function LessonView() {
           )}
         </Card>
 
+        {/* Audio Attachment Display */}
+        {lesson.audio_attachment_url && (
+          <Card className="p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <span className="text-blue-600 text-lg">🎵</span>
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">Audio Narration</h3>
+                <p className="text-sm text-gray-600">Listen to the audio explanation or narration</p>
+              </div>
+            </div>
+            <AudioPlayer audioUrl={lesson.audio_attachment_url} />
+          </Card>
+        )}
+
         {/* Video Error Display */}
         <VideoErrorDisplay />
    
@@ -1145,9 +1414,17 @@ export default function LessonView() {
         {/* Quiz block (below the lesson content) */}
         {quiz && quizQuestions.length > 0 && (
           <div ref={quizBlockRef}>
-            <Card className="p-6">
+            <Card className={`p-6 ${quizCompleted ? 'border-green-200 bg-green-50' : ''}`}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-semibold text-text-dark">Quiz: {quiz.title}</h3>
+                <div className="flex items-center gap-3">
+                  <h3 className="text-xl font-semibold text-text-dark">Quiz: {quiz.title}</h3>
+                  {quizCompleted && (
+                    <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                      <CheckCircle className="w-4 h-4" />
+                      Completed
+                    </div>
+                  )}
+                </div>
                 {quiz?.time_limit_minutes ? (
                   <span className="text-sm text-text-muted">Time limit: {quiz.time_limit_minutes} min</span>
                 ) : null}
@@ -1159,8 +1436,36 @@ export default function LessonView() {
                       Complete this required lesson to unlock the quiz.
                     </div>
                   )}
-                  <p className="text-text-light">Pass threshold: {quiz.pass_threshold ?? 70}%</p>
-                  <Button onClick={startQuiz} disabled={quizLocked}>Start Quiz</Button>
+                  
+                  {quizCompleted ? (
+                    <div className="space-y-4">
+                      <div className="bg-green-100 border border-green-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                          <span className="font-medium text-green-800">Quiz Completed Successfully!</span>
+                        </div>
+                        <div className="text-sm text-green-700">
+                          <p>Score: {quizCompletionData?.score}/{quizCompletionData?.maxScore} ({quizCompletionData?.percentage}%)</p>
+                          <p>Completed: {quizCompletionData?.completedAt ? new Date(quizCompletionData.completedAt).toLocaleDateString() : 'Recently'}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-3">
+                        <Button onClick={startQuiz} variant="secondary">
+                          <RotateCcw className="w-4 h-4 mr-2" />
+                          Retake Quiz
+                        </Button>
+                        <Button onClick={() => setShowQuizResult(true)}>
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          View Results
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-text-light">Pass threshold: {quiz.pass_threshold ?? 70}%</p>
+                      <Button onClick={startQuiz} disabled={quizLocked}>Start Quiz</Button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -1227,6 +1532,24 @@ export default function LessonView() {
                 </div>
               )}
             </Card>
+          </div>
+        )}
+
+        {/* Quiz Results */}
+        {showQuizResult && (quizResult || quizCompletionData) && (
+          <div className="mt-6">
+            <QuizResult
+              quiz={quiz}
+              questions={quizQuestions}
+              userAnswers={quizResult?.userAnswers || {}}
+              score={quizResult?.score || quizCompletionData?.score || 0}
+              maxScore={quizResult?.maxScore || quizCompletionData?.maxScore || 0}
+              timeSpent={quizResult?.timeSpent || 0}
+              passed={quizResult?.passed || quizCompletionData?.percentage >= (quiz?.pass_threshold || 70)}
+              percentage={quizResult?.percentage || quizCompletionData?.percentage || 0}
+              onRetake={handleRetakeQuiz}
+              onClose={handleCloseQuizResult}
+            />
           </div>
         )}
 
@@ -1297,7 +1620,12 @@ export default function LessonView() {
 
         {/* Lesson List */}
         <Card className="p-6">
-          <h3 className="font-semibold text-text-dark mb-4">Course Content</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-text-dark">Course Content</h3>
+            <div className="text-sm text-text-light">
+              {lessons.filter(lesson => courseProgress[courseId]?.[lesson.id]?.completed).length} / {lessons.length} completed
+            </div>
+          </div>
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {lessons.map((courseLesson, index) => (
               <div key={courseLesson.id}>
@@ -1329,23 +1657,37 @@ export default function LessonView() {
                 </button>
                 {Array.isArray(quizzesByLesson[courseLesson.id]) && quizzesByLesson[courseLesson.id].length > 0 && (
                   <div className="pl-10 py-1 space-y-1">
-                    {quizzesByLesson[courseLesson.id].map((qz, qi) => (
-                      <button
-                        key={`${courseLesson.id}-${qz.id}`}
-                        onClick={() => {
-                          if (courseLesson.id === lessonId) {
-                            if (quizBlockRef.current) {
-                              quizBlockRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    {quizzesByLesson[courseLesson.id].map((qz, qi) => {
+                      const isCompleted = quizCompletionStatus[qz.id] || false
+                      return (
+                        <button
+                          key={`${courseLesson.id}-${qz.id}`}
+                          onClick={() => {
+                            if (courseLesson.id === lessonId) {
+                              if (quizBlockRef.current) {
+                                quizBlockRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                              }
+                            } else {
+                              navigate(`/app/courses/${courseId}/lesson/${courseLesson.id}#quiz`)
                             }
-                          } else {
-                            navigate(`/app/courses/${courseId}/lesson/${courseLesson.id}#quiz`)
-                          }
-                        }}
-                        className="w-full text-left text-xs text-text-medium hover:text-primary-default"
-                      >
-                        • Quiz{quizzesByLesson[courseLesson.id].length > 1 ? ` ${qi + 1}` : ''}: {qz.title}
-                      </button>
-                    ))}
+                          }}
+                          className={`w-full text-left text-xs flex items-center gap-2 hover:text-primary-default ${
+                            isCompleted ? 'text-green-600' : 'text-text-medium'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1">
+                            {isCompleted ? (
+                              <CheckCircle className="w-3 h-3 text-green-500" />
+                            ) : (
+                              <span className="w-3 h-3 rounded-full border border-gray-300 flex items-center justify-center">
+                                <span className="text-xs">•</span>
+                              </span>
+                            )}
+                            <span>Quiz{quizzesByLesson[courseLesson.id].length > 1 ? ` ${qi + 1}` : ''}: {qz.title}</span>
+                          </div>
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>
