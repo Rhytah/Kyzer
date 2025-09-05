@@ -290,3 +290,38 @@ body {
     display: none !important;
   }
 }
+
+/* Certificate Styles */
+.certificate-container {
+  transition: all 0.3s ease;
+}
+
+.certificate-icon {
+  color: var(--color-text-dark);
+  transition: color 0.3s ease;
+}
+
+.certificate-title {
+  color: var(--color-text-dark);
+  transition: color 0.3s ease;
+}
+
+.certificate-name {
+  color: var(--color-text-dark);
+  transition: color 0.3s ease;
+}
+
+.certificate-course {
+  color: var(--color-text-dark);
+  transition: color 0.3s ease;
+}
+
+.certificate-subtitle {
+  color: var(--color-text-medium);
+  transition: color 0.3s ease;
+}
+
+.certificate-date {
+  color: var(--color-text-light);
+  transition: color 0.3s ease;
+}

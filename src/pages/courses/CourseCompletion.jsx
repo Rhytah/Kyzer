@@ -11,8 +11,7 @@ import {
   Star,
   Clock,
   BookOpen,
-  TrendingUp,
-  Users,
+
   ArrowRight,
   CheckCircle,
   Trophy,
@@ -97,10 +96,11 @@ export default function CourseCompletion() {
           return
         }
 
-        // Fetch lessons and progress
-        const [{ data: groupedLessons }, { data: progressMap }] = await Promise.all([
+        // Fetch lessons, progress, and quiz data
+        const [{ data: groupedLessons }, { data: progressMap }, { data: courseQuizzes }] = await Promise.all([
           actions.fetchCourseLessons(courseId),
           actions.fetchCourseProgress(user.id, courseId),
+          actions.fetchQuizzes(courseId),
         ])
 
         // Flatten lessons for counts
@@ -121,14 +121,47 @@ export default function CourseCompletion() {
           return ct > latest ? ct : latest
         }, 0)
 
+        // Calculate quiz completion stats
+        let quizzesPassed = 0
+        let totalQuizzes = 0
+        if (courseQuizzes && courseQuizzes.length > 0) {
+          totalQuizzes = courseQuizzes.length
+          
+          // Fetch quiz attempts for all quizzes
+          const quizAttemptsPromises = courseQuizzes.map(quiz => 
+            actions.fetchQuizAttempts(user.id, quiz.id)
+          )
+          
+          try {
+            const quizAttemptsResults = await Promise.all(quizAttemptsPromises)
+            
+            courseQuizzes.forEach((quiz, index) => {
+              const attempts = quizAttemptsResults[index]?.data || []
+              if (attempts.length > 0) {
+                // Find the most recent attempt
+                const latestAttempt = attempts.sort((a, b) => 
+                  new Date(b.completed_at) - new Date(a.completed_at)
+                )[0]
+                
+                if (latestAttempt.passed) {
+                  quizzesPassed++
+                }
+              }
+            })
+          } catch (error) {
+            console.warn('Error fetching quiz attempts:', error)
+          }
+        }
+
         const computed = {
           completedAt: latestCompletedAt ? new Date(latestCompletedAt).toISOString() : null,
           totalTimeSpent,
           finalScore: null,
           lessonsCompleted,
           totalLessons,
-          quizzesPassed: null,
-          totalQuizzes: null,
+          quizzesPassed,
+          totalQuizzes,
+          quizCompletionPercentage: totalQuizzes > 0 ? Math.round((quizzesPassed / totalQuizzes) * 100) : 0,
           projectsCompleted: null,
           certificate: null,
           badges: [],
@@ -235,59 +268,33 @@ export default function CourseCompletion() {
         </div>
       )}
 
-      {/* Hero Section */}
-      <Card className="text-center p-12 bg-gradient-to-br from-success-light to-primary-light">
-        <div className="mb-6">
-          <Trophy className="w-24 h-24 text-warning-default mx-auto mb-4" />
-          <h1 className="text-4xl font-bold text-text-dark mb-4">
-            Congratulations! 🎉
-          </h1>
-          <p className="text-xl text-text-medium mb-2">
-            You've successfully completed
-          </p>
-          <h2 className="text-2xl font-bold text-primary-default">
-            {course.title}
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-2xl mx-auto">
-          {typeof completionData.finalScore === 'number' && (
-            <div className="text-center">
-              <div className="text-3xl font-bold text-success-default">{completionData.finalScore}%</div>
-              <div className="text-sm text-text-light">Final Score</div>
-            </div>
-          )}
-          <div className="text-center">
-            <div className="text-3xl font-bold text-primary-default">{formatTime(completionData.totalTimeSpent)}</div>
-            <div className="text-sm text-text-light">Time Invested</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-warning-default">{completionData.lessonsCompleted}</div>
-            <div className="text-sm text-text-light">Lessons Completed</div>
-          </div>
-        </div>
-      </Card>
-
       {/* Certificate Section */}
       <Card className="p-8">
-        <div className="text-center mb-6">
-          <Award className="w-16 h-16 text-warning-default mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-text-dark mb-2">Your Certificate is Ready!</h2>
+        <div className="text-center mb-6" >
+          <Trophy className="w-16 h-16 text-warning-default mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-text-dark mb-2">Congratulations!</h2>
           <p className="text-text-light">
             Download your certificate and share your achievement with the world.
           </p>
+          
         </div>
 
-        <div className="max-w-md mx-auto bg-gradient-to-br from-primary-default to-primary-dark rounded-lg p-8 text-white mb-6">
+        <div 
+          className="max-w-md mx-auto rounded-lg p-8 mb-6 certificate-container"
+          style={{
+            background: 'linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.5) 27%, rgba(var(--color-primary-dark-rgb), 0.3) 50%)',
+            color: 'var(--color-text-dark)'
+          }}
+        >
           <div className="text-center">
-            <Award className="w-12 h-12 mx-auto mb-4" />
-            <h3 className="text-xl font-bold mb-2">Certificate of Completion</h3>
-            <p className="text-primary-light mb-4">This certifies that</p>
-            <p className="text-2xl font-bold mb-4">{user?.user_metadata?.first_name + ' ' + user?.user_metadata?.last_name || 'Student'}</p>
-            <p className="text-primary-light mb-2">has successfully completed</p>
-            <p className="font-semibold mb-4">{course.title}</p>
+            <Award className="w-12 h-12 mx-auto mb-4 certificate-icon" />
+            <h3 className="text-xl font-bold mb-2 certificate-title">Certificate of Completion</h3>
+            <p className="certificate-subtitle mb-4">This certifies that</p>
+            <p className="text-2xl font-bold mb-4 certificate-name">{user?.user_metadata?.first_name + ' ' + user?.user_metadata?.last_name || 'Student'}</p>
+            <p className="certificate-subtitle mb-2">has successfully completed</p>
+            <p className="font-semibold mb-4 certificate-course">{course.title}</p>
             {completionData.completedAt && (
-              <p className="text-sm text-primary-light">
+              <p className="text-sm certificate-date">
                 Completed on {new Date(completionData.completedAt).toLocaleDateString()}
               </p>
             )}
@@ -356,13 +363,15 @@ export default function CourseCompletion() {
             <div className="text-sm text-text-light">Lessons Completed</div>
           </div>
           
-          <div className="text-center">
-            <div className="w-16 h-16 bg-primary-light rounded-full flex items-center justify-center mx-auto mb-3">
-              <Target className="w-8 h-8 text-primary-default" />
+          {completionData.totalQuizzes > 0 && (
+            <div className="text-center">
+              <div className="w-16 h-16 bg-primary-light rounded-full flex items-center justify-center mx-auto mb-3">
+                <Target className="w-8 h-8 text-primary-default" />
+              </div>
+              <div className="text-2xl font-bold text-text-dark">{completionData.quizzesPassed}/{completionData.totalQuizzes}</div>
+              <div className="text-sm text-text-light">Quizzes Passed</div>
             </div>
-            <div className="text-2xl font-bold text-text-dark">{completionData.quizzesPassed}</div>
-            <div className="text-sm text-text-light">Quizzes Passed</div>
-          </div>
+          )}
           
           <div className="text-center">
             <div className="w-16 h-16 bg-warning-light rounded-full flex items-center justify-center mx-auto mb-3">

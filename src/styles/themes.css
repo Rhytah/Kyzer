@@ -22,6 +22,10 @@
   --color-error: #DC2626;
   --color-error-light: #FEE2E2;
   --color-error-dark: #B91C1C;
+  
+  /* RGB values for opacity support */
+  --color-primary-rgb: 55, 65, 81;
+  --color-primary-dark-rgb: 31, 41, 55;
 }
 
 .theme-dark {
@@ -46,6 +50,10 @@
   --color-error: #F87171;
   --color-error-light: #FEE2E2;
   --color-error-dark: #DC2626;
+  
+  /* RGB values for opacity support */
+  --color-primary-rgb: 96, 165, 250;
+  --color-primary-dark-rgb: 59, 130, 246;
 }
 
 /* Dark theme overrides for common Tailwind classes */
@@ -100,6 +108,10 @@
   --color-error: #DC2626;
   --color-error-light: #FEE2E2;
   --color-error-dark: #B91C1C;
+  
+  /* RGB values for opacity support */
+  --color-primary-rgb: 30, 64, 175;
+  --color-primary-dark-rgb: 30, 58, 138;
 }
 
 .theme-nature {
@@ -124,4 +136,8 @@
   --color-error: #DC2626;
   --color-error-light: #FEE2E2;
   --color-error-dark: #B91C1C;
+  
+  /* RGB values for opacity support */
+  --color-primary-rgb: 5, 150, 105;
+  --color-primary-dark-rgb: 4, 120, 87;
 }
