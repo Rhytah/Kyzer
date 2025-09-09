@@ -17,7 +17,7 @@ import {
   Trash2,
   Edit
 } from 'lucide-react'
-import { useCorporateStore, useEmployees, useCurrentCompany } from '@/store/corporateStore'
+import { useCorporateStore, useEmployees, useCurrentCompany, useDepartments, useInvitations } from '@/store/corporateStore'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Modal from '@/components/ui/Modal'
@@ -26,27 +26,31 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner'
 export default function EmployeeManagement() {
   const currentCompany = useCurrentCompany()
   const employees = useEmployees()
+  const departments = useDepartments()
+  const invitations = useInvitations()
   const { 
     fetchEmployees,
     fetchInvitations,
+    fetchDepartments,
     inviteEmployee,
     updateEmployeeRole,
     removeEmployee,
     resendInvitation,
     deleteInvitation,
     loading,
-    error,
-    invitations 
+    error
   } = useCorporateStore()
 
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterRole, setFilterRole] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [filterDepartment, setFilterDepartment] = useState('all')
 
   useEffect(() => {
     fetchEmployees()
     fetchInvitations()
+    fetchDepartments()
   }, [])
 
   // Filter employees based on search and filters
@@ -56,8 +60,9 @@ export default function EmployeeManagement() {
     
     const matchesRole = filterRole === 'all' || employee.role === filterRole
     const matchesStatus = filterStatus === 'all' || employee.status === filterStatus
+    const matchesDepartment = filterDepartment === 'all' || employee.department_id === filterDepartment
     
-    return matchesSearch && matchesRole && matchesStatus
+    return matchesSearch && matchesRole && matchesStatus && matchesDepartment
   })
 
   const getRoleIcon = (role) => {
@@ -181,6 +186,18 @@ export default function EmployeeManagement() {
             <option value="pending">Pending</option>
             <option value="inactive">Inactive</option>
           </select>
+
+          {/* Department Filter */}
+          <select
+            className="px-3 py-2 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default"
+            value={filterDepartment}
+            onChange={(e) => setFilterDepartment(e.target.value)}
+          >
+            <option value="all">All Departments</option>
+            {departments.map(dept => (
+              <option key={dept.id} value={dept.id}>{dept.name}</option>
+            ))}
+          </select>
         </div>
       </Card>
 
@@ -192,6 +209,7 @@ export default function EmployeeManagement() {
               <tr className="border-b border-background-dark">
                 <th className="text-left py-3 px-4 font-medium text-text-dark">Employee</th>
                 <th className="text-left py-3 px-4 font-medium text-text-dark">Role</th>
+                <th className="text-left py-3 px-4 font-medium text-text-dark">Department</th>
                 <th className="text-left py-3 px-4 font-medium text-text-dark">Status</th>
                 <th className="text-left py-3 px-4 font-medium text-text-dark">Joined</th>
                 <th className="text-left py-3 px-4 font-medium text-text-dark">Invited By</th>
@@ -201,13 +219,13 @@ export default function EmployeeManagement() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="text-center py-8">
+                  <td colSpan="7" className="text-center py-8">
                     <LoadingSpinner />
                   </td>
                 </tr>
               ) : filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="text-center py-8 text-text-light">
+                  <td colSpan="7" className="text-center py-8 text-text-light">
                     No employees found matching your criteria
                   </td>
                 </tr>
@@ -216,8 +234,10 @@ export default function EmployeeManagement() {
                   <EmployeeRow 
                     key={employee.id} 
                     employee={employee}
+                    departments={departments}
                     onUpdateRole={updateEmployeeRole}
                     onRemove={removeEmployee}
+                    getRoleIcon={getRoleIcon}
                   />
                 ))
               )}
@@ -257,7 +277,7 @@ export default function EmployeeManagement() {
 }
 
 // Employee Row Component
-function EmployeeRow({ employee, onUpdateRole, onRemove }) {
+function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIcon }) {
   const [showActions, setShowActions] = useState(false)
   const [showRoleEdit, setShowRoleEdit] = useState(false)
   const [newRole, setNewRole] = useState(employee.role)
@@ -273,28 +293,28 @@ function EmployeeRow({ employee, onUpdateRole, onRemove }) {
     }
   }
 
-  const getRoleIcon = (role) => {
-    switch (role) {
-      case 'admin': return Crown
-      case 'manager': return ShieldCheck
-      default: return Shield
-    }
-  }
-
   return (
     <tr className="border-b border-background-light hover:bg-background-light">
       <td className="py-3 px-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-primary-light rounded-full flex items-center justify-center">
-            <span className="text-primary-default font-medium">
-              {employee.users?.user_metadata?.full_name?.[0] || employee.users?.email?.[0] || 'U'}
-            </span>
+            {employee.avatar_url ? (
+              <img 
+                src={employee.avatar_url} 
+                alt={employee.full_name || employee.first_name || 'User'}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+            ) : (
+              <span className="text-primary-default font-medium">
+                {(employee.first_name?.[0] || employee.email?.[0] || 'U').toUpperCase()}
+              </span>
+            )}
           </div>
           <div>
             <p className="font-medium text-text-dark">
-              {employee.users?.user_metadata?.full_name || 'Unknown'}
+              {employee.full_name || `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || 'Unknown User'}
             </p>
-            <p className="text-sm text-text-light">{employee.users?.email}</p>
+            <p className="text-sm text-text-light">{employee.email || 'No email'}</p>
           </div>
         </div>
       </td>
@@ -322,6 +342,12 @@ function EmployeeRow({ employee, onUpdateRole, onRemove }) {
             <span className="capitalize text-text-dark">{employee.role}</span>
           </div>
         )}
+      </td>
+      
+      <td className="py-3 px-4">
+        <span className="text-text-light">
+          {departments.find(dept => dept.id === employee.department_id)?.name || 'No department'}
+        </span>
       </td>
       
       <td className="py-3 px-4">

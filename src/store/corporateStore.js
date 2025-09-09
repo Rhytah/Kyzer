@@ -3,6 +3,23 @@ import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 
+// Email service helper function
+const sendInvitationEmail = async (email, data) => {
+  // This would integrate with your email service (SendGrid, AWS SES, etc.)
+  // For now, we'll simulate the email sending
+  
+  // In a real implementation, you would call your email service here
+  // Example:
+  // await emailService.send({
+  //   to: email,
+  //   template: 'invitation',
+  //   data: data
+  // });
+  
+  // Simulate email sending delay
+  await new Promise(resolve => setTimeout(resolve, 1000));
+};
+
 export const useCorporateStore = create((set, get) => ({
   // State
   currentCompany: null,
@@ -12,11 +29,41 @@ export const useCorporateStore = create((set, get) => ({
   permissions: null,
   loading: false,
   error: null,
+  invitations: [],
+  departments: [],
 
   // Actions
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   clearError: () => set({ error: null }),
+
+  // Sync cached members data
+  syncCachedMembers: async () => {
+    try {
+      const { currentCompany } = get();
+      if (!currentCompany) return;
+
+      set({ loading: true });
+
+      // Call the RPC function to refresh cached members
+      const { data, error } = await supabase.rpc('refresh_organization_members_cache', {
+        org_id: currentCompany.id
+      });
+
+      if (error) throw error;
+
+      // Refresh the employees data
+      await get().fetchEmployees();
+      await get().fetchCompanyStats();
+
+      set({ loading: false });
+      return data;
+    } catch (error) {
+      console.error("Error syncing cached members:", error);
+      set({ error: error.message, loading: false });
+      throw error;
+    }
+  },
 
   // Fetch current user's company
   fetchCurrentCompany: async () => {
@@ -28,24 +75,26 @@ export const useCorporateStore = create((set, get) => ({
       } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
-      // First check if user is directly associated with a company
-      const { data: userCompany, error: userError } = await supabase
-        .from("company_members")
+      // First check if user is directly associated with an organization
+      const { data: userOrganization, error: userError } = await supabase
+        .from("organization_members")
         .select(
           `
-          company_id,
+          organization_id,
           role,
           permissions,
-          companies!inner (
+          organizations!inner (
             id,
             name,
             domain,
-            industry,
-            size_category,
+            max_employees,
             subscription_status,
-            subscription_expires_at,
-            logo_url,
-            created_at
+            subscription_end_date,
+            created_at,
+            updated_at,
+            slug,
+            email,
+            created_by
           )
         `
         )
@@ -57,16 +106,16 @@ export const useCorporateStore = create((set, get) => ({
         throw userError;
       }
 
-      if (userCompany) {
+      if (userOrganization) {
         set({
-          currentCompany: userCompany.companies,
-          permissions: userCompany.permissions || {},
+          currentCompany: userOrganization.organizations,
+          permissions: userOrganization.permissions || {},
           loading: false,
         });
-        return userCompany.companies;
+        return userOrganization.organizations;
       }
 
-      // If no direct company association, user doesn't have a company
+      // If no direct organization association, user doesn't have an organization
       set({ currentCompany: null, permissions: null, loading: false });
       return null;
     } catch (error) {
@@ -76,7 +125,7 @@ export const useCorporateStore = create((set, get) => ({
     }
   },
 
-  // Fetch company statistics
+  // Fetch company statistics using cached data
   fetchCompanyStats: async () => {
     try {
       const { currentCompany } = get();
@@ -84,18 +133,23 @@ export const useCorporateStore = create((set, get) => ({
 
       set({ loading: true });
 
-      // Get employee count
-      const { count: totalEmployees } = await supabase
-        .from("company_members")
-        .select("*", { count: "exact", head: true })
-        .eq("company_id", currentCompany.id)
-        .eq("status", "active");
+      // Get organization with cached members data
+      const { data: orgData, error: orgError } = await supabase
+        .from("organizations")
+        .select("members, member_count")
+        .eq("id", currentCompany.id)
+        .single();
+
+      if (orgError) throw orgError;
+
+      const members = orgData.members || [];
+      const totalEmployees = orgData.member_count || members.length;
 
       // Get course completion stats
       const { data: completionStats } = await supabase
         .from("course_enrollments")
         .select("status")
-        .eq("company_id", currentCompany.id);
+        .eq("organization_id", currentCompany.id);
 
       const coursesCompleted =
         completionStats?.filter((c) => c.status === "completed").length || 0;
@@ -106,7 +160,7 @@ export const useCorporateStore = create((set, get) => ({
       const { data: activeUsers } = await supabase
         .from("course_enrollments")
         .select("user_id")
-        .eq("company_id", currentCompany.id);
+        .eq("organization_id", currentCompany.id);
 
       const uniqueActiveUsers = new Set(activeUsers?.map((u) => u.user_id))
         .size;
@@ -115,12 +169,23 @@ export const useCorporateStore = create((set, get) => ({
           ? Math.round((uniqueActiveUsers / totalEmployees) * 100)
           : 0;
 
+      // Calculate role-based stats from cached data
+      const roleStats = members.reduce((acc, member) => {
+        const role = member.role || 'learner';
+        acc[role] = (acc[role] || 0) + 1;
+        return acc;
+      }, {});
+
       const stats = {
         totalEmployees: totalEmployees || 0,
         employeeLimit: 200, // Default limit
         coursesCompleted,
         coursesInProgress,
         utilizationRate,
+        roleStats,
+        adminCount: roleStats.corporate_admin || 0,
+        managerCount: roleStats.manager || 0,
+        learnerCount: roleStats.learner || 0,
       };
 
       set({ companyStats: stats, loading: false });
@@ -132,7 +197,7 @@ export const useCorporateStore = create((set, get) => ({
     }
   },
 
-  // Fetch company employees
+  // Fetch company employees using cached data
   fetchEmployees: async () => {
     try {
       const { currentCompany } = get();
@@ -140,31 +205,39 @@ export const useCorporateStore = create((set, get) => ({
 
       set({ loading: true });
 
-      const { data: employees, error } = await supabase
-        .from("company_members")
-        .select(
-          `
-          id,
-          user_id,
-          role,
-          status,
-          invited_at,
-          joined_at,
-          profiles!inner (
-            id,
-            email,
-            full_name,
-            avatar_url
-          )
-        `
-        )
-        .eq("company_id", currentCompany.id)
-        .order("joined_at", { ascending: false });
+      // Get organization with cached members data
+      const { data: orgData, error: orgError } = await supabase
+        .from("organizations")
+        .select("members, member_count, updated_at")
+        .eq("id", currentCompany.id)
+        .single();
 
-      if (error) throw error;
+      if (orgError) throw orgError;
 
-      set({ employees: employees || [], loading: false });
-      return employees || [];
+      const members = orgData.members || [];
+      
+      // Transform cached data to match expected format
+      const employees = members.map(member => ({
+        id: member.id,
+        user_id: member.profile_id,
+        role: member.role,
+        status: member.status,
+        invited_at: member.invited_at,
+        joined_at: member.joined_at,
+        department_id: member.department_id,
+        // Additional cached data
+        email: member.email,
+        first_name: member.first_name,
+        last_name: member.last_name,
+        full_name: member.full_name,
+        avatar_url: member.avatar_url,
+        department_name: member.department_name,
+        job_title: member.job_title,
+        permissions: member.permissions
+      }));
+
+      set({ employees, loading: false });
+      return employees;
     } catch (error) {
       console.error("Error fetching employees:", error);
       set({ error: error.message, loading: false });
@@ -198,7 +271,7 @@ export const useCorporateStore = create((set, get) => ({
           )
         `
         )
-        .eq("company_id", currentCompany.id)
+        .eq("organization_id", currentCompany.id)
         .order("assigned_at", { ascending: false });
 
       if (error) throw error;
@@ -224,9 +297,9 @@ export const useCorporateStore = create((set, get) => ({
       if (!user) throw new Error("User not authenticated");
 
       const { data: memberData, error } = await supabase
-        .from("company_members")
+        .from("organization_members")
         .select("role, permissions")
-        .eq("company_id", currentCompany.id)
+        .eq("organization_id", currentCompany.id)
         .eq("user_id", user.id)
         .single();
 
@@ -293,39 +366,43 @@ export const useCorporateStore = create((set, get) => ({
       } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
-      // Create company
-      const { data: company, error: companyError } = await supabase
-        .from("companies")
+      // Create organization
+      const { data: organization, error: organizationError } = await supabase
+        .from("organizations")
         .insert({
-          ...companyData,
-          owner_id: user.id,
+          name: companyData.name,
+          domain: companyData.domain,
+          max_employees: companyData.max_employees || 50,
           subscription_status: "trial",
-          subscription_expires_at: new Date(
+          subscription_end_date: new Date(
             Date.now() + 30 * 24 * 60 * 60 * 1000
           ).toISOString(), // 30 days trial
+          slug: companyData.name.toLowerCase().replace(/\s+/g, '-'),
+          email: companyData.email || '',
+          created_by: user.id,
         })
         .select()
         .single();
 
-      if (companyError) throw companyError;
+      if (organizationError) throw organizationError;
 
-      // Add user as company owner
+      // Add user as organization owner
       const { error: memberError } = await supabase
-        .from("company_members")
+        .from("organization_members")
         .insert({
-          company_id: company.id,
+          organization_id: organization.id,
           user_id: user.id,
-          role: "owner",
+          role: "corporate_admin",
           status: "active",
           joined_at: new Date().toISOString(),
         });
 
       if (memberError) throw memberError;
 
-      set({ currentCompany: company, loading: false });
-      toast.success("Company created successfully!");
+      set({ currentCompany: organization, loading: false });
+      toast.success("Organization created successfully!");
 
-      return company;
+      return organization;
     } catch (error) {
       console.error("Error creating company:", error);
       set({ error: error.message, loading: false });
@@ -335,34 +412,78 @@ export const useCorporateStore = create((set, get) => ({
   },
 
   // Invite employee to company
-  inviteEmployee: async (email, role = "employee") => {
+  inviteEmployee: async (email, role = "learner", departmentId = null, customMessage = null) => {
     try {
-      const { currentCompany } = get();
-      if (!currentCompany) throw new Error("No current company");
-
       set({ loading: true, error: null });
+
+      // Ensure we have a current company
+      let { currentCompany } = get();
+      if (!currentCompany) {
+        await get().fetchCurrentCompany();
+        currentCompany = get().currentCompany;
+        if (!currentCompany) {
+          throw new Error("No current company. Please ensure you're associated with a company.");
+        }
+      }
 
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
+      // Check if user already exists
+      const { data: existingUser } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", email)
+        .single();
+
+      // Check if user is already a member
+      if (existingUser) {
+        const { data: existingMember } = await supabase
+          .from("organization_members")
+          .select("id, status")
+          .eq("organization_id", currentCompany.id)
+          .eq("user_id", existingUser.id)
+          .single();
+
+        if (existingMember) {
+          if (existingMember.status === "active") {
+            throw new Error("User is already a member of this company");
+          } else if (existingMember.status === "pending") {
+            throw new Error("User already has a pending invitation");
+          }
+        }
+      }
+
       // Create invitation
       const { data: invitation, error } = await supabase
-        .from("company_invitations")
+        .from("organization_invitations")
         .insert({
-          company_id: currentCompany.id,
+          organization_id: currentCompany.id,
           email,
           role,
+          department_id: departmentId,
           invited_by: user.id,
+          custom_message: customMessage,
           expires_at: new Date(
             Date.now() + 7 * 24 * 60 * 60 * 1000
           ).toISOString(), // 7 days
+          status: "pending"
         })
         .select()
         .single();
 
       if (error) throw error;
+
+      // Send invitation email (this would integrate with your email service)
+      await sendInvitationEmail(email, {
+        companyName: currentCompany.name,
+        inviterName: user.user_metadata?.full_name || user.email,
+        role,
+        customMessage,
+        invitationLink: `${window.location.origin}/auth/accept-invitation?token=${invitation.id}`
+      });
 
       set({ loading: false });
       toast.success(`Invitation sent to ${email}`);
@@ -376,6 +497,478 @@ export const useCorporateStore = create((set, get) => ({
     }
   },
 
+  // Bulk invite employees
+  bulkInviteEmployees: async (invitations) => {
+    try {
+      const { currentCompany } = get();
+      if (!currentCompany) throw new Error("No current company");
+
+      set({ loading: true, error: null });
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      const invitationData = invitations.map(invitation => ({
+        organization_id: currentCompany.id,
+        email: invitation.email,
+        role: invitation.role || "employee",
+        department_id: invitation.departmentId || null,
+        invited_by: user.id,
+        custom_message: invitation.customMessage || null,
+        expires_at: new Date(
+          Date.now() + 7 * 24 * 60 * 60 * 1000
+        ).toISOString(),
+        status: "pending"
+      }));
+
+      const { data: createdInvitations, error } = await supabase
+        .from("organization_invitations")
+        .insert(invitationData)
+        .select();
+
+      if (error) throw error;
+
+      // Send bulk invitation emails
+      for (const invitation of createdInvitations) {
+        await sendInvitationEmail(invitation.email, {
+          companyName: currentCompany.name,
+          inviterName: user.user_metadata?.full_name || user.email,
+          role: invitation.role,
+          customMessage: invitation.custom_message,
+          invitationLink: `${window.location.origin}/auth/accept-invitation?token=${invitation.id}`
+        });
+      }
+
+      set({ loading: false });
+      toast.success(`${createdInvitations.length} invitations sent successfully`);
+
+      return createdInvitations;
+    } catch (error) {
+      console.error("Error bulk inviting employees:", error);
+      set({ error: error.message, loading: false });
+      toast.error("Failed to send invitations: " + error.message);
+      throw error;
+    }
+  },
+
+  // Fetch pending invitations
+  fetchInvitations: async () => {
+    try {
+      const { currentCompany } = get();
+      if (!currentCompany) return [];
+
+      const { data: invitations, error } = await supabase
+        .from("organization_invitations")
+        .select(`
+          id,
+          email,
+          role,
+          status,
+          invited_at,
+          expires_at,
+          used_at,
+          custom_message,
+          departments (
+            id,
+            name
+          ),
+          invited_by
+        `)
+        .eq("organization_id", currentCompany.id)
+        .order("invited_at", { ascending: false });
+
+      if (error) throw error;
+
+      set({ invitations: invitations || [] });
+      return invitations || [];
+    } catch (error) {
+      console.error("Error fetching invitations:", error);
+      set({ error: error.message });
+      return [];
+    }
+  },
+
+  // Resend invitation
+  resendInvitation: async (invitationId) => {
+    try {
+      const { currentCompany } = get();
+      if (!currentCompany) throw new Error("No current company");
+
+      set({ loading: true, error: null });
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      // Get invitation details
+      const { data: invitation, error: fetchError } = await supabase
+        .from("organization_invitations")
+        .select("*")
+        .eq("id", invitationId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Update expiration date
+      const { error: updateError } = await supabase
+        .from("organization_invitations")
+        .update({
+          expires_at: new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          status: "pending"
+        })
+        .eq("id", invitationId);
+
+      if (updateError) throw updateError;
+
+      // Resend email
+      await sendInvitationEmail(invitation.email, {
+        companyName: currentCompany.name,
+        inviterName: user.user_metadata?.full_name || user.email,
+        role: invitation.role,
+        customMessage: invitation.custom_message,
+        invitationLink: `${window.location.origin}/auth/accept-invitation?token=${invitationId}`
+      });
+
+      set({ loading: false });
+      toast.success("Invitation resent successfully");
+
+      return true;
+    } catch (error) {
+      console.error("Error resending invitation:", error);
+      set({ error: error.message, loading: false });
+      toast.error("Failed to resend invitation: " + error.message);
+      throw error;
+    }
+  },
+
+  // Delete invitation
+  deleteInvitation: async (invitationId) => {
+    try {
+      const { currentCompany } = get();
+      if (!currentCompany) throw new Error("No current company");
+
+      set({ loading: true, error: null });
+
+      const { error } = await supabase
+        .from("organization_invitations")
+        .delete()
+        .eq("id", invitationId)
+        .eq("organization_id", currentCompany.id);
+
+      if (error) throw error;
+
+      set({ loading: false });
+      toast.success("Invitation deleted successfully");
+
+      return true;
+    } catch (error) {
+      console.error("Error deleting invitation:", error);
+      set({ error: error.message, loading: false });
+      toast.error("Failed to delete invitation: " + error.message);
+      throw error;
+    }
+  },
+
+  // Update employee role
+  updateEmployeeRole: async (employeeId, newRole) => {
+    try {
+      const { currentCompany } = get();
+      if (!currentCompany) throw new Error("No current company");
+
+      set({ loading: true, error: null });
+
+      const { error } = await supabase
+        .from("organization_members")
+        .update({ 
+          role: newRole,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", employeeId)
+        .eq("organization_id", currentCompany.id);
+
+      if (error) throw error;
+
+      // Sync cached data (triggers will handle this, but we'll refresh to be sure)
+      await get().syncCachedMembers();
+
+      set({ loading: false });
+      toast.success("Employee role updated successfully");
+
+      return true;
+    } catch (error) {
+      console.error("Error updating employee role:", error);
+      set({ error: error.message, loading: false });
+      toast.error("Failed to update employee role: " + error.message);
+      throw error;
+    }
+  },
+
+  // Remove employee from company
+  removeEmployee: async (employeeId) => {
+    try {
+      const { currentCompany } = get();
+      if (!currentCompany) throw new Error("No current company");
+
+      set({ loading: true, error: null });
+
+      const { error } = await supabase
+        .from("organization_members")
+        .update({ 
+          status: "inactive",
+          removed_at: new Date().toISOString()
+        })
+        .eq("id", employeeId)
+        .eq("organization_id", currentCompany.id);
+
+      if (error) throw error;
+
+      // Sync cached data (triggers will handle this, but we'll refresh to be sure)
+      await get().syncCachedMembers();
+
+      set({ loading: false });
+      toast.success("Employee removed successfully");
+
+      return true;
+    } catch (error) {
+      console.error("Error removing employee:", error);
+      set({ error: error.message, loading: false });
+      toast.error("Failed to remove employee: " + error.message);
+      throw error;
+    }
+  },
+
+  // Department Management
+  fetchDepartments: async () => {
+    try {
+      const { currentCompany } = get();
+      if (!currentCompany) return [];
+
+      const { data: departments, error } = await supabase
+        .from("departments")
+        .select(`
+          id,
+          name,
+          description,
+          manager_id,
+          created_at,
+          updated_at
+        `)
+        .eq("organization_id", currentCompany.id)
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+
+      set({ departments: departments || [] });
+      return departments || [];
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+      set({ error: error.message });
+      return [];
+    }
+  },
+
+  createDepartment: async (departmentData) => {
+    try {
+      const { currentCompany } = get();
+      if (!currentCompany) throw new Error("No current company");
+
+      set({ loading: true, error: null });
+
+      const { data: department, error } = await supabase
+        .from("departments")
+        .insert({
+          ...departmentData,
+          organization_id: currentCompany.id
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Refresh departments list
+      await get().fetchDepartments();
+
+      set({ loading: false });
+      toast.success("Department created successfully");
+
+      return department;
+    } catch (error) {
+      console.error("Error creating department:", error);
+      set({ error: error.message, loading: false });
+      toast.error("Failed to create department: " + error.message);
+      throw error;
+    }
+  },
+
+  updateDepartment: async (departmentId, updates) => {
+    try {
+      const { currentCompany } = get();
+      if (!currentCompany) throw new Error("No current company");
+
+      set({ loading: true, error: null });
+
+      const { error } = await supabase
+        .from("departments")
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", departmentId)
+        .eq("organization_id", currentCompany.id);
+
+      if (error) throw error;
+
+      // Refresh departments list
+      await get().fetchDepartments();
+
+      set({ loading: false });
+      toast.success("Department updated successfully");
+
+      return true;
+    } catch (error) {
+      console.error("Error updating department:", error);
+      set({ error: error.message, loading: false });
+      toast.error("Failed to update department: " + error.message);
+      throw error;
+    }
+  },
+
+  deleteDepartment: async (departmentId) => {
+    try {
+      const { currentCompany } = get();
+      if (!currentCompany) throw new Error("No current company");
+
+      set({ loading: true, error: null });
+
+      // Check if department has employees
+      const { data: employees } = await supabase
+        .from("organization_members")
+        .select("id")
+        .eq("department_id", departmentId)
+        .eq("status", "active");
+
+      if (employees && employees.length > 0) {
+        throw new Error("Cannot delete department with active employees. Please reassign employees first.");
+      }
+
+      const { error } = await supabase
+        .from("departments")
+        .delete()
+        .eq("id", departmentId)
+        .eq("organization_id", currentCompany.id);
+
+      if (error) throw error;
+
+      // Refresh departments list
+      await get().fetchDepartments();
+
+      set({ loading: false });
+      toast.success("Department deleted successfully");
+
+      return true;
+    } catch (error) {
+      console.error("Error deleting department:", error);
+      set({ error: error.message, loading: false });
+      toast.error("Failed to delete department: " + error.message);
+      throw error;
+    }
+  },
+
+  // Bulk operations
+  bulkUpdateEmployeeRoles: async (updates) => {
+    try {
+      const { currentCompany } = get();
+      if (!currentCompany) throw new Error("No current company");
+
+      set({ loading: true, error: null });
+
+      const updatePromises = updates.map(update =>
+        supabase
+          .from("organization_members")
+          .update({ 
+            role: update.role,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", update.employeeId)
+          .eq("organization_id", currentCompany.id)
+      );
+
+      const results = await Promise.all(updatePromises);
+      
+      // Check for errors
+      const errors = results.filter(result => result.error);
+      if (errors.length > 0) {
+        throw new Error(`Failed to update ${errors.length} employees`);
+      }
+
+      // Sync cached data
+      await get().syncCachedMembers();
+
+      set({ loading: false });
+      toast.success(`${updates.length} employee roles updated successfully`);
+
+      return true;
+    } catch (error) {
+      console.error("Error bulk updating employee roles:", error);
+      set({ error: error.message, loading: false });
+      toast.error("Failed to update employee roles: " + error.message);
+      throw error;
+    }
+  },
+
+  // Helper functions for cached data
+  searchEmployees: (searchTerm, filters = {}) => {
+    const { employees } = get();
+    
+    return employees.filter(employee => {
+      const matchesSearch = !searchTerm || 
+        employee.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        employee.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        employee.job_title?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesRole = !filters.role || employee.role === filters.role;
+      const matchesDepartment = !filters.department_id || employee.department_id === filters.department_id;
+      const matchesStatus = !filters.status || employee.status === filters.status;
+
+      return matchesSearch && matchesRole && matchesDepartment && matchesStatus;
+    });
+  },
+
+  getEmployeesByRole: () => {
+    const { employees } = get();
+    
+    return employees.reduce((acc, employee) => {
+      const role = employee.role || 'learner';
+      if (!acc[role]) acc[role] = [];
+      acc[role].push(employee);
+      return acc;
+    }, {});
+  },
+
+  getEmployeeStats: () => {
+    const { employees } = get();
+    
+    const roleStats = employees.reduce((acc, employee) => {
+      const role = employee.role || 'learner';
+      acc[role] = (acc[role] || 0) + 1;
+      return acc;
+    }, {});
+
+    return {
+      total: employees.length,
+      byRole: roleStats,
+      activeCount: employees.filter(e => e.status === 'active').length,
+      adminCount: roleStats.corporate_admin || 0,
+      managerCount: roleStats.manager || 0,
+      learnerCount: roleStats.learner || 0
+    };
+  },
+
   // Clear all corporate data (for logout)
   clearCorporateData: () => {
     set({
@@ -386,6 +979,8 @@ export const useCorporateStore = create((set, get) => ({
       permissions: null,
       loading: false,
       error: null,
+      invitations: [],
+      departments: [],
     });
   },
 }));
@@ -452,11 +1047,27 @@ export const useEmployees = () => useCorporateStore((state) => state.employees);
 export const useDepartments = () =>
   useCorporateStore((state) => state.departments);
 
+export const useInvitations = () =>
+  useCorporateStore((state) => state.invitations);
+
 export const useCorporateLoading = () =>
   useCorporateStore((state) => state.loading);
 
 export const useCorporateError = () =>
   useCorporateStore((state) => state.error);
+
+// New cached data functions
+export const useSyncCachedMembers = () =>
+  useCorporateStore((state) => state.syncCachedMembers);
+
+export const useSearchEmployees = () =>
+  useCorporateStore((state) => state.searchEmployees);
+
+export const useGetEmployeesByRole = () =>
+  useCorporateStore((state) => state.getEmployeesByRole);
+
+export const useGetEmployeeStats = () =>
+  useCorporateStore((state) => state.getEmployeeStats);
 
 // Default export
 export default useCorporateStore;
