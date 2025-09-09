@@ -37,6 +37,34 @@ export const useCorporateStore = create((set, get) => ({
   setError: (error) => set({ error }),
   clearError: () => set({ error: null }),
 
+  // Sync cached members data
+  syncCachedMembers: async () => {
+    try {
+      const { currentCompany } = get();
+      if (!currentCompany) return;
+
+      set({ loading: true });
+
+      // Call the RPC function to refresh cached members
+      const { data, error } = await supabase.rpc('refresh_organization_members_cache', {
+        org_id: currentCompany.id
+      });
+
+      if (error) throw error;
+
+      // Refresh the employees data
+      await get().fetchEmployees();
+      await get().fetchCompanyStats();
+
+      set({ loading: false });
+      return data;
+    } catch (error) {
+      console.error("Error syncing cached members:", error);
+      set({ error: error.message, loading: false });
+      throw error;
+    }
+  },
+
   // Fetch current user's company
   fetchCurrentCompany: async () => {
     try {
@@ -97,7 +125,7 @@ export const useCorporateStore = create((set, get) => ({
     }
   },
 
-  // Fetch company statistics
+  // Fetch company statistics using cached data
   fetchCompanyStats: async () => {
     try {
       const { currentCompany } = get();
@@ -105,12 +133,17 @@ export const useCorporateStore = create((set, get) => ({
 
       set({ loading: true });
 
-      // Get employee count
-      const { count: totalEmployees } = await supabase
-        .from("organization_members")
-        .select("*", { count: "exact", head: true })
-        .eq("organization_id", currentCompany.id)
-        .eq("status", "active");
+      // Get organization with cached members data
+      const { data: orgData, error: orgError } = await supabase
+        .from("organizations")
+        .select("members, member_count")
+        .eq("id", currentCompany.id)
+        .single();
+
+      if (orgError) throw orgError;
+
+      const members = orgData.members || [];
+      const totalEmployees = orgData.member_count || members.length;
 
       // Get course completion stats
       const { data: completionStats } = await supabase
@@ -136,12 +169,23 @@ export const useCorporateStore = create((set, get) => ({
           ? Math.round((uniqueActiveUsers / totalEmployees) * 100)
           : 0;
 
+      // Calculate role-based stats from cached data
+      const roleStats = members.reduce((acc, member) => {
+        const role = member.role || 'learner';
+        acc[role] = (acc[role] || 0) + 1;
+        return acc;
+      }, {});
+
       const stats = {
         totalEmployees: totalEmployees || 0,
         employeeLimit: 200, // Default limit
         coursesCompleted,
         coursesInProgress,
         utilizationRate,
+        roleStats,
+        adminCount: roleStats.corporate_admin || 0,
+        managerCount: roleStats.manager || 0,
+        learnerCount: roleStats.learner || 0,
       };
 
       set({ companyStats: stats, loading: false });
@@ -153,7 +197,7 @@ export const useCorporateStore = create((set, get) => ({
     }
   },
 
-  // Fetch company employees
+  // Fetch company employees using cached data
   fetchEmployees: async () => {
     try {
       const { currentCompany } = get();
@@ -161,26 +205,39 @@ export const useCorporateStore = create((set, get) => ({
 
       set({ loading: true });
 
-      const { data: employees, error } = await supabase
-        .from("organization_members")
-        .select(
-          `
-          id,
-          user_id,
-          role,
-          status,
-          invited_at,
-          joined_at,
-          department_id
-        `
-        )
-        .eq("organization_id", currentCompany.id)
-        .order("joined_at", { ascending: false });
+      // Get organization with cached members data
+      const { data: orgData, error: orgError } = await supabase
+        .from("organizations")
+        .select("members, member_count, updated_at")
+        .eq("id", currentCompany.id)
+        .single();
 
-      if (error) throw error;
+      if (orgError) throw orgError;
 
-      set({ employees: employees || [], loading: false });
-      return employees || [];
+      const members = orgData.members || [];
+      
+      // Transform cached data to match expected format
+      const employees = members.map(member => ({
+        id: member.id,
+        user_id: member.profile_id,
+        role: member.role,
+        status: member.status,
+        invited_at: member.invited_at,
+        joined_at: member.joined_at,
+        department_id: member.department_id,
+        // Additional cached data
+        email: member.email,
+        first_name: member.first_name,
+        last_name: member.last_name,
+        full_name: member.full_name,
+        avatar_url: member.avatar_url,
+        department_name: member.department_name,
+        job_title: member.job_title,
+        permissions: member.permissions
+      }));
+
+      set({ employees, loading: false });
+      return employees;
     } catch (error) {
       console.error("Error fetching employees:", error);
       set({ error: error.message, loading: false });
@@ -636,8 +693,8 @@ export const useCorporateStore = create((set, get) => ({
 
       if (error) throw error;
 
-      // Refresh employees list
-      await get().fetchEmployees();
+      // Sync cached data (triggers will handle this, but we'll refresh to be sure)
+      await get().syncCachedMembers();
 
       set({ loading: false });
       toast.success("Employee role updated successfully");
@@ -670,8 +727,8 @@ export const useCorporateStore = create((set, get) => ({
 
       if (error) throw error;
 
-      // Refresh employees list
-      await get().fetchEmployees();
+      // Sync cached data (triggers will handle this, but we'll refresh to be sure)
+      await get().syncCachedMembers();
 
       set({ loading: false });
       toast.success("Employee removed successfully");
@@ -849,8 +906,8 @@ export const useCorporateStore = create((set, get) => ({
         throw new Error(`Failed to update ${errors.length} employees`);
       }
 
-      // Refresh employees list
-      await get().fetchEmployees();
+      // Sync cached data
+      await get().syncCachedMembers();
 
       set({ loading: false });
       toast.success(`${updates.length} employee roles updated successfully`);
@@ -862,6 +919,54 @@ export const useCorporateStore = create((set, get) => ({
       toast.error("Failed to update employee roles: " + error.message);
       throw error;
     }
+  },
+
+  // Helper functions for cached data
+  searchEmployees: (searchTerm, filters = {}) => {
+    const { employees } = get();
+    
+    return employees.filter(employee => {
+      const matchesSearch = !searchTerm || 
+        employee.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        employee.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        employee.job_title?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesRole = !filters.role || employee.role === filters.role;
+      const matchesDepartment = !filters.department_id || employee.department_id === filters.department_id;
+      const matchesStatus = !filters.status || employee.status === filters.status;
+
+      return matchesSearch && matchesRole && matchesDepartment && matchesStatus;
+    });
+  },
+
+  getEmployeesByRole: () => {
+    const { employees } = get();
+    
+    return employees.reduce((acc, employee) => {
+      const role = employee.role || 'learner';
+      if (!acc[role]) acc[role] = [];
+      acc[role].push(employee);
+      return acc;
+    }, {});
+  },
+
+  getEmployeeStats: () => {
+    const { employees } = get();
+    
+    const roleStats = employees.reduce((acc, employee) => {
+      const role = employee.role || 'learner';
+      acc[role] = (acc[role] || 0) + 1;
+      return acc;
+    }, {});
+
+    return {
+      total: employees.length,
+      byRole: roleStats,
+      activeCount: employees.filter(e => e.status === 'active').length,
+      adminCount: roleStats.corporate_admin || 0,
+      managerCount: roleStats.manager || 0,
+      learnerCount: roleStats.learner || 0
+    };
   },
 
   // Clear all corporate data (for logout)
@@ -950,6 +1055,19 @@ export const useCorporateLoading = () =>
 
 export const useCorporateError = () =>
   useCorporateStore((state) => state.error);
+
+// New cached data functions
+export const useSyncCachedMembers = () =>
+  useCorporateStore((state) => state.syncCachedMembers);
+
+export const useSearchEmployees = () =>
+  useCorporateStore((state) => state.searchEmployees);
+
+export const useGetEmployeesByRole = () =>
+  useCorporateStore((state) => state.getEmployeesByRole);
+
+export const useGetEmployeeStats = () =>
+  useCorporateStore((state) => state.getEmployeeStats);
 
 // Default export
 export default useCorporateStore;

@@ -370,7 +370,7 @@ export const useCorporate = () => {
       mounted = false;
       clearTimeout(emergencyTimeout);
     };
-  }, [user, loadCorporateData, getDefaultPermissions]);
+  }, [user, getDefaultPermissions]);
 
   // Helper functions - memoized to prevent re-renders
   const hasPermission = useCallback((permission) => {

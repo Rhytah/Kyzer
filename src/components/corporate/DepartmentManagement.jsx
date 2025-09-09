@@ -14,7 +14,7 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react'
-import { useCorporateStore, useDepartments, useCurrentCompany } from '@/store/corporateStore'
+import { useCorporateStore, useDepartments, useCurrentCompany, useEmployees } from '@/store/corporateStore'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Modal from '@/components/ui/Modal'
@@ -23,6 +23,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner'
 export default function DepartmentManagement() {
   const currentCompany = useCurrentCompany()
   const departments = useDepartments()
+  const employees = useEmployees()
   const { 
     fetchDepartments,
     createDepartment,
@@ -225,6 +226,7 @@ export default function DepartmentManagement() {
         onClose={() => setShowCreateModal(false)}
         onSubmit={handleCreateDepartment}
         loading={loading}
+        employees={employees}
       />
 
       {/* Edit Department Modal */}
@@ -237,6 +239,7 @@ export default function DepartmentManagement() {
         department={selectedDepartment}
         onSubmit={handleUpdateDepartment}
         loading={loading}
+        employees={employees}
       />
 
       {/* Delete Department Modal */}
@@ -342,7 +345,7 @@ function DepartmentRow({ department, onEdit, onDelete }) {
 }
 
 // Create Department Modal Component
-function CreateDepartmentModal({ isOpen, onClose, onSubmit, loading }) {
+function CreateDepartmentModal({ isOpen, onClose, onSubmit, loading, employees }) {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -363,7 +366,24 @@ function CreateDepartmentModal({ isOpen, onClose, onSubmit, loading }) {
     }
 
     try {
-      await onSubmit(formData)
+      // Ensure manager_id is a valid UUID or null
+      let managerId = formData.manager_id || null
+      if (managerId && !managerId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        // If manager_id is not a valid UUID, find the employee by display name
+        const selectedEmployee = employees.find(emp => {
+          const displayName = emp.full_name || 
+            `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || 
+            emp.email || 'Unknown User'
+          const roleDisplay = emp.role?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+          return `${displayName} - ${roleDisplay}` === managerId
+        })
+        managerId = selectedEmployee?.id || null
+      }
+      
+      await onSubmit({
+        ...formData,
+        manager_id: managerId
+      })
       setFormData({ name: '', description: '', manager_id: '' })
       setErrors({})
     } catch (error) {
@@ -420,7 +440,17 @@ function CreateDepartmentModal({ isOpen, onClose, onSubmit, loading }) {
             onChange={(e) => setFormData({ ...formData, manager_id: e.target.value })}
           >
             <option value="">Select a manager (optional)</option>
-            {/* This would be populated with available managers */}
+            {employees.filter(emp => emp.status === 'active').map(emp => {
+              const displayName = emp.full_name || 
+                `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || 
+                emp.email || 'Unknown User'
+              const roleDisplay = emp.role?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+              return (
+                <option key={emp.id} value={emp.id}>
+                  {displayName} - {roleDisplay}
+                </option>
+              )
+            })}
           </select>
         </div>
 
@@ -444,7 +474,7 @@ function CreateDepartmentModal({ isOpen, onClose, onSubmit, loading }) {
 }
 
 // Edit Department Modal Component
-function EditDepartmentModal({ isOpen, onClose, department, onSubmit, loading }) {
+function EditDepartmentModal({ isOpen, onClose, department, onSubmit, loading, employees }) {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -475,7 +505,24 @@ function EditDepartmentModal({ isOpen, onClose, department, onSubmit, loading })
     }
 
     try {
-      await onSubmit(department.id, formData)
+      // Ensure manager_id is a valid UUID or null
+      let managerId = formData.manager_id || null
+      if (managerId && !managerId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        // If manager_id is not a valid UUID, find the employee by display name
+        const selectedEmployee = employees.find(emp => {
+          const displayName = emp.full_name || 
+            `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || 
+            emp.email || 'Unknown User'
+          const roleDisplay = emp.role?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+          return `${displayName} - ${roleDisplay}` === managerId
+        })
+        managerId = selectedEmployee?.id || null
+      }
+      
+      await onSubmit(department.id, {
+        ...formData,
+        manager_id: managerId
+      })
       setErrors({})
     } catch (error) {
       setErrors({ submit: error.message })
@@ -489,7 +536,6 @@ function EditDepartmentModal({ isOpen, onClose, department, onSubmit, loading })
   }
 
   if (!department) return null
-
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Edit Department">
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -533,7 +579,18 @@ function EditDepartmentModal({ isOpen, onClose, department, onSubmit, loading })
             onChange={(e) => setFormData({ ...formData, manager_id: e.target.value })}
           >
             <option value="">Select a manager (optional)</option>
-            {/* This would be populated with available managers */}
+            {employees.filter(emp => emp.status === 'active').map(emp => {
+             
+              const displayName = emp.full_name || 
+                `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || 
+                emp.email || 'Unknown User'
+              const roleDisplay = emp.role?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+              return (
+                <option key={emp.id} value={emp.id}>
+                  {displayName} - {roleDisplay}
+                </option>
+              )
+            })}
           </select>
         </div>
 
