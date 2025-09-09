@@ -532,15 +532,23 @@ function AssignmentDetailsModal({ assignment, employees, onClose }) {
                 <div key={employee.id} className="flex items-center justify-between p-3 border border-background-dark rounded-lg">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-primary-light rounded-full flex items-center justify-center">
-                      <span className="text-primary-default font-medium text-sm">
-                        {employee.users?.user_metadata?.full_name?.[0] || 'U'}
-                      </span>
+                      {employee.avatar_url ? (
+                        <img 
+                          src={employee.avatar_url} 
+                          alt={employee.full_name || employee.first_name || 'User'}
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-primary-default font-medium text-sm">
+                          {(employee.first_name?.[0] || employee.email?.[0] || 'U').toUpperCase()}
+                        </span>
+                      )}
                     </div>
                     <div>
                       <p className="font-medium text-text-dark">
-                        {employee.users?.user_metadata?.full_name || 'Unknown'}
+                        {employee.full_name || `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || 'Unknown User'}
                       </p>
-                      <p className="text-sm text-text-light">{employee.users?.email}</p>
+                      <p className="text-sm text-text-light">{employee.email || 'No email'}</p>
                     </div>
                   </div>
                   <div className="text-right">
