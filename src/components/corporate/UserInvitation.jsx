@@ -16,7 +16,11 @@ import {
   Send,
   Copy,
   Eye,
-  EyeOff
+  EyeOff,
+  Search,
+  Clock,
+  MoreVertical,
+  Plus
 } from 'lucide-react'
 import { useCorporateStore, useDepartments, useInvitations } from '@/store/corporateStore'
 import Button from '@/components/ui/Button'
@@ -44,6 +48,9 @@ export default function UserInvitation() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterRole, setFilterRole] = useState('all')
+  const [selectedInvitations, setSelectedInvitations] = useState([])
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [invitationToDelete, setInvitationToDelete] = useState(null)
 
   useEffect(() => {
     fetchDepartments()
@@ -94,9 +101,50 @@ export default function UserInvitation() {
   const handleDeleteInvitation = async (invitationId) => {
     try {
       await deleteInvitation(invitationId)
+      setSelectedInvitations(prev => prev.filter(id => id !== invitationId))
     } catch (error) {
       // Error is handled by the store
     }
+  }
+
+  const handleBulkDelete = async () => {
+    try {
+      for (const invitationId of selectedInvitations) {
+        await deleteInvitation(invitationId)
+      }
+      setSelectedInvitations([])
+    } catch (error) {
+      // Error is handled by the store
+    }
+  }
+
+  const confirmDelete = (invitation) => {
+    setInvitationToDelete(invitation)
+    setShowDeleteConfirm(true)
+  }
+
+  const executeDelete = async () => {
+    if (invitationToDelete) {
+      await handleDeleteInvitation(invitationToDelete.id)
+      setShowDeleteConfirm(false)
+      setInvitationToDelete(null)
+    }
+  }
+
+  const toggleInvitationSelection = (invitationId) => {
+    setSelectedInvitations(prev => 
+      prev.includes(invitationId) 
+        ? prev.filter(id => id !== invitationId)
+        : [...prev, invitationId]
+    )
+  }
+
+  const selectAllInvitations = () => {
+    setSelectedInvitations(filteredInvitations.map(inv => inv.id))
+  }
+
+  const clearSelection = () => {
+    setSelectedInvitations([])
   }
 
   const copyInvitationLink = (invitationId) => {
@@ -129,16 +177,38 @@ export default function UserInvitation() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-text-dark">User Invitations</h2>
+          <h2 className="text-xl font-semibold text-text-dark">User Invitations - ENHANCED VERSION</h2>
           <p className="text-text-light">
-            Invite new users to join your organization
+            Invite new users to join your organization - WITH DELETE FUNCTIONALITY
           </p>
+          <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded">
+            <p className="text-red-800 text-sm font-bold">🚀 NEW: Bulk delete, checkboxes, and confirmation modals are now available!</p>
+          </div>
         </div>
         
         <div className="flex gap-2">
+          {selectedInvitations.length > 0 && (
+            <div className="flex gap-2 mr-4">
+              <Button 
+                variant="outline" 
+                onClick={clearSelection}
+                size="sm"
+              >
+                Clear Selection ({selectedInvitations.length})
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleBulkDelete}
+                size="sm"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Selected
+              </Button>
+            </div>
+          )}
           <Button 
             variant="outline" 
             onClick={() => setShowBulkModal(true)}
@@ -249,6 +319,17 @@ export default function UserInvitation() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-background-dark">
+                <th className="text-left py-3 px-4 font-medium text-text-dark">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedInvitations.length === filteredInvitations.length && filteredInvitations.length > 0}
+                      onChange={selectedInvitations.length === filteredInvitations.length ? clearSelection : selectAllInvitations}
+                      className="rounded border-background-dark"
+                    />
+                    <span className="text-xs text-blue-600">✓ Enhanced</span>
+                  </div>
+                </th>
                 <th className="text-left py-3 px-4 font-medium text-text-dark">Email</th>
                 <th className="text-left py-3 px-4 font-medium text-text-dark">Role</th>
                 <th className="text-left py-3 px-4 font-medium text-text-dark">Department</th>
@@ -261,13 +342,13 @@ export default function UserInvitation() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-8">
+                  <td colSpan="8" className="text-center py-8">
                     <LoadingSpinner />
                   </td>
                 </tr>
               ) : filteredInvitations.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-8 text-text-light">
+                  <td colSpan="8" className="text-center py-8 text-text-light">
                     No invitations found matching your criteria
                   </td>
                 </tr>
@@ -276,8 +357,10 @@ export default function UserInvitation() {
                   <InvitationRow 
                     key={invitation.id} 
                     invitation={invitation}
+                    isSelected={selectedInvitations.includes(invitation.id)}
+                    onToggleSelection={toggleInvitationSelection}
                     onResend={handleResendInvitation}
-                    onDelete={handleDeleteInvitation}
+                    onDelete={confirmDelete}
                     onCopyLink={copyInvitationLink}
                     isExpired={isExpired(invitation.expires_at)}
                   />
@@ -305,12 +388,64 @@ export default function UserInvitation() {
         departments={departments}
         loading={loading}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal 
+        isOpen={showDeleteConfirm} 
+        onClose={() => setShowDeleteConfirm(false)} 
+        title="Delete Invitation"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-error-light rounded-full flex items-center justify-center">
+              <Trash2 className="w-6 h-6 text-error-default" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-text-dark">Delete Invitation</h3>
+              <p className="text-text-light text-sm">
+                This action cannot be undone.
+              </p>
+            </div>
+          </div>
+          
+          {invitationToDelete && (
+            <div className="bg-background-light rounded-lg p-4">
+              <p className="text-sm text-text-dark">
+                <strong>Email:</strong> {invitationToDelete.email}
+              </p>
+              <p className="text-sm text-text-dark">
+                <strong>Role:</strong> {invitationToDelete.role}
+              </p>
+              <p className="text-sm text-text-dark">
+                <strong>Status:</strong> {invitationToDelete.status}
+              </p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button 
+              variant="ghost" 
+              onClick={() => setShowDeleteConfirm(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={executeDelete}
+              disabled={loading}
+            >
+              {loading ? 'Deleting...' : 'Delete Invitation'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
 
 // Invitation Row Component
-function InvitationRow({ invitation, onResend, onDelete, onCopyLink, isExpired }) {
+function InvitationRow({ invitation, isSelected, onToggleSelection, onResend, onDelete, onCopyLink, isExpired }) {
   const [showActions, setShowActions] = useState(false)
   const [showMessage, setShowMessage] = useState(false)
 
@@ -318,7 +453,18 @@ function InvitationRow({ invitation, onResend, onDelete, onCopyLink, isExpired }
   const statusColor = getStatusColor(invitation.status)
 
   return (
-    <tr className="border-b border-background-light hover:bg-background-light">
+    <tr className={`border-b border-background-light hover:bg-background-light ${isSelected ? 'bg-primary-light/10' : ''}`}>
+      <td className="py-3 px-4">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelection(invitation.id)}
+            className="rounded border-background-dark"
+          />
+          {isSelected && <span className="text-xs text-green-600">✓</span>}
+        </div>
+      </td>
       <td className="py-3 px-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-primary-light rounded-full flex items-center justify-center">
@@ -407,7 +553,7 @@ function InvitationRow({ invitation, onResend, onDelete, onCopyLink, isExpired }
               </button>
               <button
                 onClick={() => {
-                  onDelete(invitation.id)
+                  onDelete(invitation)
                   setShowActions(false)
                 }}
                 className="w-full text-left px-4 py-2 hover:bg-background-light text-error-default flex items-center gap-2"
@@ -687,7 +833,7 @@ function BulkInviteModal({ isOpen, onClose, onSubmit, departments, loading }) {
                 <h4 className="font-medium text-text-dark mb-2">Preview ({invitations.length} invitations)</h4>
                 <div className="max-h-40 overflow-y-auto">
                   {invitations.map((inv, index) => (
-                    <div key={index} className="text-sm text-text-light">
+                    <div key={`preview-${inv.email}-${index}`} className="text-sm text-text-light">
                       {inv.email} - {inv.role} - {departments.find(d => d.id === inv.departmentId)?.name || 'No department'}
                     </div>
                   ))}
@@ -707,7 +853,7 @@ function BulkInviteModal({ isOpen, onClose, onSubmit, departments, loading }) {
 
             <div className="max-h-60 overflow-y-auto space-y-2">
               {invitations.map((invitation, index) => (
-                <div key={index} className="grid grid-cols-12 gap-2 items-center p-2 border border-background-dark rounded">
+                <div key={`invitation-${invitation.email}-${index}`} className="grid grid-cols-12 gap-2 items-center p-2 border border-background-dark rounded">
                   <div className="col-span-4">
                     <input
                       type="email"

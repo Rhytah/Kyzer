@@ -188,7 +188,7 @@ function OverviewReport({ stats }) {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {metrics.map((metric, index) => (
-          <MetricCard key={index} {...metric} />
+          <MetricCard key={`metric-${metric.title || index}`} {...metric} />
         ))}
       </div>
 
@@ -533,7 +533,7 @@ function RecentActivityList() {
   return (
     <div className="space-y-3">
       {activities.map((activity, index) => (
-        <div key={index} className="flex items-center justify-between py-2">
+        <div key={`activity-${activity.id || index}`} className="flex items-center justify-between py-2">
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 bg-primary-default rounded-full"></div>
             <p className="text-sm text-text-dark">

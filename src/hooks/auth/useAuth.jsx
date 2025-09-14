@@ -152,21 +152,32 @@ export function AuthProvider({ children }) {
         
         if (!mounted) return;
 
-        setSession(session);
-        setUser(session?.user || null);
+        // Only update state if there's an actual change in user ID or session status
+        const currentUserId = user?.id;
+        const newUserId = session?.user?.id;
+        const hasUserChanged = currentUserId !== newUserId;
+        const hasSessionChanged = !session !== !user;
 
-        // Manage session start marker on auth transitions
-        if (event === 'SIGNED_IN' && session?.user) {
-          setSessionStartNow();
-        }
-        if (event === 'SIGNED_OUT' || !session?.user) {
-          clearSessionStart();
-        }
-        
-        if (session?.user) {
-          loadUserProfile(session.user.id);
-        } else {
-          setProfile(null);
+        if (hasUserChanged || hasSessionChanged || event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+          setSession(session);
+          setUser(session?.user || null);
+
+          // Manage session start marker on auth transitions
+          if (event === 'SIGNED_IN' && session?.user) {
+            setSessionStartNow();
+          }
+          if (event === 'SIGNED_OUT' || !session?.user) {
+            clearSessionStart();
+          }
+          
+          if (session?.user) {
+            // Only load profile if user ID changed or this is a sign in event
+            if (hasUserChanged || event === 'SIGNED_IN') {
+              loadUserProfile(session.user.id);
+            }
+          } else {
+            setProfile(null);
+          }
         }
       }
     );
