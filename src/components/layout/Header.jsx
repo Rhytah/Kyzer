@@ -14,10 +14,10 @@ const Header = ({ onMenuClick }) => {
 
   return (
     <header className="bg-background-white border-b border-border shadow-sm sticky top-0 z-30">
-      <div className="px-4 sm:px-6 py-4">
+      <div className="px-4 sm:px-4 py-4">
         <div className="flex items-center justify-between">
           {/* Left Section */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-0">
             {/* Mobile Menu Button */}
             <button
               onClick={onMenuClick}
