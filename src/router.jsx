@@ -4,6 +4,7 @@ import Layout from "@/components/layout/Layout";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import CorporateGuard from "@/components/auth/CorporateGuard";
 import AdminGuard from "@/components/auth/AdminGuard";
+import CourseManagementGuard from "@/components/auth/CourseManagementGuard";
 import AuthCallback from "@/pages/auth/AuthCallback";
 
 // Public Pages
@@ -94,7 +95,14 @@ export const router = createBrowserRouter([
               children: [
                 { index: true, element: <MyCourses /> },
                 { path: "catalog", element: <CourseCatalog /> },
-                { path: "management", element: <CourseManagement /> },
+                { 
+                  path: "management", 
+                  element: (
+                    <CourseManagementGuard>
+                      <CourseManagement />
+                    </CourseManagementGuard>
+                  ) 
+                },
                 { path: "categories", element: <CategoriesManagement /> },
                 { path: ":courseId", element: <CourseDetail /> },
                 { path: ":courseId/learning", element: <CourseLearning /> },
@@ -179,7 +187,7 @@ export const navigationRoutes = {
     { path: "/app/dashboard", label: "Dashboard", icon: "LayoutDashboard" },
     { path: "/app/courses", label: "My Courses", icon: "BookOpen" },
     { path: "/app/courses/catalog", label: "Course Catalog", icon: "Search" },
-    { path: "/app/courses/management", label: "Course Management", icon: "Settings" },
+    { path: "/app/courses/management", label: "Course Management", icon: "Settings", permission: "manage_courses" },
     { path: "/app/progress", label: "Progress", icon: "TrendingUp" },
     { path: "/app/certificates", label: "Certificates", icon: "Award" },
   ],

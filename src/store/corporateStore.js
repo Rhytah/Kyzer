@@ -392,6 +392,7 @@ export const useCorporateStore = create((set, get) => ({
           canManageCompany: true,
           canAssignCourses: true,
           canCreateCourses: true,
+          canManageCourses: true,
         },
         admin: {
           canViewEmployees: true,
@@ -400,6 +401,7 @@ export const useCorporateStore = create((set, get) => ({
           canManageCompany: false,
           canAssignCourses: true,
           canCreateCourses: false,
+          canManageCourses: true,
         },
         manager: {
           canViewEmployees: true,
@@ -408,6 +410,7 @@ export const useCorporateStore = create((set, get) => ({
           canManageCompany: false,
           canAssignCourses: true,
           canCreateCourses: false,
+          canManageCourses: false,
         },
         employee: {
           canViewEmployees: false,
@@ -416,6 +419,7 @@ export const useCorporateStore = create((set, get) => ({
           canManageCompany: false,
           canAssignCourses: false,
           canCreateCourses: false,
+          canManageCourses: false,
         },
       };
 

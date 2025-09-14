@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCorporate } from "@/hooks/corporate/useCorporate";
+import { useCoursePermissions } from "@/hooks/courses/useCoursePermissions";
 import OrganizationNav from "./OrganizationNav";
 import kyzerLogo from "../../assets/images/Kyzerlogo.png";
 
@@ -35,11 +36,14 @@ export default function Sidebar({ mobile = false, onClose, collapsed = false, on
     companyName, // NEW: Fallback company name from metadata
     error: corporateError
   } = useCorporate();
+  const { canViewCourseManagement } = useCoursePermissions();
   
   const location = useLocation();
   const [corporateExpanded, setCorporateExpanded] = useState(
     location.pathname.startsWith('/company')
   );
+
+  // Use the course permissions hook instead of local function
 
   // Define navigation items
   const personalNavigation = [
@@ -55,7 +59,7 @@ export default function Sidebar({ mobile = false, onClose, collapsed = false, on
       children: [
         { name: "Enrolled", href: "/app/courses" },
         { name: "Browse Catalog", href: "/app/courses/catalog" },
-        { name: "Manage Courses", href: "/app/courses/management" }
+        ...(canViewCourseManagement ? [{ name: "Manage Courses", href: "/app/courses/management" }] : [])
       ]
     },
     { 

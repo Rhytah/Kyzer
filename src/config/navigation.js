@@ -40,6 +40,7 @@ export const individualNavigation = [{
         children: [
             { name: 'Enrolled', href: '/app/courses' },
             { name: 'Browse Catalog', href: '/app/courses/catalog' },
+            { name: 'Manage Courses', href: '/app/courses/management', permission: 'manage_courses' },
         ],
     },
 
