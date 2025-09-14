@@ -169,10 +169,10 @@ export default function EmployeeManagement() {
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
           >
-            <option value="all">All Roles</option>
-            <option value="admin">Admin</option>
-            <option value="manager">Manager</option>
-            <option value="employee">Employee</option>
+            <option key="all" value="all">All Roles</option>
+            <option key="admin" value="admin">Admin</option>
+            <option key="manager" value="manager">Manager</option>
+            <option key="employee" value="employee">Employee</option>
           </select>
 
           {/* Status Filter */}
@@ -181,10 +181,10 @@ export default function EmployeeManagement() {
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
           >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="pending">Pending</option>
-            <option value="inactive">Inactive</option>
+            <option key="all" value="all">All Status</option>
+            <option key="active" value="active">Active</option>
+            <option key="pending" value="pending">Pending</option>
+            <option key="inactive" value="inactive">Inactive</option>
           </select>
 
           {/* Department Filter */}

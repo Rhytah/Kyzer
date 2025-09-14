@@ -11,6 +11,7 @@ export const useCorporate = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [initialized, setInitialized] = useState(false);
+  const [lastLoadedUserId, setLastLoadedUserId] = useState(null);
 
   // 🔥 NEW: Check if user is corporate based on metadata
   const isCorporateFromMetadata = useCallback(() => {
@@ -179,7 +180,7 @@ export const useCorporate = () => {
       console.error('Error in ensureMembershipExists:', error);
       return null;
     }
-  }, [user]);
+  }, [user?.id]); // Only depend on user ID, not entire user object
 
   // Updated corporate data loading with auto-creation
   const loadCorporateData = useCallback(async () => {
@@ -315,7 +316,7 @@ export const useCorporate = () => {
       setLoading(false);
       setInitialized(true);
     }
-  }, [user, isCorporateFromMetadata, getDefaultPermissions, ensureOrganizationExists, ensureMembershipExists]);
+  }, [user?.id, isCorporateFromMetadata, getDefaultPermissions, ensureOrganizationExists, ensureMembershipExists]);
 
   // Initialize corporate data when user changes
   useEffect(() => {
@@ -329,10 +330,10 @@ export const useCorporate = () => {
         setInitialized(true);
         setError({
           type: 'TIMEOUT',
-          message: 'Loading organization data timed out. This might be due to database connection issues or missing organization setup. Please refresh the page or contact support.'
+          message: 'Loading organization data timed out. Please check your internet connection and try refreshing the page.'
         });
       }
-    }, 45000); // Increased to 45 seconds for organization creation
+    }, 15000); // Reduced to 15 seconds for better UX
 
     const initializeCorporateData = async () => {
       if (!mounted) return;
@@ -346,9 +347,15 @@ export const useCorporate = () => {
           setError(null);
           setLoading(false);
           setInitialized(true);
-        } else if (user) {
-          // User exists, load corporate data
-          await loadCorporateData();
+          setLastLoadedUserId(null);
+        } else if (user?.id) {
+          // Only load if user has an ID and we haven't already loaded for this user
+          const currentUserId = user.id;
+          
+          if (currentUserId !== lastLoadedUserId) {
+            await loadCorporateData();
+            setLastLoadedUserId(currentUserId);
+          }
         }
         // If user is undefined, we're still loading auth, so wait
       } catch (error) {
@@ -370,7 +377,7 @@ export const useCorporate = () => {
       mounted = false;
       clearTimeout(emergencyTimeout);
     };
-  }, [user, getDefaultPermissions]);
+  }, [user?.id]); // Only depend on user ID, not the entire user object
 
   // Helper functions - memoized to prevent re-renders
   const hasPermission = useCallback((permission) => {
