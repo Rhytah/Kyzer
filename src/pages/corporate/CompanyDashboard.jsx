@@ -229,7 +229,7 @@ const CompanyDashboard = () => {
   // No organization state
   if (!isCorporateUser || !organization) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="p-6 max-w-8xl mx-auto">
         <div className="text-center py-12">
           <Building2 className="h-16 w-16 text-gray-400 mx-auto mb-6" />
           <h2 className="text-2xl font-bold text-gray-900 mb-4">

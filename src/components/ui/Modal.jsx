@@ -34,7 +34,7 @@ const Modal = ({
   const sizeClasses = {
     sm: "max-w-md",
     default: "max-w-2xl",
-    lg: "max-w-4xl",
+    lg: "max-w-8xl",
     xl: "max-w-6xl",
     full: "max-w-full mx-4"
   };

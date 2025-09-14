@@ -20,7 +20,7 @@ export default function About() {
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-primary-dark to-primary-default text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-4xl mx-auto">
+          <div className="text-center max-w-8xl mx-auto">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
               Transforming Learning for the Modern Workplace
             </h1>
@@ -226,7 +226,7 @@ export default function About() {
 
       {/* Call to Action */}
       <section className="py-20 bg-primary-default text-white">
-        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold mb-6">Ready to Transform Your Learning?</h2>
           <p className="text-xl text-gray-200 mb-8">
             Join thousands of organizations that trust Kyzer LMS for their learning and development needs.

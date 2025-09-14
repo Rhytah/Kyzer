@@ -19,9 +19,12 @@ import {
   ChevronRight,
   Settings,
   RotateCcw,
+  PanelLeftClose,
+  PanelLeftOpen,
   
 } from 'lucide-react'
 import { ScormPlayer } from '@/components/course'
+import PresentationViewer from '@/components/course/PresentationViewer'
 import QuizResult from '@/components/quiz/QuizResult'
 import { useCourseStore } from '@/store/courseStore'
 import { useAuth } from '@/hooks/auth/useAuth'
@@ -80,6 +83,7 @@ export default function LessonView() {
   const [pptLoading, setPptLoading] = useState(false)
   const [haltVideo, setHaltVideo] = useState(false)
   const [playerKey, setPlayerKey] = useState(0)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   // Quiz state
   const [quiz, setQuiz] = useState(null)
   const [quizQuestions, setQuizQuestions] = useState([])
@@ -790,12 +794,12 @@ export default function LessonView() {
     return (
       <div className="bg-gray-50 rounded-lg p-4">
         {pdfUrl ? (
-          <div className="border rounded-lg overflow-hidden">
-            <div className="relative">
+          <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
+            <div className="relative w-full h-full">
               <LazyIframe
-                src={pdfUrl}
+                src={`${pdfUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
                 title="PDF Document"
-                className="w-full h-[70vh]"
+                className="w-full h-full"
                 onLoad={onLoad}
                 frameBorder="0"
               />
@@ -844,12 +848,12 @@ export default function LessonView() {
     return (
       <div className="bg-gray-50 rounded-lg p-4">
         {pptUrl ? (
-          <div className="border rounded-lg overflow-hidden">
-            <div className="relative">
+          <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
+            <div className="relative w-full h-full">
               <LazyIframe
                 src={embedUrl}
                 title={isGoogleSlides ? "Google Slides Presentation" : "PowerPoint Presentation"}
-                className="w-full h-[70vh]"
+                className="w-full h-full"
                 onLoad={onLoad}
                 frameBorder="0"
                 allowFullScreen={isGoogleSlides}
@@ -891,10 +895,14 @@ export default function LessonView() {
 
     return (
       <div className="bg-gray-50 rounded-lg p-6">
-        <div
-          className="prose max-w-none text-text-medium"
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
+        <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
+          <div className="w-full h-full p-4 overflow-y-auto">
+            <div
+              className="prose max-w-none text-text-medium"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          </div>
+        </div>
       </div>
     );
   });
@@ -906,23 +914,24 @@ export default function LessonView() {
     return (
       <div className="bg-gray-50 rounded-lg p-4">
         {imageUrl ? (
-          <div className="text-center">
-            <img
-              src={imageUrl}
-              alt="Lesson Image"
-              className="max-w-full h-auto mx-auto rounded-lg shadow-sm"
-              style={{ maxHeight: '70vh' }}
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'block';
-              }}
-            />
-            <div 
-              className="hidden text-center text-gray-500 p-8"
-              style={{ display: 'none' }}
-            >
-              <div className="text-gray-500 text-lg mb-4">Failed to load image</div>
-              <p className="text-sm">The image could not be displayed.</p>
+          <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
+            <div className="w-full h-full flex items-center justify-center p-4">
+              <img
+                src={imageUrl}
+                alt="Lesson Image"
+                className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'block';
+                }}
+              />
+              <div 
+                className="hidden text-center text-gray-500"
+                style={{ display: 'none' }}
+              >
+                <div className="text-gray-500 text-lg mb-4">Failed to load image</div>
+                <p className="text-sm">The image could not be displayed.</p>
+              </div>
             </div>
             <div className="mt-3 flex justify-center">
               <Button variant="secondary" onClick={() => window.open(imageUrl, '_blank')}>
@@ -944,48 +953,50 @@ export default function LessonView() {
     return (
       <div className="bg-gray-50 rounded-lg p-6">
         {audioUrl ? (
-          <div className="text-center">
-            <div className="mb-4">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-blue-600 text-2xl">🎵</span>
+          <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
+            <div className="w-full h-full flex flex-col items-center justify-center p-4">
+              <div className="mb-4">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <span className="text-blue-600 text-2xl">🎵</span>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Audio Lesson</h3>
+                <p className="text-sm text-gray-600">Use the controls below to play the audio content</p>
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Audio Lesson</h3>
-              <p className="text-sm text-gray-600">Use the controls below to play the audio content</p>
-            </div>
-            
-            <div className="max-w-md mx-auto">
-              <audio
-                controls
-                className="w-full h-12"
-                preload="metadata"
-                onError={(e) => {
-                  console.error('Audio playback error:', e);
-                }}
-              >
-                <source src={audioUrl} type="audio/mpeg" />
-                <source src={audioUrl} type="audio/wav" />
-                <source src={audioUrl} type="audio/ogg" />
-                <source src={audioUrl} type="audio/m4a" />
-                <source src={audioUrl} type="audio/aac" />
-                <source src={audioUrl} type="audio/webm" />
-                Your browser does not support the audio element.
-              </audio>
-            </div>
+              
+              <div className="max-w-md mx-auto mb-4">
+                <audio
+                  controls
+                  className="w-full h-12"
+                  preload="metadata"
+                  onError={(e) => {
+                    console.error('Audio playback error:', e);
+                  }}
+                >
+                  <source src={audioUrl} type="audio/mpeg" />
+                  <source src={audioUrl} type="audio/wav" />
+                  <source src={audioUrl} type="audio/ogg" />
+                  <source src={audioUrl} type="audio/m4a" />
+                  <source src={audioUrl} type="audio/aac" />
+                  <source src={audioUrl} type="audio/webm" />
+                  Your browser does not support the audio element.
+                </audio>
+              </div>
 
-            <div className="mt-4 flex justify-center space-x-3">
-              <Button 
-                variant="secondary" 
-                onClick={() => window.open(audioUrl, '_blank')}
-                className="text-sm"
-              >
-                Download Audio
-              </Button>
-            </div>
+              <div className="flex justify-center space-x-3 mb-4">
+                <Button 
+                  variant="secondary" 
+                  onClick={() => window.open(audioUrl, '_blank')}
+                  className="text-sm"
+                >
+                  Download Audio
+                </Button>
+              </div>
 
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-xs text-blue-700">
-                💡 <strong>Tip:</strong> You can use the built-in controls to play, pause, seek, and adjust volume.
-              </p>
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg max-w-md">
+                <p className="text-xs text-blue-700">
+                  💡 <strong>Tip:</strong> You can use the built-in controls to play, pause, seek, and adjust volume.
+                </p>
+              </div>
             </div>
           </div>
         ) : (
@@ -1002,6 +1013,78 @@ export default function LessonView() {
   });
 
   AudioPlayer.displayName = 'AudioPlayer';
+
+  // Presentation wrapper component
+  const PresentationWrapper = memo(({ lessonId }) => {
+    const [presentation, setPresentation] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const fetchPresentationByLesson = useCourseStore(state => state.actions.fetchPresentationByLesson);
+
+    useEffect(() => {
+      const loadPresentation = async () => {
+        try {
+          setLoading(true);
+          const result = await fetchPresentationByLesson(lessonId);
+          if (result.error) {
+            setError(result.error);
+          } else {
+            setPresentation(result.data);
+          }
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      loadPresentation();
+    }, [lessonId, fetchPresentationByLesson]);
+
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <LoadingSpinner />
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="text-center text-gray-500 p-8">
+          <div className="text-red-500 text-lg mb-2">Error loading presentation</div>
+          <p className="text-sm">{error}</p>
+        </div>
+      );
+    }
+
+    if (!presentation) {
+      return (
+        <div className="text-center text-gray-500 p-8">
+          <div className="text-gray-500 text-lg mb-2">No presentation found</div>
+          <p className="text-sm">This lesson doesn't have a presentation yet.</p>
+        </div>
+      );
+    }
+
+    return (
+      <PresentationViewer 
+        presentation={presentation}
+        lesson={lesson}
+        onSlideComplete={(slideIndex) => {
+          // Handle slide completion if needed
+        }}
+        onPresentationComplete={() => {
+          // Handle presentation completion
+          setIsCompleted(true);
+        }}
+        isCompleted={isCompleted}
+        onMarkComplete={markAsCompleted}
+      />
+    );
+  });
+
+  PresentationWrapper.displayName = 'PresentationWrapper';
 
   const VideoPlayer = memo(() => {
     if (lesson.content_type !== 'video') {
@@ -1020,6 +1103,11 @@ export default function LessonView() {
       // Handle image rendering
       if (lesson.content_type === 'image') {
         return <ImageViewer imageUrl={lesson.content_url} />;
+      }
+
+      // Handle presentation rendering
+      if (lesson.content_type === 'presentation') {
+        return <PresentationWrapper lessonId={lesson.id} />;
       }
 
       // Fallback placeholder for other non-video content types
@@ -1044,11 +1132,11 @@ export default function LessonView() {
       const embedUrl = `https://www.youtube.com/embed/${videoId}?rel=0`;
       return (
         <div className="w-full">
-          <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
+          <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
             <iframe
               src={embedUrl}
               title="YouTube video player"
-              className="absolute top-0 left-0 w-full h-full rounded-lg"
+              className="w-full h-full rounded-lg"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               referrerPolicy="strict-origin-when-cross-origin"
@@ -1085,7 +1173,7 @@ export default function LessonView() {
 
     // Valid video URL - render ReactPlayer for robust playback
     return (
-      <div className="relative">
+      <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden relative">
         <ReactPlayer
           key={playerKey}
           ref={playerRef}
@@ -1267,21 +1355,45 @@ export default function LessonView() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <div className={`grid grid-cols-1 gap-6 transition-all duration-300 ${
+      sidebarCollapsed ? 'lg:grid-cols-1' : 'lg:grid-cols-4'
+    }`}>
       {/* Main Content */}
-      <div className="lg:col-span-3 space-y-6">
+      <div className={`space-y-6 ${sidebarCollapsed ? 'lg:col-span-1' : 'lg:col-span-3'}`}>
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-text-light">
-          <button 
-            onClick={() => navigate(`/app/courses/${courseId}`)}
-            className="hover:text-primary-default"
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-text-light">
+            <button 
+              onClick={() => navigate(`/app/courses/${courseId}`)}
+              className="hover:text-primary-default"
+            >
+              {course.title}
+            </button>
+            <span>/</span>
+            <span>{lesson.moduleTitle}</span>
+            <span>/</span>
+            <span className="text-text-dark">{lesson.title}</span>
+          </div>
+          
+          {/* Sidebar Toggle Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="hidden lg:flex items-center gap-2"
           >
-            {course.title}
-          </button>
-          <span>/</span>
-          <span>{lesson.moduleTitle}</span>
-          <span>/</span>
-          <span className="text-text-dark">{lesson.title}</span>
+            {sidebarCollapsed ? (
+              <>
+                <PanelLeftOpen className="w-4 h-4" />
+                <span className="text-sm">Show Sidebar</span>
+              </>
+            ) : (
+              <>
+                <PanelLeftClose className="w-4 h-4" />
+                <span className="text-sm">Hide Sidebar</span>
+              </>
+            )}
+          </Button>
         </div>
 
         {/* Content Player */}
@@ -1597,7 +1709,20 @@ export default function LessonView() {
       </div>
 
       {/* Sidebar */}
-      <div className="space-y-6">
+      {!sidebarCollapsed && (
+        <div className="space-y-6">
+          {/* Mobile Sidebar Close Button */}
+          <div className="lg:hidden flex justify-end mb-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarCollapsed(true)}
+              className="flex items-center gap-2"
+            >
+              <PanelLeftClose className="w-4 h-4" />
+              <span className="text-sm">Hide Sidebar</span>
+            </Button>
+          </div>
         {/* Course Progress */}
         <Card className="p-6">
           <h3 className="font-semibold text-text-dark mb-4">Course Progress</h3>
@@ -1707,7 +1832,35 @@ export default function LessonView() {
           </Button>
         </Card>
         
-      </div>
+        </div>
+      )}
+      
+      {/* Floating Sidebar Toggle (when collapsed) */}
+      {sidebarCollapsed && (
+        <>
+          {/* Mobile Floating Button */}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setSidebarCollapsed(false)}
+            className="fixed bottom-6 right-6 z-50 shadow-lg flex items-center gap-2 lg:hidden"
+          >
+            <PanelLeftOpen className="w-4 h-4" />
+            <span className="text-sm">Show Sidebar</span>
+          </Button>
+          
+          {/* Desktop Floating Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarCollapsed(false)}
+            className="fixed top-20 right-6 z-50 shadow-lg flex items-center gap-2 hidden lg:flex"
+          >
+            <PanelLeftOpen className="w-4 h-4" />
+            <span className="text-sm">Show Sidebar</span>
+          </Button>
+        </>
+      )}
     </div>
   )
 }

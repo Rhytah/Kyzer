@@ -222,7 +222,7 @@ export default function LearnerTypeSelector({ onSelect, initialType = null }) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-8xl mx-auto">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-4">Choose Your Learning Path</h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">

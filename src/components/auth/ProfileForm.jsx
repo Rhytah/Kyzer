@@ -135,7 +135,7 @@ export function ProfileForm() {
   ]
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-8xl mx-auto space-y-6">
       {/* Tab Navigation */}
       <div className="border-b border-background-dark">
         <nav className="flex space-x-8">

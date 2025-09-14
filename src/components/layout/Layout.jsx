@@ -29,8 +29,6 @@ export default function Layout() {
      {user && <Header 
         onMenuClick={toggleMobileSidebar} 
         showMenuButton={!!user}
-        onDesktopToggleClick={toggleDesktopSidebar}
-        isDesktopSidebarCollapsed={desktopSidebarCollapsed}
       />
 }
       <div className="flex">
@@ -68,7 +66,9 @@ export default function Layout() {
         )}
 
         {/* Main Content */}
-        <main className={`flex-1 transition-all duration-300 ease-in-out`}>
+        <main className={`flex-1 transition-all duration-300 ease-in-out ${
+          desktopSidebarCollapsed ? 'ml-0' : 'ml-0'
+        }`}>
           <div className="p-6 pb-20 lg:pb-6">
             <Breadcrumbs />
             <Outlet />

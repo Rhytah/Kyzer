@@ -89,6 +89,10 @@ export const TABLES = {
   // Certificates
   CERTIFICATES: 'certificates',
   
+  // Presentation/Lesson Curation
+  LESSON_PRESENTATIONS: 'lesson_presentations',
+  PRESENTATION_SLIDES: 'presentation_slides',
+  
   // Profile views
   USER_PROFILES: 'user_profiles',
   COMPANY_MEMBERSHIPS: 'company_memberships',
@@ -358,17 +362,78 @@ export const validateFileSize = (file, maxSizeInMB) => {
 
 export const uploadFile = async (bucket, path, file, options = {}) => {
   try {
-    const contentType = (file && file.type) ? file.type : undefined;
+    // Validate file exists
+    if (!file) {
+      throw new Error('No file provided for upload');
+    }
+
+    // Validate bucket exists
+    if (!bucket) {
+      throw new Error('No storage bucket specified');
+    }
+
+    // Validate path is a string
+    if (typeof path !== 'string') {
+      console.error('Invalid path type:', typeof path, path);
+      throw new Error('Path must be a string');
+    }
+
+    // Sanitize path and add timestamp to avoid duplicates
+    const sanitizedPath = path.replace(/[^a-zA-Z0-9\-_./]/g, '_');
+    const timestamp = Date.now();
+    const pathParts = sanitizedPath.split('/');
+    const fileName = pathParts.pop();
+    
+    if (!fileName || !fileName.includes('.')) {
+      // If no filename or extension, create one from file name
+      const originalName = file.name || 'file';
+      const fileExt = originalName.split('.').pop() || 'bin';
+      const fileNameWithoutExt = originalName.replace(/\.[^/.]+$/, '') || 'upload';
+      const uniqueFileName = `${fileNameWithoutExt}_${timestamp}.${fileExt}`;
+      const uniquePath = [...pathParts, uniqueFileName].join('/');
+      
+      const contentType = file.type || 'application/octet-stream';
+      
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(uniquePath, file, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType,
+          ...options
+        });
+
+      if (error) {
+        console.error('Storage upload error:', error);
+        throw new Error(`Upload failed: ${error.message}`);
+      }
+      
+      return data;
+    }
+    
+    const fileExt = fileName.split('.').pop();
+    const fileNameWithoutExt = fileName.replace(/\.[^/.]+$/, '');
+    
+    // Create unique filename with timestamp
+    const uniqueFileName = `${fileNameWithoutExt}_${timestamp}.${fileExt}`;
+    const uniquePath = [...pathParts, uniqueFileName].join('/');
+    
+    const contentType = file.type || 'application/octet-stream';
+    
     const { data, error } = await supabase.storage
       .from(bucket)
-      .upload(path, file, {
+      .upload(uniquePath, file, {
         cacheControl: '3600',
-        upsert: false,
+        upsert: true, // Allow overwriting
         contentType,
         ...options
       });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Storage upload error:', error);
+      throw new Error(`Upload failed: ${error.message}`);
+    }
+    
     return data;
   } catch (error) {
     console.error('Error uploading file:', error);
