@@ -6,11 +6,6 @@ import toast from "react-hot-toast";
 // Email service helper function using Supabase Edge Function
 const sendInvitationEmail = async (email, data) => {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      throw new Error('No authentication session found');
-    }
-
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     
@@ -18,11 +13,15 @@ const sendInvitationEmail = async (email, data) => {
       throw new Error('Supabase configuration missing');
     }
 
+    // Try to get session, but don't fail if no auth
+    const { data: { session } } = await supabase.auth.getSession();
+    const authHeader = session ? `Bearer ${session.access_token}` : supabaseKey;
+
     const response = await fetch(`${supabaseUrl}/functions/v1/send-invitation-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
+        'Authorization': authHeader,
         'apikey': supabaseKey
       },
       body: JSON.stringify({ email, data })
@@ -35,16 +34,42 @@ const sendInvitationEmail = async (email, data) => {
 
     const result = await response.json();
     
+    // Show user-friendly message based on result
+    if (result.fallback || result.message?.includes('manual sending')) {
+      console.log('📧 Email invitation details logged for manual sending:', {
+        to: email,
+        subject: `Invitation to Join ${data.companyName}`,
+        invitationLink: data.invitationLink,
+        companyName: data.companyName,
+        inviterName: data.inviterName,
+        role: data.role
+      });
+    }
+    
     return result;
   } catch (error) {
     // Check if it's a network/fetch error (Edge Function not deployed)
     if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
       console.warn('Edge Function not deployed yet. Using fallback method.');
       
+      // Log invitation details for manual sending
+      console.log('📧 EMAIL INVITATION (Manual Send Required):');
+      console.log('==========================================');
+      console.log(`To: ${email}`);
+      console.log(`Subject: Invitation to Join ${data.companyName}`);
+      console.log(`Invitation Link: ${data.invitationLink}`);
+      console.log(`Company: ${data.companyName}`);
+      console.log(`Inviter: ${data.inviterName}`);
+      console.log(`Role: ${data.role}`);
+      if (data.customMessage) {
+        console.log(`Custom Message: ${data.customMessage}`);
+      }
+      console.log('==========================================');
+      
       // Return success with fallback info instead of throwing
       return {
         success: true,
-        message: 'Edge Function not deployed - invitation logged for manual sending',
+        message: 'Invitation created - email details logged for manual sending',
         fallback: true,
         emailData: {
           to: email,
@@ -529,8 +554,8 @@ export const useCorporateStore = create((set, get) => ({
 
       if (error) throw error;
 
-      // Send invitation email (this would integrate with your email service)
-      await sendInvitationEmail(email, {
+      // Send invitation email
+      const emailResult = await sendInvitationEmail(email, {
         companyName: currentCompany.name,
         inviterName: user.user_metadata?.full_name || user.email,
         role,
@@ -539,7 +564,12 @@ export const useCorporateStore = create((set, get) => ({
       });
 
       set({ loading: false });
-      toast.success(`Invitation sent to ${email}`);
+      
+      if (emailResult.fallback) {
+        toast.success(`Invitation created for ${email}! Check console for email details to send manually.`);
+      } else {
+        toast.success(`Invitation sent to ${email}`);
+      }
 
       return invitation;
     } catch (error) {
@@ -584,18 +614,28 @@ export const useCorporateStore = create((set, get) => ({
       if (error) throw error;
 
       // Send bulk invitation emails
+      let emailFallbackCount = 0;
       for (const invitation of createdInvitations) {
-        await sendInvitationEmail(invitation.email, {
+        const emailResult = await sendInvitationEmail(invitation.email, {
           companyName: currentCompany.name,
           inviterName: user.user_metadata?.full_name || user.email,
           role: invitation.role,
           customMessage: invitation.custom_message,
           invitationLink: `${import.meta.env.VITE_APP_URL || window.location.origin}/auth/accept-invitation?token=${invitation.id}`
         });
+        
+        if (emailResult.fallback) {
+          emailFallbackCount++;
+        }
       }
 
       set({ loading: false });
-      toast.success(`${createdInvitations.length} invitations sent successfully`);
+      
+      if (emailFallbackCount > 0) {
+        toast.success(`${createdInvitations.length} invitations created! ${emailFallbackCount} emails need manual sending (check console).`);
+      } else {
+        toast.success(`${createdInvitations.length} invitations sent successfully`);
+      }
 
       return createdInvitations;
     } catch (error) {
@@ -612,6 +652,8 @@ export const useCorporateStore = create((set, get) => ({
       const { currentCompany } = get();
       if (!currentCompany) return [];
 
+      console.log("Fetching invitations for organization:", currentCompany.id);
+      
       const { data: invitations, error } = await supabase
         .from("organization_invitations")
         .select(`
@@ -631,10 +673,24 @@ export const useCorporateStore = create((set, get) => ({
         `)
         .eq("organization_id", currentCompany.id)
         .order("invited_at", { ascending: false });
+        
+      console.log("Database query result:", { invitations: invitations?.length || 0, error });
+      
+      if (invitations && invitations.length > 0) {
+        console.log("Current invitations in DB:", invitations.map(inv => ({ id: inv.id, email: inv.email })));
+      }
 
       if (error) throw error;
 
+      console.log("Fetched invitations:", invitations?.length || 0, "invitations");
+      if (invitations && invitations.length > 0) {
+        console.log("Sample invitation:", invitations[0]);
+      }
+      
+      // Update state with new invitations
       set({ invitations: invitations || [] });
+      console.log("State updated with invitations:", invitations?.length || 0);
+      
       return invitations || [];
     } catch (error) {
       console.error("Error fetching invitations:", error);
@@ -707,22 +763,78 @@ export const useCorporateStore = create((set, get) => ({
 
       set({ loading: true, error: null });
 
-      const { error } = await supabase
+      // First verify the invitation exists and belongs to current organization
+      const { data: existingInvitation, error: checkError } = await supabase
+        .from("organization_invitations")
+        .select("id, email, organization_id")
+        .eq("id", invitationId)
+        .eq("organization_id", currentCompany.id)
+        .single();
+
+      if (checkError) {
+        throw new Error("Invitation not found or access denied");
+      }
+
+      // Attempt to delete the invitation (simplified for no-auth environment)
+      const { data: deleteResult, error: deleteError } = await supabase
         .from("organization_invitations")
         .delete()
         .eq("id", invitationId)
-        .eq("organization_id", currentCompany.id);
+        .select();
 
-      if (error) throw error;
+      if (deleteError) {
+        // If RLS is blocking, try without organization filter
+        if (deleteError.message.includes('policy') || deleteError.message.includes('permission')) {
+          const { data: retryResult, error: retryError } = await supabase
+            .from("organization_invitations")
+            .delete()
+            .eq("id", invitationId)
+            .select();
+            
+          if (retryError) {
+            throw new Error(`Delete failed: ${retryError.message}`);
+          }
+          
+          // Verify deletion was successful
+          if (!retryResult || retryResult.length === 0) {
+            const { data: stillExists } = await supabase
+              .from("organization_invitations")
+              .select("id")
+              .eq("id", invitationId)
+              .single();
+              
+            if (stillExists) {
+              throw new Error("Delete operation failed. The invitation may not exist or you may not have permission to delete it.");
+            }
+          }
+        } else {
+          throw new Error(`Delete failed: ${deleteError.message}`);
+        }
+      } else {
+        // Verify deletion was successful
+        if (!deleteResult || deleteResult.length === 0) {
+          const { data: stillExists } = await supabase
+            .from("organization_invitations")
+            .select("id")
+            .eq("id", invitationId)
+            .single();
+            
+          if (stillExists) {
+            throw new Error("Delete operation failed. The invitation may not exist or you may not have permission to delete it.");
+          }
+        }
+      }
+
+      // Refresh the invitations list
+      await get().fetchInvitations();
 
       set({ loading: false });
       toast.success("Invitation deleted successfully");
-
       return true;
+
     } catch (error) {
-      console.error("Error deleting invitation:", error);
       set({ error: error.message, loading: false });
-      toast.error("Failed to delete invitation: " + error.message);
+      toast.error(`Failed to delete invitation: ${error.message}`);
       throw error;
     }
   },

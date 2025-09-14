@@ -253,7 +253,7 @@ function OverviewTab({ stats }) {
         <div className="p-6">
           <div className="space-y-4">
             {departmentStats.map((dept, index) => (
-              <div key={index} className="space-y-2">
+              <div key={`dept-${dept.id || index}`} className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="font-medium text-text-dark">{dept.name}</span>
                   <span className="text-sm text-text-light">{dept.completion}%</span>

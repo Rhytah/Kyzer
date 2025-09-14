@@ -418,7 +418,7 @@ function BillingSettings({ company }) {
               'SSO integration',
               'Custom branding'
             ].map((feature, index) => (
-              <div key={index} className="flex items-center gap-3">
+              <div key={`feature-${feature.name || index}`} className="flex items-center gap-3">
                 <CheckCircle className="w-5 h-5 text-success-default" />
                 <span className="text-text-dark">{feature}</span>
               </div>
@@ -625,7 +625,7 @@ function IntegrationsSettings() {
 
       <div className="divide-y divide-background-dark">
         {integrations.map((integration, index) => (
-          <div key={index} className="p-6 flex items-center justify-between">
+          <div key={`integration-${integration.name || index}`} className="p-6 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-background-light rounded-lg flex items-center justify-center text-2xl">
                 {integration.icon}

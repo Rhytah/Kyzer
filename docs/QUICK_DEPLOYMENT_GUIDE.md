@@ -52,7 +52,7 @@ The system is already configured with fallback handling:
   inviterName: "John Doe", 
   role: "employee",
   customMessage: "Welcome!",
-  invitationLink: "https://yourapp.com/auth/accept-invitation?token=abc123"
+  invitationLink: "https://yourapp.com/auth/accept-invitation/abc123"
 }
 ```
 
@@ -99,7 +99,7 @@ curl -X POST 'http://localhost:54321/functions/v1/send-invitation-email' \
       "inviterName": "John Doe",
       "role": "employee",
       "customMessage": "Welcome!",
-      "invitationLink": "https://yourapp.com/auth/accept-invitation?token=test123"
+      "invitationLink": "https://yourapp.com/auth/accept-invitation/test123"
     }
   }'
 ```

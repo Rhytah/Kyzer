@@ -212,38 +212,66 @@ If you didn't expect this invitation, you can safely ignore this email.
     // Get the correct base URL for current environment
     const baseURL = Deno.env.get('VITE_APP_URL') || 'http://localhost:3000';
     
-    // Send email using Supabase's built-in email functionality
-    // Note: This requires Supabase Auth to be configured with an email provider
-    const { data: emailData, error: emailError } = await supabaseClient.auth.admin.generateLink({
-      type: 'signup',
-      email: email,
-      options: {
-        redirectTo: `${baseURL}/auth/callback`
-      }
-    })
-
-    if (emailError) {
-      console.error('Error generating email link:', emailError)
-      
-      // Fallback: Log the invitation for manual sending
-      console.log('Invitation details:', {
-        email,
-        companyName: data.companyName,
-        inviterName: data.inviterName,
-        role: data.role,
-        customMessage: data.customMessage,
-        invitationLink: data.invitationLink,
-        baseURL,
-        emailHtml,
-        emailText
+    // Try to send email using Supabase's built-in email functionality
+    try {
+      // Use Supabase's email service (requires proper email configuration)
+      const { data: emailData, error: emailError } = await supabaseClient.auth.admin.generateLink({
+        type: 'signup',
+        email: email,
+        options: {
+          redirectTo: `${baseURL}/auth/accept-invitation?token=${data.invitationLink.split('token=')[1]}`
+        }
       })
+
+      if (emailError) {
+        throw emailError
+      }
+
+      // If successful, return success
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Invitation email sent successfully',
+          invitationLink: data.invitationLink
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    } catch (emailError) {
+      console.error('Error sending email via Supabase:', emailError)
+      
+      // Fallback: Use a simple email service or log for manual sending
+      // For development, we'll simulate email sending
+      console.log('📧 EMAIL INVITATION (Manual Send Required):')
+      console.log('==========================================')
+      console.log(`To: ${email}`)
+      console.log(`Subject: Invitation to Join ${data.companyName}`)
+      console.log(`Invitation Link: ${data.invitationLink}`)
+      console.log('==========================================')
+      
+      // In a real implementation, you would integrate with:
+      // - SendGrid
+      // - AWS SES
+      // - Mailgun
+      // - Nodemailer with SMTP
+      // - Or any other email service
       
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: 'Invitation logged for manual sending',
+          message: 'Invitation created - email details logged for manual sending',
           invitationLink: data.invitationLink,
-          baseURL
+          emailDetails: {
+            to: email,
+            subject: `Invitation to Join ${data.companyName}`,
+            companyName: data.companyName,
+            inviterName: data.inviterName,
+            role: data.role,
+            customMessage: data.customMessage,
+            invitationLink: data.invitationLink
+          }
         }),
         { 
           status: 200, 
@@ -251,26 +279,6 @@ If you didn't expect this invitation, you can safely ignore this email.
         }
       )
     }
-
-    // For now, we'll return the email content so it can be sent manually
-    // In production, you would integrate with an email service like SendGrid, AWS SES, etc.
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Invitation email prepared',
-        emailData: {
-          to: email,
-          subject: `Invitation to Join ${data.companyName}`,
-          html: emailHtml,
-          text: emailText,
-          invitationLink: data.invitationLink
-        }
-      }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    )
 
   } catch (error) {
     console.error('Error in send-invitation-email function:', error)

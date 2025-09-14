@@ -35,6 +35,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: true,
     flowType: 'pkce',
+    // Reduce refresh frequency to prevent unnecessary auth state changes
+    refreshTokenMargin: 60, // Refresh 60 seconds before expiry instead of default
     // 🆕 Add default redirect configuration
     redirectTo: getAuthRedirectURL('/auth/callback')
   },

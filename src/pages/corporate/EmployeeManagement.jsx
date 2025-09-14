@@ -37,6 +37,11 @@ const EmployeeManagement = () => {
   const employees = useEmployees()
   const departments = useDepartments()
   const invitations = useInvitations()
+  
+  // Debug: Log invitations changes
+  useEffect(() => {
+    console.log("Invitations updated in component:", invitations?.length || 0, "invitations");
+  }, [invitations]);
   const { 
     fetchEmployees,
     fetchInvitations,
@@ -59,6 +64,9 @@ const EmployeeManagement = () => {
   const [filterDepartment, setFilterDepartment] = useState('all')
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [selectedEmployees, setSelectedEmployees] = useState(new Set())
+  const [selectedInvitations, setSelectedInvitations] = useState([])
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [invitationToDelete, setInvitationToDelete] = useState(null)
   const [activeView, setActiveView] = useState('employees') // 'employees', 'invitations', or 'departments'
   const [inviteForm, setInviteForm] = useState({
     email: '',
@@ -184,6 +192,56 @@ const EmployeeManagement = () => {
       setSelectedEmployees(new Set(filteredEmployees.map((emp) => emp.id)));
     }
   };
+
+  // Enhanced invitation delete functionality
+  const handleDeleteInvitation = async (invitationId) => {
+    try {
+      await deleteInvitation(invitationId)
+      setSelectedInvitations(prev => prev.filter(id => id !== invitationId))
+    } catch (error) {
+      console.error('Failed to delete invitation:', error)
+    }
+  }
+
+  const handleBulkDeleteInvitations = async () => {
+    try {
+      for (const invitationId of selectedInvitations) {
+        await deleteInvitation(invitationId)
+      }
+      setSelectedInvitations([])
+    } catch (error) {
+      console.error('Failed to bulk delete invitations:', error)
+    }
+  }
+
+  const confirmDeleteInvitation = (invitation) => {
+    setInvitationToDelete(invitation)
+    setShowDeleteConfirm(true)
+  }
+
+  const executeDeleteInvitation = async () => {
+    if (invitationToDelete) {
+      await handleDeleteInvitation(invitationToDelete.id)
+      setShowDeleteConfirm(false)
+      setInvitationToDelete(null)
+    }
+  }
+
+  const toggleInvitationSelection = (invitationId) => {
+    setSelectedInvitations(prev => 
+      prev.includes(invitationId) 
+        ? prev.filter(id => id !== invitationId)
+        : [...prev, invitationId]
+    )
+  }
+
+  const selectAllInvitations = () => {
+    setSelectedInvitations(filteredInvitations.map(inv => inv.id))
+  }
+
+  const clearInvitationSelection = () => {
+    setSelectedInvitations([])
+  }
 
   // Department management functions
   const handleCreateDepartment = async (e) => {
@@ -487,6 +545,8 @@ const EmployeeManagement = () => {
           </>
         ) : activeView === 'invitations' ? (
           <>
+          
+            
             <Card key="total-invitations" className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -532,6 +592,8 @@ const EmployeeManagement = () => {
                 <XCircle className="w-8 h-8 text-error-default" />
               </div>
             </Card>
+
+           
           </>
         ) : activeView === 'departments' ? (
           <>
@@ -651,7 +713,33 @@ const EmployeeManagement = () => {
           )}
         </div>
       </Card>
-
+ {/* Bulk Actions for Invitations */}
+ {selectedInvitations.length > 0 && (
+              <Card className="p-4 bg-blue-50 border-blue-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <span className="text-blue-800 font-medium">
+                      {selectedInvitations.length} invitation(s) selected
+                    </span>
+                    <Button 
+                      variant="outline" 
+                      onClick={clearInvitationSelection}
+                      size="sm"
+                    >
+                      Clear Selection
+                    </Button>
+                  </div>
+                  <Button 
+                    variant="destructive" 
+                    onClick={handleBulkDeleteInvitations}
+                    size="sm"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Selected
+                  </Button>
+                </div>
+              </Card>
+            )}
       {/* Data List */}
       <Card>
         <div className="overflow-x-auto">
@@ -669,6 +757,14 @@ const EmployeeManagement = () => {
                   </>
                 ) : activeView === 'invitations' ? (
                   <>
+                    <th className="text-left py-3 px-4 font-medium text-text-dark">
+                      <input
+                        type="checkbox"
+                        checked={selectedInvitations.length === filteredInvitations.length && filteredInvitations.length > 0}
+                        onChange={selectedInvitations.length === filteredInvitations.length ? clearInvitationSelection : selectAllInvitations}
+                        className="rounded border-background-dark"
+                      />
+                    </th>
                     <th className="text-left py-3 px-4 font-medium text-text-dark">Email</th>
                     <th className="text-left py-3 px-4 font-medium text-text-dark">Role</th>
                     <th className="text-left py-3 px-4 font-medium text-text-dark">Department</th>
@@ -723,8 +819,10 @@ const EmployeeManagement = () => {
                     key={invitation.id} 
                     invitation={invitation}
                     departments={departments}
+                    isSelected={selectedInvitations.includes(invitation.id)}
+                    onToggleSelection={toggleInvitationSelection}
                     onResend={resendInvitation}
-                    onDelete={deleteInvitation}
+                    onDelete={confirmDeleteInvitation}
                     getRoleIcon={getRoleIcon}
                   />
                 ))
@@ -769,12 +867,64 @@ const EmployeeManagement = () => {
         errors={errors}
         editingDepartment={editingDepartment}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal 
+        isOpen={showDeleteConfirm} 
+        onClose={() => setShowDeleteConfirm(false)} 
+        title="Delete Invitation"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-error-light rounded-full flex items-center justify-center">
+              <Trash2 className="w-6 h-6 text-error-default" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-text-dark">Delete Invitation</h3>
+              <p className="text-text-light text-sm">
+                This action cannot be undone.
+              </p>
+            </div>
+          </div>
+          
+          {invitationToDelete && (
+            <div className="bg-background-light rounded-lg p-4">
+              <p className="text-sm text-text-dark">
+                <strong>Email:</strong> {invitationToDelete.email}
+              </p>
+              <p className="text-sm text-text-dark">
+                <strong>Role:</strong> {invitationToDelete.role}
+              </p>
+              <p className="text-sm text-text-dark">
+                <strong>Status:</strong> {invitationToDelete.status}
+              </p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button 
+              variant="ghost" 
+              onClick={() => setShowDeleteConfirm(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={executeDeleteInvitation}
+              disabled={loading}
+            >
+              {loading ? 'Deleting...' : 'Delete Invitation'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
 
 // Invitation Row Component
-function InvitationRow({ invitation, departments, onResend, onDelete, getRoleIcon }) {
+function InvitationRow({ invitation, departments, isSelected, onToggleSelection, onResend, onDelete, getRoleIcon }) {
   const [showActions, setShowActions] = useState(false)
 
   const RoleIcon = getRoleIcon(invitation.role)
@@ -790,7 +940,7 @@ function InvitationRow({ invitation, departments, onResend, onDelete, getRoleIco
 
   const handleDelete = async () => {
     try {
-      await onDelete(invitation.id)
+      await onDelete(invitation)
       setShowActions(false)
     } catch (error) {
       console.error('Failed to delete invitation:', error)
@@ -801,7 +951,15 @@ function InvitationRow({ invitation, departments, onResend, onDelete, getRoleIco
   const isUsed = invitation.used_at
 
   return (
-    <tr className="border-b border-background-light hover:bg-background-light">
+    <tr className={`border-b border-background-light hover:bg-background-light ${isSelected ? 'bg-primary-light/10' : ''}`}>
+      <td className="py-3 px-4">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => onToggleSelection(invitation.id)}
+          className="rounded border-background-dark"
+        />
+      </td>
       <td className="py-3 px-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-primary-light rounded-full flex items-center justify-center">

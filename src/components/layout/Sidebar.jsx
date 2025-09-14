@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCorporate } from "@/hooks/corporate/useCorporate";
+import OrganizationNav from "./OrganizationNav";
 import kyzerLogo from "../../assets/images/Kyzerlogo.png";
 
 export default function Sidebar({ mobile = false, onClose, collapsed = false, onToggleCollapse }) {
@@ -490,6 +491,9 @@ export default function Sidebar({ mobile = false, onClose, collapsed = false, on
             )}
           </div>
         )}
+
+        {/* Organization Navigation for Individual Users */}
+        {!isCorporateUser && !collapsed && <OrganizationNav />}
 
         {/* Personal Navigation */}
         <div className={`${collapsed ? 'px-2' : 'p-4'} border-border p-3`}>
