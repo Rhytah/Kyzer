@@ -18,7 +18,9 @@ import {
   ChevronDown,
   ChevronRight,
   FolderOpen,
-  FileText
+  FileText,
+  Search,
+  Filter
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -64,6 +66,8 @@ export default function CourseManagement() {
   const [courseModules, setCourseModules] = useState({});
   const [courseQuizzes, setCourseQuizzes] = useState({});
   const [expandedModules, setExpandedModules] = useState({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [confirmDelete, setConfirmDelete] = useState({ open: false, courseId: null, courseTitle: '' });
   const [confirmDeleteModule, setConfirmDeleteModule] = useState({ open: false, moduleId: null, courseId: null, moduleTitle: '' });
 
@@ -193,6 +197,11 @@ export default function CourseManagement() {
     setShowQuizForm(true);
   };
 
+  const handleManagePresentation = (lesson, courseId) => {
+    // Navigate to presentation management page
+    window.location.href = `/app/courses/${courseId}/lesson/${lesson.id}/presentation`;
+  };
+
   const handleDeleteQuiz = async (quiz, courseId) => {
     const res = await deleteQuiz(quiz.id);
     if (res.success) {
@@ -300,12 +309,24 @@ export default function CourseManagement() {
 
   const toggleLessonsView = (courseId) => {
     if (courseLessons[courseId]) {
+      // Hide structure - clear all related data
       setCourseLessons(prev => {
         const newState = { ...prev };
         delete newState[courseId];
         return newState;
       });
+      setCourseModules(prev => {
+        const newState = { ...prev };
+        delete newState[courseId];
+        return newState;
+      });
+      setCourseQuizzes(prev => {
+        const newState = { ...prev };
+        delete newState[courseId];
+        return newState;
+      });
     } else {
+      // Show structure - load all related data
       loadCourseLessons(courseId);
       loadCourseModules(courseId);
       loadCourseQuizzes(courseId);
@@ -343,10 +364,98 @@ export default function CourseManagement() {
         </div>
       </div>
 
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Courses</p>
+              <p className="text-2xl font-bold text-gray-900">{courses?.length || 0}</p>
+            </div>
+            <BookOpen className="w-8 h-8 text-blue-500" />
+          </div>
+        </Card>
+        
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Published</p>
+              <p className="text-2xl font-bold text-green-600">
+                {courses?.filter(c => c.is_published).length || 0}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+              <Eye className="w-4 h-4 text-green-500" />
+            </div>
+          </div>
+        </Card>
+        
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Draft</p>
+              <p className="text-2xl font-bold text-orange-600">
+                {courses?.filter(c => !c.is_published).length || 0}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+              <EyeOff className="w-4 h-4 text-orange-500" />
+            </div>
+          </div>
+        </Card>
+        
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Recently Added</p>
+              <p className="text-2xl font-bold text-blue-600">
+                {courses?.filter(c => {
+                  const createdDate = new Date(c.created_at);
+                  const weekAgo = new Date();
+                  weekAgo.setDate(weekAgo.getDate() - 7);
+                  return createdDate > weekAgo;
+                }).length || 0}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+              <Star className="w-4 h-4 text-blue-500" />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Search and Filters */}
+      <Card className="p-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search courses..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex gap-2">
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All Courses</option>
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+            </select>
+          </div>
+        </div>
+      </Card>
+
       {/* Course Form Modal */}
       {showCourseForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-8xl max-h-[90vh] overflow-y-auto">
             <CourseForm
               course={editingCourse}
               onSuccess={handleCourseSuccess}
@@ -437,7 +546,20 @@ export default function CourseManagement() {
             </Button>
           </Card>
         ) : (
-          courses.map(course => (
+          courses
+            .filter(course => {
+              // Search filter
+              const matchesSearch = course.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                   course.description?.toLowerCase().includes(searchTerm.toLowerCase());
+              
+              // Status filter
+              const matchesFilter = filterStatus === 'all' || 
+                                   (filterStatus === 'published' && course.is_published) ||
+                                   (filterStatus === 'draft' && !course.is_published);
+              
+              return matchesSearch && matchesFilter;
+            })
+            .map(course => (
             <Card key={course.id} className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
@@ -664,7 +786,11 @@ export default function CourseManagement() {
                                       className="flex items-center justify-between p-2 bg-gray-50 rounded border-l-4 border-blue-200"
                                     >
                                       <div className="flex items-center gap-3">
-                                        <FileText className="w-4 h-4 text-gray-500" />
+                                        {lesson.content_type === 'presentation' ? (
+                                          <Settings className="w-4 h-4 text-blue-500" />
+                                        ) : (
+                                          <FileText className="w-4 h-4 text-gray-500" />
+                                        )}
                                         <span className="text-sm font-medium text-gray-500">
                                           {lesson.order_index || '?'}.
                                         </span>
@@ -673,13 +799,24 @@ export default function CourseManagement() {
                                             {lesson.title || 'Untitled Lesson'}
                                           </h6>
                                           <p className="text-xs text-gray-500">
-                                            {lesson.content_type || lesson.lesson_type || 'Unknown'} • {lesson.duration_minutes || 0} min
+                                            {lesson.content_type === 'presentation' ? 'Presentation (Multi-format)' : (lesson.content_type || lesson.lesson_type || 'Unknown')} • {lesson.duration_minutes || 0} min
                                           </p>
                                         </div>
                                       </div>
                                       
                                       {course.created_by === user?.id && (
                                         <div className="flex items-center gap-2">
+                                          {lesson.content_type === 'presentation' && (
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleManagePresentation(lesson, course.id)}
+                                              className="text-blue-600 hover:text-blue-700"
+                                              title="Manage Presentation"
+                                            >
+                                              <Settings className="w-4 h-4" />
+                                            </Button>
+                                          )}
                                           <Button
                                             variant="ghost"
                                             size="sm"
@@ -730,7 +867,11 @@ export default function CourseManagement() {
                                   className="flex items-center justify-between p-2 bg-white rounded border"
                                 >
                                   <div className="flex items-center gap-3">
-                                    <FileText className="w-4 h-4 text-gray-500" />
+                                    {lesson.content_type === 'presentation' ? (
+                                      <Settings className="w-4 h-4 text-blue-500" />
+                                    ) : (
+                                      <FileText className="w-4 h-4 text-gray-500" />
+                                    )}
                                     <span className="text-sm font-medium text-gray-500">
                                       {lesson.order_index || '?'}.
                                     </span>
@@ -739,13 +880,24 @@ export default function CourseManagement() {
                                         {lesson.title || 'Untitled Lesson'}
                                       </h6>
                                       <p className="text-xs text-gray-500">
-                                        {lesson.content_type || lesson.lesson_type || 'Unknown'} • {lesson.duration_minutes || 0} min
+                                        {lesson.content_type === 'presentation' ? 'Presentation (Multi-format)' : (lesson.content_type || lesson.lesson_type || 'Unknown')} • {lesson.duration_minutes || 0} min
                                       </p>
                                     </div>
                                   </div>
                                   
                                   {course.created_by === user?.id && (
                                     <div className="flex items-center gap-2">
+                                      {lesson.content_type === 'presentation' && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleManagePresentation(lesson, course.id)}
+                                          className="text-blue-600 hover:text-blue-700"
+                                          title="Manage Presentation"
+                                        >
+                                          <Settings className="w-4 h-4" />
+                                        </Button>
+                                      )}
                                       <Button
                                         variant="ghost"
                                         size="sm"

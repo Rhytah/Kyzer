@@ -22,3 +22,12 @@ Thumbs.db
 *.env.development.local
 *.env.test.local
 .cursorrules
+.sql
+COURSE_SYSTEM_README.md
+COMPANY_SETUP_TROUBLESHOOTING.md
+DATABASE_FIX_INSTRUCTIONS.md
+DATABASE_SCHEMA_SUMMARY.md
+improved_organization_members_schema.sql
+fix_organization_invitations_departments_fk.sql
+migrate_organization_members.sql
+update_lessons_schema.sql

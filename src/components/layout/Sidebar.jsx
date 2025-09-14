@@ -15,13 +15,15 @@ import {
   X,
   Award,
   TrendingUp,
-  Loader
+  Loader,
+  PanelLeftClose,
+  PanelLeftOpen
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCorporate } from "@/hooks/corporate/useCorporate";
 import kyzerLogo from "../../assets/images/Kyzerlogo.png";
 
-export default function Sidebar({ mobile = false, onClose }) {
+export default function Sidebar({ mobile = false, onClose, collapsed = false, onToggleCollapse }) {
   const { user } = useAuth();
   const { 
     organization, 
@@ -119,12 +121,40 @@ export default function Sidebar({ mobile = false, onClose }) {
   // NEW: Get display company name (organization name or fallback to metadata)
   const displayCompanyName = organization?.name || companyName || 'Your Company';
 
-  const NavItem = ({ route, onClick }) => {
+  const NavItem = ({ route, onClick, collapsed = false }) => {
     const Icon = route.icon;
     
     // For routes without children, use exact match only
     const isActive = location.pathname === route.path;
     
+    if (collapsed) {
+      return (
+        <div className="relative group">
+          <NavLink
+            to={route.path}
+            onClick={onClick}
+            className={`flex items-center justify-center w-12 h-12 mx-auto rounded-lg transition-all duration-200 relative ${
+              isActive
+                ? "bg-primary text-white shadow-lg"
+                : "text-text-light hover:bg-background-medium hover:text-text-dark"
+            }`}
+            title={`${route.label} - Navigate to ${route.label.toLowerCase()}`}
+            data-tooltip={`${route.label} - Navigate to ${route.label.toLowerCase()}`}
+          >
+            <Icon className="w-5 h-5" />
+            {isActive && (
+              <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 w-1 h-6 bg-primary rounded-full"></div>
+            )}
+          </NavLink>
+          {/* Custom tooltip */}
+          <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 bg-background-dark text-text-light text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999] shadow-lg border border-border">
+            {route.label}
+            <div className="absolute right-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-r-background-dark"></div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <NavLink
         to={route.path}
@@ -144,7 +174,7 @@ export default function Sidebar({ mobile = false, onClose }) {
     );
   };
 
-  const NavItemWithChildren = ({ route, onClick }) => {
+  const NavItemWithChildren = ({ route, onClick, collapsed = false }) => {
     const Icon = route.icon;
     const [isExpanded, setIsExpanded] = useState(false);
     
@@ -152,6 +182,71 @@ export default function Sidebar({ mobile = false, onClose }) {
     const isChildActive = route.children?.some(child => location.pathname === child.href);
     // Parent is active if current path matches or if a child is active
     const isActive = location.pathname === route.path || isChildActive;
+    
+    if (collapsed) {
+      return (
+        <div className="relative group">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className={`flex items-center justify-center w-12 h-12 mx-auto rounded-lg transition-all duration-200 relative ${
+              isActive
+                ? "bg-primary text-white shadow-lg"
+                : "text-text-light hover:bg-background-medium hover:text-text-dark"
+            }`}
+            title={`${route.label} - Click to ${isExpanded ? 'collapse' : 'expand'} submenu`}
+            data-tooltip={`${route.label} - Click to ${isExpanded ? 'collapse' : 'expand'} submenu`}
+          >
+            <Icon className="w-5 h-5" />
+            {isActive && (
+              <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 w-1 h-6 bg-primary rounded-full"></div>
+            )}
+            {isExpanded && route.children && (
+              <div className="absolute -right-1 -top-1 w-3 h-3 bg-primary rounded-full border-2 border-background-white"></div>
+            )}
+          </button>
+          
+          {/* Custom tooltip for expandable items */}
+          <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 bg-background-dark text-text-light text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999] shadow-lg border border-border">
+            {route.label}
+            <div className="absolute right-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-r-background-dark"></div>
+          </div>
+          
+          {/* Collapsed submenu - shows to the right of the sidebar */}
+          {isExpanded && route.children && (
+            <div className="fixed bg-background-white border border-border rounded-lg shadow-xl py-2 min-w-48 z-[9999]" 
+                 style={{ 
+                   left: collapsed ? '88px' : '272px',
+                   top: '40%',
+                   transform: 'translateY(-50%)'
+                 }}>
+              <div className="px-3 py-2 border-b border-border">
+                <h4 className="text-sm font-semibold text-text-dark">{route.label}</h4>
+              </div>
+              <div className="space-y-1">
+                {route.children.map((child) => {
+                  const isChildRouteActive = location.pathname === child.href;
+                  return (
+                    <NavLink
+                      key={child.href}
+                      to={child.href}
+                      onClick={onClick}
+                      className={`block px-3 py-2 text-sm transition-colors hover:bg-background-light ${
+                        isChildRouteActive
+                          ? "bg-primary/10 text-primary font-medium border-r-2 border-primary"
+                          : "text-text-medium hover:text-text-dark"
+                      }`}
+                      title={child.name}
+                    >
+                      {child.name}
+                    </NavLink>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
     
     return (
       <div>
@@ -204,7 +299,9 @@ export default function Sidebar({ mobile = false, onClose }) {
 
   const sidebarClasses = mobile
     ? "w-64 bg-background-white h-full flex flex-col shadow-xl"
-    : "hidden lg:block w-64 bg-background-white border-r border-border min-h-screen fixed left-0 top-16 z-20";
+    : `hidden lg:block bg-background-white border-r border-border min-h-screen fixed left-0 top-16 z-20 transition-all duration-300 overflow-visible ${
+        collapsed ? 'w-20' : 'w-64'
+      }`;
 
   if (corporateLoading) {
     return (
@@ -231,7 +328,6 @@ export default function Sidebar({ mobile = false, onClose }) {
             onClick={onClose}
           >
             <img src={kyzerLogo} alt="Kyzer Logo" className="h-6" />
-            <span className="font-semibold">Kyzer LMS</span>
           </NavLink>
           <button
             onClick={onClose}
@@ -242,40 +338,100 @@ export default function Sidebar({ mobile = false, onClose }) {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-6">
+      {/* Desktop Sidebar Toggle Button */}
+      {!mobile && onToggleCollapse && (
+        <div className={`border-b border-border ${collapsed ? 'p-3' : 'p-4'}`}>
+          <button
+            onClick={onToggleCollapse}
+            className={`flex items-center rounded-lg transition-all duration-200 text-text-light hover:text-text-dark hover:bg-background-medium ${
+              collapsed 
+                ? 'w-12 h-12 mx-auto justify-center' 
+                : 'w-full gap-3 px-3 py-2 justify-start'
+            }`}
+            title={collapsed ? "Show Sidebar" : "Hide Sidebar"}
+          >
+            {collapsed ? (
+              <PanelLeftOpen className="w-5 h-5" />
+            ) : (
+              <>
+                <PanelLeftClose className="w-5 h-5" />
+                <span className="font-medium">Hide Sidebar</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      <div className={`flex-1 ${collapsed ? 'overflow-visible' : 'overflow-y-auto'} p-2`}>
         {/* Corporate Section */}
         {shouldShowCorporateSection && (
-          <div className="p-4">
-            <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
-              Corporate Learning
-            </h3>
+          <div className={`${collapsed ? 'px-2' : 'p-4'} border-b border-border p-3`}>
+            {!collapsed && (
+              <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
+                Corporate Learning
+              </h3>
+            )}
 
             {/* IMPROVED: Show corporate navigation even during loading */}
             {shouldShowCorporateNav && (
               <>
-                <button
-                  onClick={() => setCorporateExpanded(!corporateExpanded)}
-                  className="flex items-center justify-between w-full mb-3 text-left"
-                  disabled={corporateLoading}
-                >
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-primary" />
-                    <h3 className="text-lg font-semibold text-text-dark">
-                      {displayCompanyName}
-                    </h3>
+                {!collapsed && (
+                  <div className="mb-3">
+                   
                     {corporateLoading && (
-                      <Loader className="w-4 h-4 text-primary animate-spin" />
+                      <div className="flex items-center gap-2 mt-1">
+                        <Loader className="w-4 h-4 text-primary animate-spin" />
+                        <span className="text-sm text-text-light">Loading...</span>
+                      </div>
                     )}
                   </div>
-                  {corporateExpanded ? (
-                    <ChevronDown className="w-4 h-4 text-text-muted" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4 text-text-muted" />
-                  )}
-                </button>
+                )}
 
-                {corporateExpanded && (
-                  <nav className="space-y-1 mb-6">
+           
+                {/* Organization info */}
+                {collapsed ? (
+                  <div className="mt-4 flex justify-center">
+                    <button
+                      onClick={() => setCorporateExpanded(!corporateExpanded)}
+                      className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center shadow-lg hover:bg-primary-dark transition-colors"
+                      title={`${displayCompanyName} - Click to ${corporateExpanded ? 'collapse' : 'expand'} navigation`}
+                    >
+                      <span className="text-white font-semibold text-sm">
+                        {displayCompanyName.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 3)}
+                      </span>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setCorporateExpanded(!corporateExpanded)}
+                    className="mt-4 p-3 bg-background-dark rounded-lg w-full text-left hover:bg-background-medium transition-colors"
+                    title={`Click to ${corporateExpanded ? 'collapse' : 'expand'} navigation`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
+                        <Building2 className="w-3 h-3 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-m font-medium text-text-dark truncate">
+                          {displayCompanyName}
+                        </p>
+                        <p className="text-sky-800 text-xs truncate"> 
+                          {role || 'Manager'} • {organization?.subscription_status || 'Active'}
+                          {corporateLoading && ' • Setting up...'}
+                        </p>
+                      </div>
+                      <div className="text-text-muted">
+                        {corporateExpanded ? (
+                          <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4" />
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                )}
+                     {corporateExpanded && (
+                  <nav className={`space-y-1 mb-6 ${collapsed ? 'space-y-2' : ''}`}>
                     {corporateLoading ? (
                       // Show loading state for navigation items
                       <div className="space-y-2">
@@ -291,76 +447,72 @@ export default function Sidebar({ mobile = false, onClose }) {
                           key={route.path} 
                           route={route} 
                           onClick={mobile ? onClose : undefined}
+                          collapsed={collapsed}
                         />
                       ))
                     )}
                   </nav>
                 )}
 
-                {/* Organization info */}
-                <div className="mt-4 p-3 bg-background-dark rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
-                      <Building2 className="w-3 h-3 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-m font-medium text-text-dark truncate">
-                        {displayCompanyName}
-                      </p>
-                      <p className="text-sky-800 text-xs truncate">
-                        {role || 'Manager'} • {organization?.subscription_status || 'Active'}
-                        {corporateLoading && ' • Setting up...'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </>
             )}
 
             {/* IMPROVED: Setup prompt only when truly needed */}
             {shouldShowSetupPrompt && (
-              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Building2 className="w-4 h-4 text-yellow-600" />
-                  <h3 className="text-sm font-semibold text-yellow-800">
-                    {corporateError ? 'Setup Error' : 'Completing Setup'}
-                  </h3>
+              collapsed ? (
+                <div className="mt-4 flex justify-center">
+                  <div className="w-12 h-12 bg-yellow-500 rounded-lg flex items-center justify-center shadow-lg animate-pulse" title="Setup in Progress">
+                    <Building2 className="w-5 h-5 text-white" />
+                  </div>
                 </div>
-                <p className="text-xs text-yellow-700 mb-3">
-                  {corporateError 
-                    ? 'There was an issue setting up your organization. Please try again.'
-                    : 'Your corporate account is being set up. This may take a moment.'}
-                </p>
-                <NavLink
-                  to="/company/dashboard"
-                  onClick={mobile ? onClose : undefined}
-                  className="block w-full text-center bg-yellow-600 text-white text-xs py-2 px-3 rounded hover:bg-yellow-700 transition-colors"
-                >
-                  {corporateError ? 'Retry Setup' : 'Continue to Dashboard'}
-                </NavLink>
-              </div>
+              ) : (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Building2 className="w-4 h-4 text-yellow-600" />
+                    <h3 className="text-sm font-semibold text-yellow-800">
+                      {corporateError ? 'Setup Error' : 'Completing Setup'}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-yellow-700 mb-3">
+                    {corporateError 
+                      ? 'There was an issue setting up your organization. Please try again.'
+                      : 'Your corporate account is being set up. This may take a moment.'}
+                  </p>
+                  <NavLink
+                    to="/company/dashboard"
+                    onClick={mobile ? onClose : undefined}
+                    className="block w-full text-center bg-yellow-600 text-white text-xs py-2 px-3 rounded hover:bg-yellow-700 transition-colors"
+                  >
+                    {corporateError ? 'Retry Setup' : 'Continue to Dashboard'}
+                  </NavLink>
+                </div>
+              )
             )}
           </div>
         )}
 
         {/* Personal Navigation */}
-        <div className="p-4">
-          <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
-            Personal Learning
-          </h3>
-          <nav className="space-y-1">
+        <div className={`${collapsed ? 'px-2' : 'p-4'} border-border p-3`}>
+          {!collapsed && (
+            <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
+              Personal Learning
+            </h3>
+          )}
+          <nav className={`space-y-1 ${collapsed ? 'space-y-2' : ''}`}>
             {personalNavigation.map((route) => (
               route.children && route.children.length > 0 ? (
                 <NavItemWithChildren 
                   key={route.path} 
                   route={route} 
                   onClick={mobile ? onClose : undefined}
+                  collapsed={collapsed}
                 />
               ) : (
                 <NavItem 
                   key={route.path} 
                   route={route} 
                   onClick={mobile ? onClose : undefined}
+                  collapsed={collapsed}
                 />
               )
             ))}

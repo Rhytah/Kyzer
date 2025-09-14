@@ -19,8 +19,8 @@ export default function About() {
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-primary-dark to-primary-default text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-4xl mx-auto">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-8xl mx-auto">
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
               Transforming Learning for the Modern Workplace
             </h1>
@@ -47,7 +47,7 @@ export default function About() {
 
       {/* Mission & Vision */}
       <section className="py-20 bg-background-light">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
             <Card className="text-center p-8">
               <Target className="w-12 h-12 text-primary-default mx-auto mb-6" />
@@ -84,7 +84,7 @@ export default function About() {
 
       {/* Our Story */}
       <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-3xl font-bold text-text-dark mb-6">Our Story</h2>
@@ -136,7 +136,7 @@ export default function About() {
 
       {/* What Makes Us Different */}
       <section className="py-20 bg-background-light">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-text-dark mb-4">What Makes Us Different</h2>
             <p className="text-xl text-text-light max-w-3xl mx-auto">
@@ -184,7 +184,7 @@ export default function About() {
 
       {/* Leadership Team */}
       <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-text-dark mb-4">Leadership Team</h2>
             <p className="text-xl text-text-light">
@@ -226,7 +226,7 @@ export default function About() {
 
       {/* Call to Action */}
       <section className="py-20 bg-primary-default text-white">
-        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold mb-6">Ready to Transform Your Learning?</h2>
           <p className="text-xl text-gray-200 mb-8">
             Join thousands of organizations that trust Kyzer LMS for their learning and development needs.

@@ -483,6 +483,13 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         setError('Please select a valid content format');
         return false;
       }
+    } else if (formData.content_type === 'presentation') {
+      // For presentation type, we don't validate content here as it will be handled by the presentation form
+      // Just ensure basic lesson data is valid
+      if (!formData.title.trim()) {
+        setError('Lesson title is required for presentation');
+        return false;
+      }
     } else if (formData.content_type === 'pdf') {
       if (pdfSourceType === 'upload') {
         // For PDF upload, require either a new file or existing content
@@ -814,6 +821,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
               >
                 <option value="video">Video</option>
                 <option value="text">Text</option>
+                <option value="presentation">Presentation (Multi-format)</option>
                 <option value="scorm">SCORM Package</option>
                 <option value="pdf">PDF</option>
                 <option value="ppt">PowerPoint</option>
@@ -1654,8 +1662,44 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
               </div>
             </div>
 
+            {/* Presentation Content */}
+            {formData.content_type === 'presentation' && (
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 text-sm font-medium">📊</span>
+                    </div>
+                    <h4 className="text-sm font-medium text-blue-900">Presentation Lesson</h4>
+                  </div>
+                  <p className="text-sm text-blue-700 mb-3">
+                    This lesson will contain a curated presentation with multiple content types (images, videos, PDFs, etc.) arranged as slides.
+                  </p>
+                  <div className="text-sm text-blue-600">
+                    <p>• After creating this lesson, you'll be able to add and arrange slides</p>
+                    <p>• Each slide can contain different content types</p>
+                    <p>• Slides can be reordered and customized</p>
+                    <p className="font-medium mt-2">💡 Look for the "Manage Presentation" button in course management to add your slides!</p>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Presentation Description
+                  </label>
+                  <textarea
+                    name="content_text"
+                    value={formData.content_text}
+                    onChange={handleInputChange}
+                    placeholder="Describe what this presentation will cover..."
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Fallback fields for other types */}
-            {formData.content_type !== 'video' && formData.content_type !== 'text' && formData.content_type !== 'pdf' && formData.content_type !== 'ppt' && formData.content_type !== 'scorm' && formData.content_type !== 'image' && (
+            {formData.content_type !== 'video' && formData.content_type !== 'text' && formData.content_type !== 'pdf' && formData.content_type !== 'ppt' && formData.content_type !== 'scorm' && formData.content_type !== 'image' && formData.content_type !== 'presentation' && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

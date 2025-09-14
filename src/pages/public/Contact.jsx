@@ -145,7 +145,7 @@ export default function Contact() {
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-primary-dark to-primary-default text-white py-20">
-        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl md:text-6xl font-bold mb-6">
             Get in Touch
           </h1>
@@ -157,7 +157,7 @@ export default function Contact() {
 
       {/* Contact Methods */}
       <section className="py-20 bg-background-light">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-text-dark mb-4">How Can We Help?</h2>
             <p className="text-xl text-text-light">
@@ -208,7 +208,7 @@ export default function Contact() {
 
       {/* Contact Form & Office Info */}
       <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
             {/* Contact Form */}
             <div>
@@ -387,7 +387,7 @@ export default function Contact() {
 
       {/* FAQ Quick Links */}
       <section className="py-20 bg-background-light">
-        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-text-dark mb-6">Looking for Quick Answers?</h2>
           <p className="text-xl text-text-light mb-8">
             Check out our frequently asked questions or browse our help center

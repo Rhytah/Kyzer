@@ -495,14 +495,14 @@ export default function TestOutAssessment({
 
   if (isCompleted) {
     return (
-      <Card className="max-w-4xl mx-auto p-8">
+      <Card className="max-w-8xl mx-auto p-8">
         {renderResults()}
       </Card>
     );
   }
 
   return (
-    <Card className="max-w-4xl mx-auto p-8">
+    <Card className="max-w-8xl mx-auto p-8">
       {renderQuestion()}
     </Card>
   );

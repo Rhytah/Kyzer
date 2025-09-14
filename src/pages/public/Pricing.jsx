@@ -239,7 +239,7 @@ export default function Pricing() {
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-primary-dark to-primary-default text-white py-20">
-        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl md:text-6xl font-bold mb-6">
             Simple, Transparent Pricing
           </h1>
@@ -279,7 +279,7 @@ export default function Pricing() {
 
       {/* Individual Plans */}
       <section className="py-20 bg-background-light">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-text-dark mb-4">Individual Plans</h2>
             <p className="text-xl text-text-light max-w-3xl mx-auto">
@@ -297,7 +297,7 @@ export default function Pricing() {
 
       {/* Corporate Plans */}
       <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-text-dark mb-4">Corporate Plans</h2>
             <p className="text-xl text-text-light max-w-3xl mx-auto">
@@ -366,7 +366,7 @@ export default function Pricing() {
 
       {/* FAQ Section */}
       <section className="py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-text-dark mb-4">Frequently Asked Questions</h2>
           </div>
@@ -409,7 +409,7 @@ export default function Pricing() {
 
       {/* CTA Section */}
       <section className="py-20 bg-primary-default text-white">
-        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold mb-6">Ready to Get Started?</h2>
           <p className="text-xl text-gray-200 mb-8">
             Join thousands of learners and organizations who trust Kyzer LMS for their development needs.

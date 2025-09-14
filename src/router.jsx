@@ -32,6 +32,7 @@ import CourseCompletion from "@/pages/courses/CourseCompletion";
 import CourseLearning from "@/pages/courses/CourseLearning";
 import CourseManagement from "@/pages/courses/CourseManagement";
 import CategoriesManagement from "@/pages/courses/CategoriesManagement";
+import PresentationManagement from "@/pages/courses/PresentationManagement";
 
 // Corporate Pages
 import CompanyDashboard from "@/pages/corporate/CompanyDashboard";
@@ -98,6 +99,7 @@ export const router = createBrowserRouter([
                 { path: ":courseId", element: <CourseDetail /> },
                 { path: ":courseId/learning", element: <CourseLearning /> },
                 { path: ":courseId/lesson/:lessonId", element: <LessonView /> },
+                { path: ":courseId/lesson/:lessonId/presentation", element: <PresentationManagement /> },
                 { path: ":courseId/completion", element: <CourseCompletion /> },
               ],
             },

@@ -1501,6 +1501,215 @@ const useCourseStore = create((set, get) => ({
         return false;
       }
     },
+
+    // Lesson Management: Fetch single lesson
+    fetchLesson: async (lessonId) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.LESSONS)
+          .select('*')
+          .eq('id', lessonId)
+          .single();
+        if (error) throw error;
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    // Presentation Management Functions
+    createPresentation: async (presentationData) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.LESSON_PRESENTATIONS)
+          .insert({
+            ...presentationData,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    updatePresentation: async (presentationId, updates) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.LESSON_PRESENTATIONS)
+          .update({ ...updates, updated_at: new Date().toISOString() })
+          .eq('id', presentationId)
+          .select()
+          .single();
+        if (error) throw error;
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    deletePresentation: async (presentationId) => {
+      try {
+        const { error } = await supabase
+          .from(TABLES.LESSON_PRESENTATIONS)
+          .delete()
+          .eq('id', presentationId);
+        if (error) throw error;
+        return { success: true, error: null };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    },
+
+    fetchPresentation: async (presentationId) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.LESSON_PRESENTATIONS)
+          .select(`
+            *,
+            slides:${TABLES.PRESENTATION_SLIDES}(*)
+          `)
+          .eq('id', presentationId)
+          .single();
+        if (error) throw error;
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    fetchPresentationByLesson: async (lessonId) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.LESSON_PRESENTATIONS)
+          .select(`
+            *,
+            slides:${TABLES.PRESENTATION_SLIDES}(*)
+          `)
+          .eq('lesson_id', lessonId)
+          .single();
+        if (error) throw error;
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    createSlide: async (slideData) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.PRESENTATION_SLIDES)
+          .insert({
+            ...slideData,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    updateSlide: async (slideId, updates) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.PRESENTATION_SLIDES)
+          .update({ ...updates, updated_at: new Date().toISOString() })
+          .eq('id', slideId)
+          .select()
+          .single();
+        if (error) throw error;
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    deleteSlide: async (slideId) => {
+      try {
+        const { error } = await supabase
+          .from(TABLES.PRESENTATION_SLIDES)
+          .delete()
+          .eq('id', slideId);
+        if (error) throw error;
+        return { success: true, error: null };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    },
+
+    reorderSlides: async (presentationId, slideIds) => {
+      try {
+        // Update slide numbers based on the new order
+        const updates = slideIds.map((slideId, index) => ({
+          id: slideId,
+          slide_number: index + 1
+        }));
+
+        for (const update of updates) {
+          const { error } = await supabase
+            .from(TABLES.PRESENTATION_SLIDES)
+            .update({ slide_number: update.slide_number })
+            .eq('id', update.id);
+          if (error) throw error;
+        }
+
+        return { success: true, error: null };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    },
+
+    // Debug function to test database connection and tables
+    testPresentationTables: async () => {
+      try {
+        // Test if lesson_presentations table exists
+        const { data: presentations, error: presError } = await supabase
+          .from(TABLES.LESSON_PRESENTATIONS)
+          .select('id')
+          .limit(1);
+        
+        if (presError) {
+          return { 
+            success: false, 
+            error: `lesson_presentations table error: ${presError.message}`,
+            tables: { lesson_presentations: false, presentation_slides: false }
+          };
+        }
+
+        // Test if presentation_slides table exists
+        const { data: slides, error: slidesError } = await supabase
+          .from(TABLES.PRESENTATION_SLIDES)
+          .select('id')
+          .limit(1);
+        
+        if (slidesError) {
+          return { 
+            success: false, 
+            error: `presentation_slides table error: ${slidesError.message}`,
+            tables: { lesson_presentations: true, presentation_slides: false }
+          };
+        }
+
+        return { 
+          success: true, 
+          error: null,
+          tables: { lesson_presentations: true, presentation_slides: true }
+        };
+      } catch (error) {
+        return { 
+          success: false, 
+          error: error.message,
+          tables: { lesson_presentations: false, presentation_slides: false }
+        };
+      }
+    },
   },
 }));
 

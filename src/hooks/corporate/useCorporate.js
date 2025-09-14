@@ -329,10 +329,10 @@ export const useCorporate = () => {
         setInitialized(true);
         setError({
           type: 'TIMEOUT',
-          message: 'Loading organization data timed out'
+          message: 'Loading organization data timed out. This might be due to database connection issues or missing organization setup. Please refresh the page or contact support.'
         });
       }
-    }, 15000); // Increased to 15 seconds for org creation
+    }, 45000); // Increased to 45 seconds for organization creation
 
     const initializeCorporateData = async () => {
       if (!mounted) return;

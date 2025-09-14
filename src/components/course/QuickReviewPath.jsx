@@ -313,7 +313,7 @@ export default function QuickReviewPath({ courseId, chapterId, onComplete, onExi
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-8xl mx-auto">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 p-6 mb-6">
         <div className="flex items-center gap-4 mb-4">
