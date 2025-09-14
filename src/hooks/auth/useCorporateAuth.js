@@ -10,14 +10,14 @@ export default function useCorporateAuth() {
 
   useEffect(() => {
     const checkCorporateAccess = async () => {
-      if (user) {
+      if (user?.id) {
         await fetchCurrentCompany();
       }
       setIsLoading(false);
     };
 
     checkCorporateAccess();
-  }, [user]);
+  }, [user?.id]); // Only depend on user ID, not entire user object
 
   return {
     isLoading,

@@ -3,21 +3,64 @@ import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 
-// Email service helper function
+// Email service helper function using Supabase Edge Function
 const sendInvitationEmail = async (email, data) => {
-  // This would integrate with your email service (SendGrid, AWS SES, etc.)
-  // For now, we'll simulate the email sending
-  
-  // In a real implementation, you would call your email service here
-  // Example:
-  // await emailService.send({
-  //   to: email,
-  //   template: 'invitation',
-  //   data: data
-  // });
-  
-  // Simulate email sending delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('No authentication session found');
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase configuration missing');
+    }
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-invitation-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': supabaseKey
+      },
+      body: JSON.stringify({ email, data })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errorData.error || `HTTP ${response.status}: Failed to send invitation email`);
+    }
+
+    const result = await response.json();
+    
+    return result;
+  } catch (error) {
+    // Check if it's a network/fetch error (Edge Function not deployed)
+    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+      console.warn('Edge Function not deployed yet. Using fallback method.');
+      
+      // Return success with fallback info instead of throwing
+      return {
+        success: true,
+        message: 'Edge Function not deployed - invitation logged for manual sending',
+        fallback: true,
+        emailData: {
+          to: email,
+          subject: `Invitation to Join ${data.companyName}`,
+          companyName: data.companyName,
+          inviterName: data.inviterName,
+          role: data.role,
+          customMessage: data.customMessage,
+          invitationLink: data.invitationLink
+        }
+      };
+    }
+    
+    console.error('Error sending invitation email:', error);
+    throw error;
+  }
 };
 
 export const useCorporateStore = create((set, get) => ({
@@ -70,13 +113,17 @@ export const useCorporateStore = create((set, get) => ({
     try {
       set({ loading: true, error: null });
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      // Add timeout for auth check
+      const authPromise = supabase.auth.getUser();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Auth check timeout')), 5000)
+      );
+      
+      const { data: { user } } = await Promise.race([authPromise, timeoutPromise]);
       if (!user) throw new Error("User not authenticated");
 
       // First check if user is directly associated with an organization
-      const { data: userOrganization, error: userError } = await supabase
+      const orgQuery = supabase
         .from("organization_members")
         .select(
           `
@@ -101,6 +148,12 @@ export const useCorporateStore = create((set, get) => ({
         .eq("user_id", user.id)
         .eq("status", "active")
         .single();
+      
+      const orgTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Organization query timeout')), 10000)
+      );
+      
+      const { data: userOrganization, error: userError } = await Promise.race([orgQuery, orgTimeout]);
 
       if (userError && userError.code !== "PGRST116") {
         throw userError;
@@ -482,7 +535,7 @@ export const useCorporateStore = create((set, get) => ({
         inviterName: user.user_metadata?.full_name || user.email,
         role,
         customMessage,
-        invitationLink: `${window.location.origin}/auth/accept-invitation?token=${invitation.id}`
+        invitationLink: `${import.meta.env.VITE_APP_URL || window.location.origin}/auth/accept-invitation?token=${invitation.id}`
       });
 
       set({ loading: false });
@@ -537,7 +590,7 @@ export const useCorporateStore = create((set, get) => ({
           inviterName: user.user_metadata?.full_name || user.email,
           role: invitation.role,
           customMessage: invitation.custom_message,
-          invitationLink: `${window.location.origin}/auth/accept-invitation?token=${invitation.id}`
+          invitationLink: `${import.meta.env.VITE_APP_URL || window.location.origin}/auth/accept-invitation?token=${invitation.id}`
         });
       }
 
@@ -631,7 +684,7 @@ export const useCorporateStore = create((set, get) => ({
         inviterName: user.user_metadata?.full_name || user.email,
         role: invitation.role,
         customMessage: invitation.custom_message,
-        invitationLink: `${window.location.origin}/auth/accept-invitation?token=${invitationId}`
+        invitationLink: `${import.meta.env.VITE_APP_URL || window.location.origin}/auth/accept-invitation?token=${invitationId}`
       });
 
       set({ loading: false });

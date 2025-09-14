@@ -8,10 +8,10 @@ export function useNotificationSettings() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       fetchSettings();
     }
-  }, [user]);
+  }, [user?.id]); // Only depend on user ID, not entire user object
 
   const fetchSettings = async () => {
     if (!user) return;
