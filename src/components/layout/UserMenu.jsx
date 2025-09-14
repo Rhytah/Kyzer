@@ -33,8 +33,8 @@ const UserMenu = () => {
   };
 
   // Determine routes based on user type
-  const profileRoute = isCorporateUser ? '/corporate/settings' : '/app/profile';
-  const settingsRoute = isCorporateUser ? '/corporate/settings' : '/app/settings';
+  const profileRoute = isCorporateUser ? '/company/settings' : '/app/profile';
+  const settingsRoute = isCorporateUser ? '/company/settings' : '/app/settings';
 const user_iamge = user?.user_metadata?.avatar_url;
   return (
     <div className="relative" ref={menuRef}>
