@@ -203,7 +203,7 @@ export default function PresentationManagement() {
 
   if (showForm) {
     return (
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-8xl mx-auto p-6">
         <div className="mb-6">
           <Button
             variant="outline"
@@ -226,7 +226,7 @@ export default function PresentationManagement() {
 
   if (showViewer && presentation) {
     return (
-      <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-white' : 'max-w-7xl mx-auto p-6'}`}>
+      <div className={`${isFullscreen ? 'fixed inset-0 z-50 bg-white' : 'max-w-8xl mx-auto p-6'}`}>
         <div className="mb-6">
           <Button
             variant="outline"
@@ -250,7 +250,7 @@ export default function PresentationManagement() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="max-w-8xl mx-auto p-6">
       {/* Header */}
       <div className="mb-6">
         <Button

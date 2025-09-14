@@ -71,7 +71,7 @@ export const Dashboard = () => {
     <div className="min-h-screen bg-background-light">
       {/* Header Section */}
       <div className="bg-white border-b border-background-dark">
-        <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="max-w-8xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-text-dark">
@@ -105,7 +105,7 @@ export const Dashboard = () => {
       </div>
 
       {/* Main Dashboard Content */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-8xl mx-auto px-4 py-8">
         {/* Stats Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatsCard

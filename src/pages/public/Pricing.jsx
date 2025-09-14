@@ -279,7 +279,7 @@ export default function Pricing() {
 
       {/* Individual Plans */}
       <section className="py-20 bg-background-light">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-text-dark mb-4">Individual Plans</h2>
             <p className="text-xl text-text-light max-w-3xl mx-auto">
@@ -297,7 +297,7 @@ export default function Pricing() {
 
       {/* Corporate Plans */}
       <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-text-dark mb-4">Corporate Plans</h2>
             <p className="text-xl text-text-light max-w-3xl mx-auto">
