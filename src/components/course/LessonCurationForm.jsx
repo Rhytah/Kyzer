@@ -32,6 +32,7 @@ import {
 export default function LessonCurationForm({ 
   presentation = null, 
   lessonId, 
+  courseId,
   onSuccess, 
   onCancel 
 }) {
@@ -63,12 +64,7 @@ export default function LessonCurationForm({
   // Initialize form with presentation data if editing
   useEffect(() => {
     if (presentation) {
-      console.log('Loading presentation for editing:', {
-        presentationId: presentation.id,
-        title: presentation.title,
-        slidesCount: presentation.slides?.length || 0,
-        slides: presentation.slides
-      });
+      // Load presentation for editing
       
       setFormData({
         title: presentation.title || '',
@@ -86,7 +82,7 @@ export default function LessonCurationForm({
         is_required: slide.is_required !== undefined ? slide.is_required : true
       }));
       
-      console.log('Processed slides for editing:', existingSlides);
+      // Processed slides for editing
       setSlides(existingSlides);
     }
   }, [presentation]);
@@ -235,20 +231,15 @@ export default function LessonCurationForm({
       const newSlides = slides.filter(slide => slide.isNew);
       const existingSlides = slides.filter(slide => !slide.isNew);
       
-      console.log('Processing slides:', {
-        totalSlides: slides.length,
-        newSlides: newSlides.length,
-        existingSlides: existingSlides.length,
-        newSlideIds: newSlides.map(s => s.id),
-        existingSlideIds: existingSlides.map(s => s.id)
-      });
-      
       // Get all current slides from the database to identify deleted ones
       let slidesToDelete = [];
       if (isEditing && presentation?.slides) {
         const currentSlideIds = existingSlides.map(slide => slide.id);
         slidesToDelete = presentation.slides.filter(dbSlide => !currentSlideIds.includes(dbSlide.id));
-        console.log('Slides to delete:', slidesToDelete.map(s => s.id));
+        
+        if (slidesToDelete.length > 0) {
+          console.log('Slides to delete:', slidesToDelete.map(s => s.id));
+        }
       }
 
       // Delete slides that were removed
@@ -435,6 +426,7 @@ export default function LessonCurationForm({
                     <SlideEditor
                       slide={slide}
                       onUpdate={(updates) => updateSlideData(slide.id, updates)}
+                      courseId={courseId}
                     />
                   </div>
                 ))}

@@ -7,6 +7,7 @@ import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui';
+import PDFSplitter from './PDFSplitter';
 import {
   uploadFile,
   getFileUrl,
@@ -24,6 +25,8 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
   const updateLesson = useCourseStore(state => state.actions.updateLesson);
   const fetchCourseModules = useCourseStore(state => state.actions.fetchCourseModules);
   const isLessonTitleUnique = useCourseStore(state => state.actions.isLessonTitleUnique);
+  const createPresentation = useCourseStore(state => state.actions.createPresentation);
+  const createSlide = useCourseStore(state => state.actions.createSlide);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -37,6 +40,9 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     module_id: ''
   });
 
+  // Separate state for text lesson content
+  const [textContent, setTextContent] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isEditing] = useState(!!lesson);
@@ -48,9 +54,11 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
   const [isUploading, setIsUploading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [splitPreview, setSplitPreview] = useState(false);
-  const [pdfSourceType, setPdfSourceType] = useState('external'); // 'external' | 'upload'
+  const [pdfSourceType, setPdfSourceType] = useState('external'); // 'external' | 'upload' | 'split'
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState('');
+  const [showPdfSplitter, setShowPdfSplitter] = useState(false);
+  const [pdfSplitData, setPdfSplitData] = useState(null);
   const [pptSourceType, setPptSourceType] = useState('external'); // 'external' | 'upload'
   const [pptFile, setPptFile] = useState(null);
   const [pptPreviewUrl, setPptPreviewUrl] = useState('');
@@ -67,7 +75,8 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     pptUrl: '',
     imageUrl: '',
     audioUrl: '',
-    scormUrl: ''
+    scormUrl: '',
+    presentationUrl: ''
   });
 
   // Initialize form with lesson data if editing
@@ -87,13 +96,18 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         title: lesson.title || '',
         content_type: lesson.content_type || 'video',
         content_url: lesson.content_url || '',
-        content_text: detected.text || '',
+        content_text: lesson.content_type === 'text' ? '' : (detected.text || ''), // Use content_text for description, not text content
         content_format: detected.format || 'plaintext',
         duration_minutes: lesson.duration_minutes || '',
         order_index: lesson.order_index || 1,
         is_required: lesson.is_required !== undefined ? lesson.is_required : true,
         module_id: lesson.module_id || '' // Assuming lesson object has module_id
       });
+      
+      // Set text content separately for text lessons
+      if (lesson.content_type === 'text') {
+        setTextContent(detected.text || '');
+      }
       
       // Set existing content URLs for previews
       setExistingContent({
@@ -109,8 +123,21 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
       if (lesson.content_type === 'video' && lesson.content_url) {
         setVideoSourceType('external');
       }
-      if (lesson.content_type === 'pdf' && lesson.content_url) {
-        setPdfSourceType('external');
+      if (lesson.content_type === 'pdf') {
+        // For PDF lessons, check if it has URL or default to upload
+        if (lesson.content_url) {
+          setPdfSourceType('external');
+        } else {
+          setPdfSourceType('upload');
+        }
+      } else if (lesson.content_type === 'presentation') {
+        // For presentation lessons, check if it has existing presentation
+        if (lesson.content_url) {
+          setPdfSourceType('external');
+        } else {
+          setPdfSourceType('split');
+          // Note: pdfSplitData will be loaded separately if needed
+        }
       }
       if (lesson.content_type === 'ppt' && lesson.content_url) {
         setPptSourceType('external');
@@ -153,6 +180,13 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+    
+    // Protect content_text when it contains split PDF data
+    if (name === 'content_text' && formData.content_type === 'presentation' && pdfSplitData) {
+      console.log('Preventing content_text modification - contains split PDF data');
+      return; // Don't update content_text if it contains split PDF data
+    }
+    
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
@@ -350,6 +384,30 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     return null;
   };
 
+  const handlePdfSplitterSuccess = (splitData) => {
+    console.log('PDF Splitter Success - Split Data:', splitData);
+    setPdfSplitData(splitData);
+    setShowPdfSplitter(false);
+    
+    // Update content type to presentation but don't store split data in content_text
+    const updatedFormData = {
+      ...formData,
+      content_type: 'presentation', // Change content type to presentation after splitting
+      content_text: '', // Clear content_text - split data is stored separately
+      content_url: '' // Clear URL since we're using split data
+    };
+    
+    setFormData(updatedFormData);
+    console.log('Updated form data:', updatedFormData);
+    
+    success(`PDF successfully split into ${splitData.images.length} pages! Ready to save as presentation.`);
+  };
+
+  const handlePdfSplitterCancel = () => {
+    setShowPdfSplitter(false);
+    setPdfSplitData(null);
+  };
+
   // Preserve original filename on upload with safe sanitization and collision handling
   const sanitizeFileName = (name) => {
     const trimmed = (name || '').trim();
@@ -510,6 +568,12 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
             return false;
           }
         }
+      } else if (pdfSourceType === 'split') {
+        // For PDF split, require split data
+        if (!pdfSplitData || !pdfSplitData.images || pdfSplitData.images.length === 0) {
+          setError('Please split a PDF into images first');
+          return false;
+        }
       } else {
         if (!formData.content_url.trim()) {
           setError('Please provide a PDF URL');
@@ -598,6 +662,15 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
           return false;
         }
       }
+    } else if (formData.content_type === 'presentation') {
+      // For presentation lessons, require either split PDF data or existing content
+      const hasSplitData = pdfSplitData && pdfSplitData.images && pdfSplitData.images.length > 0;
+      const hasExistingPresentation = existingContent.presentationUrl;
+      
+      if (!hasSplitData && !hasExistingPresentation) {
+        setError('Please use PDF splitter to create presentation content');
+        return false;
+      }
     } else {
       if (!formData.content_text.trim() && !formData.content_url.trim()) {
         setError('Provide content text or a content URL');
@@ -636,6 +709,9 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     e.preventDefault();
     setError('');
 
+    console.log('LessonForm handleSubmit - courseId:', courseId);
+    console.log('LessonForm handleSubmit - formData:', formData);
+
     if (!(await validateForm())) return;
 
     setLoading(true);
@@ -645,16 +721,23 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         ...formData,
         duration_minutes: formData.duration_minutes ? parseInt(formData.duration_minutes) : null,
         order_index: formData.order_index ? parseInt(formData.order_index) : 1,
-        module_id: formData.module_id || null // Allow null for unassigned lessons
+        // content_text is already set from formData (used for description)
+        // course_id and module_id are passed as separate parameters to createLesson
       };
 
-      // Persist format marker inside content_text instead of separate column
+      // For text lessons, use textContent with format marker
       if (lessonData.content_type === 'text') {
         const marker = `<!--content_format:${lessonData.content_format || 'plaintext'}-->`;
-        lessonData.content_text = `${marker}${lessonData.content_text || ''}`;
+        lessonData.content_text = `${marker}${textContent || ''}`;
       }
       // Do not send content_format as a separate DB column
       delete lessonData.content_format;
+      
+      // Remove any presentation_description field if it exists (shouldn't be there but just in case)
+      delete lessonData.presentation_description;
+      
+      // Debug: Log the lesson data being sent to database
+      console.log('Lesson data being sent to database:', lessonData);
 
       // Handle video upload if selected
       if (formData.content_type === 'video' && videoSourceType === 'upload' && videoFile) {
@@ -685,6 +768,103 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, path);
         lessonData.content_url = publicUrl;
         setIsUploading(false);
+      }
+
+      // Handle presentation creation for split PDF data
+      if (formData.content_type === 'presentation' && pdfSplitData) {
+        try {
+          const splitData = pdfSplitData;
+          if (splitData.images && Array.isArray(splitData.images)) {
+            // Create the lesson first
+            const lessonResult = isEditing 
+              ? await updateLesson(lesson.id, lessonData)
+              : await createLesson(lessonData, courseId, formData.module_id || null, user.id);
+
+            if (lessonResult.error) {
+              setError(lessonResult.error);
+              showError(lessonResult.error);
+              return;
+            }
+
+            const createdLesson = lessonResult.data;
+
+            // Create presentation record
+            const presentationData = {
+              lesson_id: createdLesson.id,
+              title: `${createdLesson.title} - Presentation`,
+              description: formData.content_text || `Auto-generated presentation from split PDF with ${splitData.images.length} pages`,
+              estimated_duration: Math.ceil(splitData.images.length * 30), // 30 seconds per page
+              created_by: user.id
+            };
+
+            const presentationResult = await createPresentation(presentationData);
+            if (presentationResult.error) {
+              setError(`Failed to create presentation: ${presentationResult.error}`);
+              showError(`Failed to create presentation: ${presentationResult.error}`);
+              return;
+            }
+
+            const presentation = presentationResult.data;
+
+            // Create slides from split PDF images
+            const slides = splitData.images.map((image, index) => ({
+              presentation_id: presentation.id,
+              slide_number: index + 1,
+              content_type: 'image',
+              title: `Page ${index + 1}`,
+              content_url: image.imageUrl,
+              content_text: '',
+              content_format: 'plaintext',
+              duration_seconds: 30,
+              metadata: {
+                originalPageNum: image.originalPageNum,
+                width: image.width,
+                height: image.height,
+                originalFileName: image.originalFileName
+              },
+              is_required: true
+            }));
+
+            // Create slides in batches to avoid overwhelming the database
+            for (const slide of slides) {
+              const slideResult = await createSlide(slide);
+              if (slideResult.error) {
+                console.error(`Failed to create slide ${slide.slide_number}:`, slideResult.error);
+                // Continue with other slides even if one fails
+              }
+            }
+
+            success('Lesson with split PDF presentation created successfully!');
+            onSuccess(createdLesson);
+            return;
+          }
+        } catch (parseError) {
+          console.error('Failed to parse split PDF data:', parseError);
+          setError('Invalid split PDF data format');
+          showError('Invalid split PDF data format');
+          return;
+        }
+      }
+
+      // If not a presentation, create the lesson normally
+      if (formData.content_type !== 'presentation') {
+        const lessonResult = isEditing 
+          ? await updateLesson(lesson.id, lessonData)
+          : await createLesson(lessonData, courseId, formData.module_id || null, user.id);
+
+        if (lessonResult.error) {
+          setError(lessonResult.error);
+          showError(lessonResult.error);
+          return;
+        }
+
+        const message = isEditing 
+          ? `Lesson "${lessonData.title}" updated successfully!` 
+          : `Lesson "${lessonData.title}" created successfully!`;
+        
+        success(message);
+        onSuccess(lessonResult.data);
+        return;
       }
 
       // Handle SCORM upload if selected
@@ -739,31 +919,6 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
           return;
         }
       }
-
-      let result;
-      if (isEditing) {
-        result = await updateLesson(lesson.id, lessonData);
-      } else {
-        result = await createLesson(
-          lessonData,
-          courseId,
-          formData.module_id || null,
-          user.id
-        );
-      }
-
-      if (result.error) {
-        setError(result.error);
-        showError(result.error);
-        return;
-      }
-
-      const message = isEditing 
-        ? `Lesson "${result.data.title}" updated successfully!` 
-        : `Lesson "${result.data.title}" created successfully!`;
-      
-      success(message);
-      onSuccess(result.data);
     } catch (error) {
       setError(error.message || 'An unexpected error occurred');
       showError(error.message || 'An unexpected error occurred');
@@ -809,6 +964,25 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
               />
             </div>
 
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Lesson Description
+              </label>
+              <textarea
+                name="content_text"
+                value={formData.content_text || ''}
+                onChange={handleInputChange}
+                placeholder="Describe what this lesson will cover..."
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              {formData.content_type === 'presentation' && pdfSplitData && (
+                <p className="text-xs text-blue-600 mt-1">
+                  💡 PDF successfully split into {pdfSplitData.images.length} pages. Add your own description above.
+                </p>
+              )}
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Content Type
@@ -828,6 +1002,32 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                 <option value="image">Image</option>
                 {/* <option value="interactive">Interactive</option> */}
               </select>
+              
+              {/* Show split PDF status */}
+              {formData.content_type === 'presentation' && pdfSplitData && (
+                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-green-800">
+                        PDF Successfully Split
+                      </h3>
+                      <div className="mt-1 text-sm text-green-700">
+                        <p>
+                          {pdfSplitData.images.length} pages configured as {pdfSplitData.format || 'slideshow'}
+                        </p>
+                        <p className="text-xs mt-1">
+                          Ready to save as presentation lesson
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
@@ -1018,6 +1218,16 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                       />
                       <span className="text-sm text-gray-700">Upload File</span>
                     </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="pdf_source"
+                        value="split"
+                        checked={pdfSourceType === 'split'}
+                        onChange={() => setPdfSourceType('split')}
+                      />
+                      <span className="text-sm text-gray-700">Split to Images</span>
+                    </label>
                   </div>
                 </div>
 
@@ -1044,7 +1254,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                       </div>
                     )}
                   </div>
-                ) : (
+                ) : pdfSourceType === 'upload' ? (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Upload PDF File
@@ -1072,6 +1282,71 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                         <iframe src={pdfPreviewUrl} title="PDF Preview" className="w-full h-96" />
                       </div>
                     )}
+                  </div>
+                ) : null}
+
+                {/* PDF Splitter */}
+                {pdfSourceType === 'split' && (
+                  <div className="space-y-4">
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-900">
+                            {pdfSplitData ? 'Edit Split PDF' : 'Split PDF to Images'}
+                          </h4>
+                          <p className="text-xs text-gray-600 mt-1">
+                            {pdfSplitData 
+                              ? 'Edit the arrangement and format of your split PDF pages'
+                              : 'Convert PDF pages to images that can be rearranged and presented in multiple formats'
+                            }
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => setShowPdfSplitter(true)}
+                            variant="outline"
+                            size="sm"
+                          >
+                            {pdfSplitData ? 'Edit Split' : 'Open Splitter'}
+                          </Button>
+                          {pdfSplitData && (
+                            <Button
+                              onClick={() => {
+                                setPdfSplitData(null);
+                                setFormData(prev => ({ ...prev, content_text: '' }));
+                              }}
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              Remove Split
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {pdfSplitData && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-green-800">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            <span className="text-sm font-medium">
+                              {isEditing ? 'Split PDF Configured' : 'PDF Split Complete'}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-sm text-green-700 space-y-1">
+                            <p><strong>{pdfSplitData.images.length}</strong> pages configured as <strong>{pdfSplitData.format}</strong></p>
+                            {pdfSplitData.originalPdf?.name && (
+                              <p className="text-xs">Original: {pdfSplitData.originalPdf.name}</p>
+                            )}
+                            {isEditing && (
+                              <p className="text-xs">Click "Edit Split" to rearrange pages or change format</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1367,9 +1642,8 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                 {splitPreview ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <textarea
-                      name="content_text"
-                      value={formData.content_text}
-                      onChange={handleInputChange}
+                      value={textContent}
+                      onChange={(e) => setTextContent(e.target.value)}
                       onKeyDown={(e) => {
                         const mod = e.metaKey || e.ctrlKey;
                         if (mod && e.key.toLowerCase() === 'b') { e.preventDefault(); applyFormat('bold'); }
@@ -1385,6 +1659,11 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Enter the main content text of this lesson..."
                     />
+                    {formData.content_type === 'presentation' && pdfSplitData && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Content is automatically generated from split PDF. To edit, use the PDF splitter.
+                      </p>
+                    )}
                     <div>
                       <div className="text-sm text-gray-600 mb-2">Preview</div>
                       <div
@@ -1402,9 +1681,8 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                 ) : (
                   <>
                     <textarea
-                      name="content_text"
-                      value={formData.content_text}
-                      onChange={handleInputChange}
+                      value={textContent}
+                      onChange={(e) => setTextContent(e.target.value)}
                       onKeyDown={(e) => {
                         const mod = e.metaKey || e.ctrlKey;
                         if (mod && e.key.toLowerCase() === 'b') { e.preventDefault(); applyFormat('bold'); }
@@ -1420,6 +1698,11 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Enter the main content text of this lesson..."
                     />
+                    {formData.content_type === 'presentation' && pdfSplitData && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Content is automatically generated from split PDF. To edit, use the PDF splitter.
+                      </p>
+                    )}
 
                     {showPreview && (
                       <div className="mt-4">
@@ -1428,10 +1711,10 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                           className="prose max-w-none border rounded-md p-3 bg-white"
                           dangerouslySetInnerHTML={{
                             __html: formData.content_format === 'markdown'
-                              ? renderMarkdownToHtml(formData.content_text)
+                              ? renderMarkdownToHtml(textContent)
                               : formData.content_format === 'html'
-                                ? formData.content_text
-                                : escapeHtml(formData.content_text).replace(/\n/g, '<br/>')
+                                ? textContent
+                                : escapeHtml(textContent).replace(/\n/g, '<br/>')
                           }}
                         />
                       </div>
@@ -1528,6 +1811,31 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                           className="max-w-full h-auto rounded-lg shadow-sm"
                           style={{ maxHeight: '300px' }}
                         />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Split PDF Preview */}
+                  {formData.content_type === 'presentation' && formData.content_text && formData.content_text.includes('"images"') && (
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Split PDF Presentation</h4>
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-blue-600 text-sm font-medium">📄</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">PDF Split into Images</p>
+                          <p className="text-xs text-gray-600">
+                            {(() => {
+                              try {
+                                const splitData = JSON.parse(formData.content_text);
+                                return `${splitData.images?.length || 0} pages configured as ${splitData.format || 'slideshow'}`;
+                              } catch {
+                                return 'Split PDF data loaded';
+                              }
+                            })()}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1682,19 +1990,6 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                     <p className="font-medium mt-2">💡 Look for the "Manage Presentation" button in course management to add your slides!</p>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Presentation Description
-                  </label>
-                  <textarea
-                    name="content_text"
-                    value={formData.content_text}
-                    onChange={handleInputChange}
-                    placeholder="Describe what this presentation will cover..."
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
               </div>
             )}
 
@@ -1725,6 +2020,11 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Optional supporting text..."
                   />
+                  {formData.content_type === 'presentation' && pdfSplitData && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Content is automatically generated from split PDF. To edit, use the PDF splitter.
+                    </p>
+                  )}
                 </div>
               </>
             )}
@@ -1761,17 +2061,53 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
             <Button
               type="submit"
               disabled={loading}
-              className="min-w-[120px]"
+              className={`min-w-[120px] ${
+                formData.content_type === 'presentation' && pdfSplitData 
+                  ? 'bg-green-600 hover:bg-green-700' 
+                  : ''
+              }`}
             >
               {loading ? (
                 <LoadingSpinner size="sm" />
               ) : (
-                isEditing ? 'Update Lesson' : 'Add Lesson'
+                formData.content_type === 'presentation' && pdfSplitData 
+                  ? (isEditing ? 'Update Presentation' : 'Create Presentation')
+                  : (isEditing ? 'Update Lesson' : 'Add Lesson')
               )}
             </Button>
           </div>
         </form>
       </div>
+
+      {/* PDF Splitter Modal */}
+      {showPdfSplitter && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-6xl max-h-[90vh] w-full overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">
+                PDF Splitter & Arranger
+              </h3>
+              <button
+                onClick={() => setShowPdfSplitter(false)}
+                className="p-2 hover:bg-gray-100 rounded-md text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+            <div className="overflow-auto max-h-[calc(90vh-80px)]">
+              <PDFSplitter
+                onImagesReady={handlePdfSplitterSuccess}
+                onCancel={handlePdfSplitterCancel}
+                initialSplitData={pdfSplitData}
+                courseId={courseId}
+                className="p-6"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 } 

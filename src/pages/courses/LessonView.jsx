@@ -720,10 +720,23 @@ export default function LessonView() {
 
   // Memoized values for the main component
   const lessonDescriptionHtml = useMemo(() => {
+    // For presentation-type lessons, don't try to parse content_text as it contains split PDF data
+    if (lesson?.content_type === 'presentation') {
+      // For presentations, we'll show the presentation description in the PresentationWrapper
+      // or show a generic message here
+      return <p className="text-text-light">This lesson contains a presentation with slides.</p>;
+    }
+    
     const raw = lesson?.content_text || lesson?.description || '';
     if (!raw) {
       return <p className="text-text-light">No description available</p>;
     }
+    
+    // Check if content_text contains JSON data (split PDF data)
+    if (raw.startsWith('{') && raw.includes('"images"')) {
+      return <p className="text-text-light">This lesson contains split PDF content.</p>;
+    }
+    
     const parsed = parseStoredText(raw);
     const html = parsed.format === 'markdown'
       ? renderMarkdownToHtml(parsed.text)
@@ -736,7 +749,7 @@ export default function LessonView() {
         dangerouslySetInnerHTML={{ __html: html }}
       />
     );
-  }, [lesson?.content_text, lesson?.description, parseStoredText, renderMarkdownToHtml, escapeHtml]);
+  }, [lesson?.content_type, lesson?.content_text, lesson?.description, parseStoredText, renderMarkdownToHtml, escapeHtml]);
 
   const lessonContentParagraphs = useMemo(() => {
     if (!lesson?.content_text) {
@@ -1068,19 +1081,50 @@ export default function LessonView() {
     }
 
     return (
-      <PresentationViewer 
-        presentation={presentation}
-        lesson={lesson}
-        onSlideComplete={(slideIndex) => {
-          // Handle slide completion if needed
-        }}
-        onPresentationComplete={() => {
-          // Handle presentation completion
-          setIsCompleted(true);
-        }}
-        isCompleted={isCompleted}
-        onMarkComplete={markAsCompleted}
-      />
+      <div className="space-y-4">
+        {/* Presentation Header */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+                {presentation.title}
+              </h2>
+              {presentation.description && (
+                <p className="text-gray-600 mb-3">{presentation.description}</p>
+              )}
+              <div className="flex items-center gap-4 text-sm text-gray-500">
+                <span className="flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  {presentation.total_slides} slides
+                </span>
+                <span className="flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {Math.ceil(presentation.estimated_duration / 60)} min estimated
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Presentation Viewer */}
+        <PresentationViewer 
+          presentation={presentation}
+          lesson={lesson}
+          onSlideComplete={(slideIndex) => {
+            // Handle slide completion if needed
+          }}
+          onPresentationComplete={() => {
+            // Handle presentation completion
+            setIsCompleted(true);
+          }}
+          isCompleted={isCompleted}
+          onMarkComplete={markAsCompleted}
+        />
+      </div>
     );
   });
 
@@ -1475,7 +1519,7 @@ export default function LessonView() {
         </Card>
 
         {/* Lesson Content Tabs */}
-        <Card className="p-6">
+        {/* <Card className="p-6">
           <div className="border-b border-background-dark mb-6">
             <nav className="flex space-x-8">
               {[
@@ -1521,7 +1565,7 @@ export default function LessonView() {
               </div>
             </div>
           )}
-        </Card>
+        </Card> */}
 
         {/* Quiz block (below the lesson content) */}
         {quiz && quizQuestions.length > 0 && (

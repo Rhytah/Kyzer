@@ -217,6 +217,7 @@ export default function PresentationManagement() {
         <LessonCurationForm
           presentation={presentation}
           lessonId={lessonId}
+          courseId={courseId}
           onSuccess={handleFormSuccess}
           onCancel={handleFormCancel}
         />
