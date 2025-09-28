@@ -596,6 +596,17 @@ export default function CourseManagement() {
                       <FolderOpen className="w-4 h-4" />
                       <span>{countsMap[course.id]?.modules ?? (courseModules[course.id]?.length || 0)} modules</span>
                     </div>
+                    {course.creator && (
+                      <div className="flex items-center gap-1">
+                        <Users className="w-4 h-4" />
+                        <span>
+                          {course.creator.first_name && course.creator.last_name 
+                            ? `${course.creator.first_name} ${course.creator.last_name}`
+                            : course.creator.email || 'Unknown Creator'
+                          }
+                        </span>
+                      </div>
+                    )}
                     {course.category && (
                       <span 
                         className="px-2 py-1 rounded text-xs font-medium"

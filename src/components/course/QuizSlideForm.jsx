@@ -1,0 +1,527 @@
+import React, { useState, useCallback } from 'react';
+import { Plus, Trash2, Edit3, Eye } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
+import Input from '@/components/ui/Input';
+import { useToast } from '@/components/ui';
+
+const QuizSlideForm = ({ 
+  onAddQuizSlide, 
+  onQuizSuccess,
+  existingQuizzes = [], 
+  onSelectExistingQuiz,
+  presentationId 
+}) => {
+  const { success, error: showError } = useToast();
+  
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showExistingQuizzes, setShowExistingQuizzes] = useState(false);
+  const [quizForm, setQuizForm] = useState({
+    title: '',
+    description: '',
+    pass_threshold: 70,
+    time_limit_minutes: null
+  });
+  const [questions, setQuestions] = useState([]);
+  const [currentQuestion, setCurrentQuestion] = useState({
+    question_text: '',
+    question_type: 'multiple_choice',
+    options: ['', ''],
+    correct_answer: 0,
+    explanation: ''
+  });
+
+  // Handle form input changes
+  const handleQuizFormChange = (field, value) => {
+    setQuizForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleQuestionChange = (field, value) => {
+    setCurrentQuestion(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Add option to current question
+  const addOption = () => {
+    setCurrentQuestion(prev => ({
+      ...prev,
+      options: [...prev.options, '']
+    }));
+  };
+
+  // Remove option from current question
+  const removeOption = (index) => {
+    if (currentQuestion.options.length > 2) {
+      const newOptions = currentQuestion.options.filter((_, i) => i !== index);
+      setCurrentQuestion(prev => ({
+        ...prev,
+        options: newOptions,
+        correct_answer: prev.correct_answer >= index ? Math.max(0, prev.correct_answer - 1) : prev.correct_answer
+      }));
+    }
+  };
+
+  // Update option text
+  const updateOption = (index, value) => {
+    setCurrentQuestion(prev => ({
+      ...prev,
+      options: prev.options.map((opt, i) => i === index ? value : opt)
+    }));
+  };
+
+  // Add question to quiz
+  const addQuestion = () => {
+    if (!currentQuestion.question_text.trim()) {
+      showError('Please enter a question');
+      return;
+    }
+
+    if (currentQuestion.options.filter(opt => opt.trim()).length < 2) {
+      showError('Please provide at least 2 options');
+      return;
+    }
+
+    const newQuestion = {
+      ...currentQuestion,
+      id: Date.now(), // Temporary ID
+      order_index: questions.length + 1
+    };
+
+    setQuestions(prev => [...prev, newQuestion]);
+    
+    // Reset form
+    setCurrentQuestion({
+      question_text: '',
+      question_type: 'multiple_choice',
+      options: ['', ''],
+      correct_answer: 0,
+      explanation: ''
+    });
+    
+    success('Question added successfully!');
+  };
+
+  // Remove question
+  const removeQuestion = (index) => {
+    setQuestions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Create new quiz and add as slide
+  const createQuizSlide = async () => {
+    if (!quizForm.title.trim()) {
+      showError('Please enter a quiz title');
+      return;
+    }
+
+    if (questions.length === 0) {
+      showError('Please add at least one question');
+      return;
+    }
+
+    // Add confirmation for quiz creation
+    const confirmed = window.confirm(
+      `Are you sure you want to create this quiz slide with ${questions.length} question${questions.length > 1 ? 's' : ''}? This will add the quiz to your presentation.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const quizData = {
+        ...quizForm,
+        questions,
+        presentation_id: presentationId
+      };
+
+      if (onAddQuizSlide) {
+        await onAddQuizSlide(quizData);
+        
+        // Reset form
+        setQuizForm({
+          title: '',
+          description: '',
+          pass_threshold: 70,
+          time_limit_minutes: null
+        });
+        setQuestions([]);
+        setShowCreateForm(false);
+        
+        // Notify parent component that quiz was successfully created
+        if (onQuizSuccess) {
+          onQuizSuccess();
+        }
+      }
+    } catch (error) {
+      showError('Failed to create quiz slide: ' + error.message);
+    }
+  };
+
+  // Select existing quiz
+  const handleSelectExistingQuiz = (quiz) => {
+    if (onSelectExistingQuiz) {
+      onSelectExistingQuiz(quiz);
+      setShowExistingQuizzes(false);
+      
+      // Notify parent component that quiz was successfully selected
+      if (onQuizSuccess) {
+        onQuizSuccess();
+      }
+    }
+  };
+
+  if (showExistingQuizzes) {
+    return (
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">Select Existing Quiz</h3>
+          <Button
+            variant="secondary"
+            onClick={() => setShowExistingQuizzes(false)}
+          >
+            Cancel
+          </Button>
+        </div>
+        
+        <div className="space-y-3 max-h-60 overflow-y-auto">
+          {existingQuizzes.length === 0 ? (
+            <p className="text-gray-500 text-center py-4">No existing quizzes found</p>
+          ) : (
+            existingQuizzes.map((quiz) => (
+              <div key={quiz.id} className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900">{quiz.title}</h4>
+                    {quiz.description && (
+                      <p className="text-sm text-gray-600 mt-1">{quiz.description}</p>
+                    )}
+                    <div className="flex items-center gap-4 text-xs text-gray-500 mt-2">
+                      <span>Pass: {quiz.pass_threshold}%</span>
+                      {quiz.time_limit_minutes && (
+                        <span>Time: {quiz.time_limit_minutes}min</span>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleSelectExistingQuiz(quiz)}
+                    className="ml-4"
+                  >
+                    Select
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Card>
+    );
+  }
+
+  if (showCreateForm) {
+    return (
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold">Create Quiz Slide</h3>
+          <Button
+            variant="secondary"
+            onClick={() => setShowCreateForm(false)}
+          >
+            Cancel
+          </Button>
+        </div>
+
+        {/* Quiz Basic Info */}
+        <div className="space-y-4 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Quiz Title *
+            </label>
+            <Input
+              value={quizForm.title}
+              onChange={(e) => handleQuizFormChange('title', e.target.value)}
+              placeholder="Enter quiz title"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description
+            </label>
+            <textarea
+              value={quizForm.description}
+              onChange={(e) => handleQuizFormChange('description', e.target.value)}
+              placeholder="Enter quiz description"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              rows={3}
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Pass Threshold (%)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                value={quizForm.pass_threshold}
+                onChange={(e) => handleQuizFormChange('pass_threshold', parseInt(e.target.value) || 70)}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Time Limit (minutes)
+              </label>
+              <Input
+                type="number"
+                min="1"
+                value={quizForm.time_limit_minutes || ''}
+                onChange={(e) => handleQuizFormChange('time_limit_minutes', e.target.value ? parseInt(e.target.value) : null)}
+                placeholder="Optional"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Add Question Form */}
+        <div className="border-t pt-6">
+          <h4 className="text-md font-semibold mb-4">Add Questions to Quiz</h4>
+          <p className="text-sm text-gray-600 mb-4">
+            Fill out the question details below and click "Add This Question to Quiz" to add it to your quiz.
+          </p>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Question Text *
+              </label>
+              <textarea
+                value={currentQuestion.question_text}
+                onChange={(e) => handleQuestionChange('question_text', e.target.value)}
+                placeholder="Enter your question"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                rows={2}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Question Type
+              </label>
+              <select
+                value={currentQuestion.question_type}
+                onChange={(e) => handleQuestionChange('question_type', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="multiple_choice">Multiple Choice</option>
+                <option value="multiple_select">Multiple Select</option>
+                <option value="true_false">True/False</option>
+                <option value="short_answer">Short Answer</option>
+              </select>
+            </div>
+            
+            {/* Options for multiple choice/select */}
+            {(currentQuestion.question_type === 'multiple_choice' || currentQuestion.question_type === 'multiple_select') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Options
+                </label>
+                <div className="space-y-2">
+                  {currentQuestion.options.map((option, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="correct_answer"
+                        checked={currentQuestion.correct_answer === index}
+                        onChange={() => handleQuestionChange('correct_answer', index)}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <Input
+                        value={option}
+                        onChange={(e) => updateOption(index, e.target.value)}
+                        placeholder={`Option ${index + 1}`}
+                        className="flex-1"
+                      />
+                      {currentQuestion.options.length > 2 && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => removeOption(index)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={addOption}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Option
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {/* True/False correct answer */}
+            {currentQuestion.question_type === 'true_false' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Correct Answer
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="correct_answer"
+                      checked={currentQuestion.correct_answer === true}
+                      onChange={() => handleQuestionChange('correct_answer', true)}
+                    />
+                    <span>True</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="correct_answer"
+                      checked={currentQuestion.correct_answer === false}
+                      onChange={() => handleQuestionChange('correct_answer', false)}
+                    />
+                    <span>False</span>
+                  </label>
+                </div>
+              </div>
+            )}
+            
+            {/* Short answer correct answer */}
+            {currentQuestion.question_type === 'short_answer' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Correct Answer *
+                </label>
+                <Input
+                  value={currentQuestion.correct_answer}
+                  onChange={(e) => handleQuestionChange('correct_answer', e.target.value)}
+                  placeholder="Enter the correct answer"
+                />
+              </div>
+            )}
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Explanation (Optional)
+              </label>
+              <textarea
+                value={currentQuestion.explanation}
+                onChange={(e) => handleQuestionChange('explanation', e.target.value)}
+                placeholder="Explain why this is the correct answer"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                rows={2}
+              />
+            </div>
+            
+            <Button
+              onClick={addQuestion}
+              className="w-full flex items-center justify-center gap-2"
+              variant="outline"
+            >
+              <Plus className="w-4 h-4" />
+              Add This Question to Quiz
+            </Button>
+          </div>
+        </div>
+
+        {/* Added Questions */}
+        {questions.length > 0 && (
+          <div className="border-t pt-6 bg-gray-50 -mx-6 px-6 py-4">
+            <h4 className="text-md font-semibold mb-4 text-gray-800">Quiz Questions ({questions.length})</h4>
+            <div className="space-y-3 max-h-40 overflow-y-auto">
+              {questions.map((question, index) => (
+                <div key={index} className="border border-gray-200 rounded-lg p-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">{question.question_text}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {question.question_type.replace('_', ' ')} • {question.options?.length || 0} options
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => removeQuestion(index)}
+                      className="text-red-600 hover:text-red-700 ml-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Create Quiz Button */}
+        <div className="border-t pt-6">
+          <div className="flex gap-3">
+            <Button
+              onClick={createQuizSlide}
+              disabled={questions.length === 0}
+              className="flex-1"
+            >
+              Create Quiz Slide ({questions.length} questions)
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowCreateForm(false)}
+              className="px-6"
+            >
+              Cancel
+            </Button>
+          </div>
+          {questions.length === 0 && (
+            <p className="text-sm text-gray-500 mt-2 text-center">
+              Add at least one question to create the quiz slide
+            </p>
+          )}
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Button
+        onClick={() => setShowCreateForm(true)}
+        className="w-full flex items-center justify-center gap-2"
+      >
+        <Plus className="w-4 h-4" />
+        Create New Quiz Slide
+      </Button>
+      
+      {existingQuizzes.length > 0 && (
+        <Button
+          onClick={() => setShowExistingQuizzes(true)}
+          variant="secondary"
+          className="w-full flex items-center justify-center gap-2"
+        >
+          <Eye className="w-4 h-4" />
+          Use Existing Quiz
+        </Button>
+      )}
+    </div>
+  );
+};
+
+export default QuizSlideForm;
+

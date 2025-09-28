@@ -283,6 +283,17 @@ const CourseCatalog = () => {
             </div>
             <span>{(courseCounts[course.id]?.modules) ?? (course.modules?.length || 0)} modules</span>
           </div>
+          {course.creator && (
+            <div className="flex items-center gap-1">
+              <Users className="w-4 h-4" />
+              <span>
+                {course.creator.first_name && course.creator.last_name 
+                  ? `${course.creator.first_name} ${course.creator.last_name}`
+                  : course.creator.email || 'Unknown Creator'
+                }
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Action Button */}

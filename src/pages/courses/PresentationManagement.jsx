@@ -20,7 +20,8 @@ import {
   Image,
   Video,
   File,
-  Music
+  Music,
+  Grid3X3
 } from 'lucide-react';
 
 export default function PresentationManagement() {
@@ -144,6 +145,7 @@ export default function PresentationManagement() {
       case 'pdf': return <File className="w-4 h-4" />;
       case 'audio': return <Music className="w-4 h-4" />;
       case 'document': return <FileText className="w-4 h-4" />;
+      case 'quiz': return <Grid3X3 className="w-4 h-4" />;
       default: return <FileText className="w-4 h-4" />;
     }
   };
@@ -354,21 +356,53 @@ export default function PresentationManagement() {
                   {presentation.slides.map((slide, index) => (
                     <div
                       key={slide.id}
-                      className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                      className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
+                        slide.content_type === 'quiz' 
+                          ? 'bg-blue-50 border-blue-200' 
+                          : 'bg-white'
+                      }`}
                     >
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                          slide.content_type === 'quiz' 
+                            ? 'bg-blue-200 text-blue-700' 
+                            : 'bg-blue-100 text-blue-600'
+                        }`}>
                           {slide.slide_number}
                         </div>
-                        <div className="flex items-center gap-1 text-gray-500">
+                        <div className={`flex items-center gap-1 ${
+                          slide.content_type === 'quiz' ? 'text-blue-600' : 'text-gray-500'
+                        }`}>
                           {getContentTypeIcon(slide.content_type)}
-                          <span className="text-xs capitalize">{slide.content_type}</span>
+                          <span className="text-xs capitalize font-medium">
+                            {slide.content_type === 'quiz' ? 'Quiz' : slide.content_type}
+                          </span>
                         </div>
+                        {slide.content_type === 'quiz' && (
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
+                            Assessment
+                          </span>
+                        )}
                       </div>
                       
                       <h4 className="font-medium text-gray-900 mb-1">
                         {slide.title}
                       </h4>
+                      
+                      {/* Quiz metadata display */}
+                      {slide.content_type === 'quiz' && slide.metadata && (
+                        <div className="mb-2 p-2 bg-blue-100 rounded text-xs text-blue-800">
+                          {slide.metadata.question_count > 0 && (
+                            <p><strong>{slide.metadata.question_count}</strong> questions</p>
+                          )}
+                          {slide.metadata.pass_threshold && (
+                            <p>Pass: <strong>{slide.metadata.pass_threshold}%</strong></p>
+                          )}
+                          {slide.metadata.time_limit_minutes && (
+                            <p>Time: <strong>{slide.metadata.time_limit_minutes}min</strong></p>
+                          )}
+                        </div>
+                      )}
                       
                       {slide.duration_seconds && (
                         <p className="text-xs text-gray-500">

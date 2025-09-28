@@ -9,6 +9,8 @@ export { default as Modal } from './Modal';
 export { default as AvatarUpload } from './AvatarUpload';
 export { default as ThemeSwitcher } from './ThemeSwitcher';
 export { default as ThemeToggle } from './ThemeToggle';
+export { default as Pagination } from './Pagination';
+export { default as CompactPagination } from './CompactPagination';
 
 // Export other UI components when they're created
 // export { default as Badge } from './Badge';

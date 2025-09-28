@@ -13,6 +13,7 @@ import {
   Download,
   Share
 } from 'lucide-react';
+import { Pagination } from '../ui';
 
 // Individual image component
 const ImagePage = ({ 
@@ -153,124 +154,20 @@ const SlideshowViewer = ({ images, currentIndex, onIndexChange, settings }) => {
         </button>
       </div>
 
-      {/* Smart Pagination */}
+      {/* Improved Pagination */}
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-        <div className="flex items-center gap-1 bg-black bg-opacity-75 backdrop-blur-sm rounded-full px-3 py-2 text-white">
-          {/* Previous button */}
-          <button
-            onClick={handlePrevious}
-            disabled={currentIndex === 0}
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white hover:bg-opacity-20"
-          >
-            <ChevronLeft className="w-3 h-3" />
-            <span className="hidden sm:inline">Prev</span>
-          </button>
-
-          {/* Page numbers */}
-          <div className="flex items-center gap-1 mx-2">
-            {(() => {
-              const totalPages = images.length;
-              const currentPage = currentIndex + 1;
-              const maxVisible = 5;
-              const pages = [];
-
-              if (totalPages <= maxVisible) {
-                // Show all pages if total is small
-                for (let i = 1; i <= totalPages; i++) {
-                  pages.push(
-                    <button
-                      key={i}
-                      onClick={() => onIndexChange(i - 1)}
-                      className={`w-8 h-8 rounded-md text-sm font-medium transition-colors ${
-                        i === currentPage
-                          ? 'bg-blue-500 text-white'
-                          : 'hover:bg-white hover:bg-opacity-20'
-                      }`}
-                    >
-                      {i}
-                    </button>
-                  );
-                }
-              } else {
-                // Smart pagination for large page counts
-                const showEllipsis = totalPages > maxVisible + 2;
-                
-                // Always show first page
-                pages.push(
-                  <button
-                    key={1}
-                    onClick={() => onIndexChange(0)}
-                    className={`w-8 h-8 rounded-md text-sm font-medium transition-colors ${
-                      1 === currentPage
-                        ? 'bg-blue-500 text-white'
-                        : 'hover:bg-white hover:bg-opacity-20'
-                    }`}
-                  >
-                    1
-                  </button>
-                );
-
-                if (currentPage > 3) {
-                  pages.push(<span key="ellipsis1" className="px-1">...</span>);
-                }
-
-                // Show pages around current page
-                const start = Math.max(2, currentPage - 1);
-                const end = Math.min(totalPages - 1, currentPage + 1);
-                
-                for (let i = start; i <= end; i++) {
-                  if (i !== 1 && i !== totalPages) {
-                    pages.push(
-                      <button
-                        key={i}
-                        onClick={() => onIndexChange(i - 1)}
-                        className={`w-8 h-8 rounded-md text-sm font-medium transition-colors ${
-                          i === currentPage
-                            ? 'bg-blue-500 text-white'
-                            : 'hover:bg-white hover:bg-opacity-20'
-                        }`}
-                      >
-                        {i}
-                      </button>
-                    );
-                  }
-                }
-
-                if (currentPage < totalPages - 2) {
-                  pages.push(<span key="ellipsis2" className="px-1">...</span>);
-                }
-
-                // Always show last page
-                if (totalPages > 1) {
-                  pages.push(
-                    <button
-                      key={totalPages}
-                      onClick={() => onIndexChange(totalPages - 1)}
-                      className={`w-8 h-8 rounded-md text-sm font-medium transition-colors ${
-                        totalPages === currentPage
-                          ? 'bg-blue-500 text-white'
-                          : 'hover:bg-white hover:bg-opacity-20'
-                      }`}
-                    >
-                      {totalPages}
-                    </button>
-                  );
-                }
-              }
-
-              return pages;
-            })()}
-          </div>
-
-          {/* Next button */}
-          <button
-            onClick={handleNext}
-            disabled={currentIndex === images.length - 1}
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white hover:bg-opacity-20"
-          >
-            <span className="hidden sm:inline">Next</span>
-            <ChevronRight className="w-3 h-3" />
-          </button>
+        <div className="bg-black bg-opacity-75 backdrop-blur-sm rounded-full px-3 py-2">
+          <Pagination
+            currentPage={currentIndex + 1}
+            totalPages={images.length}
+            onPageChange={(page) => onIndexChange(page - 1)}
+            size="sm"
+            variant="minimal"
+            maxVisiblePages={5}
+            showPageInfo={false}
+            showFirstLast={false}
+            className="text-white [&_button]:text-white [&_button]:hover:bg-white [&_button]:hover:bg-opacity-20 [&_button[aria-current=page]]:bg-blue-500 [&_button[aria-current=page]]:text-white [&_span]:text-white"
+          />
         </div>
       </div>
 
@@ -370,123 +267,20 @@ const BookletViewer = ({ images, currentIndex, onIndexChange, settings }) => {
         <ChevronRight className="w-6 h-6" />
       </button>
 
-      {/* Smart Pagination for Booklet */}
+      {/* Improved Pagination for Booklet */}
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-        <div className="flex items-center gap-1 bg-black bg-opacity-75 backdrop-blur-sm rounded-full px-3 py-2 text-white">
-          {/* Previous button */}
-          <button
-            onClick={handlePrevious}
-            disabled={currentIndex === 0}
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white hover:bg-opacity-20"
-          >
-            <ChevronLeft className="w-3 h-3" />
-            <span className="hidden sm:inline">Prev</span>
-          </button>
-
-          {/* Page numbers */}
-          <div className="flex items-center gap-1 mx-2">
-            {(() => {
-              const totalPairs = Math.ceil(images.length / 2);
-              const currentPairNum = currentPair + 1;
-              const maxVisible = 5;
-              const pages = [];
-
-              if (totalPairs <= maxVisible) {
-                // Show all pairs if total is small
-                for (let i = 1; i <= totalPairs; i++) {
-                  pages.push(
-                    <button
-                      key={i}
-                      onClick={() => onIndexChange((i - 1) * 2)}
-                      className={`w-8 h-8 rounded-md text-sm font-medium transition-colors ${
-                        i === currentPairNum
-                          ? 'bg-blue-500 text-white'
-                          : 'hover:bg-white hover:bg-opacity-20'
-                      }`}
-                    >
-                      {i}
-                    </button>
-                  );
-                }
-              } else {
-                // Smart pagination for large pair counts
-                
-                // Always show first pair
-                pages.push(
-                  <button
-                    key={1}
-                    onClick={() => onIndexChange(0)}
-                    className={`w-8 h-8 rounded-md text-sm font-medium transition-colors ${
-                      1 === currentPairNum
-                        ? 'bg-blue-500 text-white'
-                        : 'hover:bg-white hover:bg-opacity-20'
-                    }`}
-                  >
-                    1
-                  </button>
-                );
-
-                if (currentPairNum > 3) {
-                  pages.push(<span key="ellipsis1" className="px-1">...</span>);
-                }
-
-                // Show pairs around current pair
-                const start = Math.max(2, currentPairNum - 1);
-                const end = Math.min(totalPairs - 1, currentPairNum + 1);
-                
-                for (let i = start; i <= end; i++) {
-                  if (i !== 1 && i !== totalPairs) {
-                    pages.push(
-                      <button
-                        key={i}
-                        onClick={() => onIndexChange((i - 1) * 2)}
-                        className={`w-8 h-8 rounded-md text-sm font-medium transition-colors ${
-                          i === currentPairNum
-                            ? 'bg-blue-500 text-white'
-                            : 'hover:bg-white hover:bg-opacity-20'
-                        }`}
-                      >
-                        {i}
-                      </button>
-                    );
-                  }
-                }
-
-                if (currentPairNum < totalPairs - 2) {
-                  pages.push(<span key="ellipsis2" className="px-1">...</span>);
-                }
-
-                // Always show last pair
-                if (totalPairs > 1) {
-                  pages.push(
-                    <button
-                      key={totalPairs}
-                      onClick={() => onIndexChange((totalPairs - 1) * 2)}
-                      className={`w-8 h-8 rounded-md text-sm font-medium transition-colors ${
-                        totalPairs === currentPairNum
-                          ? 'bg-blue-500 text-white'
-                          : 'hover:bg-white hover:bg-opacity-20'
-                      }`}
-                    >
-                      {totalPairs}
-                    </button>
-                  );
-                }
-              }
-
-              return pages;
-            })()}
-          </div>
-
-          {/* Next button */}
-          <button
-            onClick={handleNext}
-            disabled={currentIndex >= images.length - 2}
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white hover:bg-opacity-20"
-          >
-            <span className="hidden sm:inline">Next</span>
-            <ChevronRight className="w-3 h-3" />
-          </button>
+        <div className="bg-black bg-opacity-75 backdrop-blur-sm rounded-full px-3 py-2">
+          <Pagination
+            currentPage={currentPair + 1}
+            totalPages={Math.ceil(images.length / 2)}
+            onPageChange={(page) => onIndexChange((page - 1) * 2)}
+            size="sm"
+            variant="minimal"
+            maxVisiblePages={5}
+            showPageInfo={false}
+            showFirstLast={false}
+            className="text-white [&_button]:text-white [&_button]:hover:bg-white [&_button]:hover:bg-opacity-20 [&_button[aria-current=page]]:bg-blue-500 [&_button[aria-current=page]]:text-white [&_span]:text-white"
+          />
         </div>
       </div>
     </div>

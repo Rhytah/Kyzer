@@ -193,6 +193,7 @@ const useCourseStore = create((set, get) => ({
           .select(`
             *,
             category:${TABLES.COURSE_CATEGORIES}(id, name, color),
+            creator:${TABLES.PROFILES}(id, first_name, last_name, email),
             enrollments:${TABLES.COURSE_ENROLLMENTS}(
               id, 
               user_id, 
@@ -1646,13 +1647,29 @@ const useCourseStore = create((set, get) => ({
 
     reorderSlides: async (presentationId, slideIds) => {
       try {
-        // Update slide numbers based on the new order
-        const updates = slideIds.map((slideId, index) => ({
+        // Use a more efficient approach to avoid conflicts
+        // First, set all slide numbers to temporary values to avoid unique constraint conflicts
+        const tempUpdates = slideIds.map((slideId, index) => ({
+          id: slideId,
+          slide_number: -(index + 1) // Use negative numbers temporarily
+        }));
+
+        // Update all slides to temporary numbers first
+        for (const update of tempUpdates) {
+          const { error } = await supabase
+            .from(TABLES.PRESENTATION_SLIDES)
+            .update({ slide_number: update.slide_number })
+            .eq('id', update.id);
+          if (error) throw error;
+        }
+
+        // Now update to final numbers
+        const finalUpdates = slideIds.map((slideId, index) => ({
           id: slideId,
           slide_number: index + 1
         }));
 
-        for (const update of updates) {
+        for (const update of finalUpdates) {
           const { error } = await supabase
             .from(TABLES.PRESENTATION_SLIDES)
             .update({ slide_number: update.slide_number })

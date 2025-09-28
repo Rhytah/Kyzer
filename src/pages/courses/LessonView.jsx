@@ -1123,6 +1123,10 @@ export default function LessonView() {
           }}
           isCompleted={isCompleted}
           onMarkComplete={markAsCompleted}
+          onPreviousLesson={goToPreviousLesson}
+          onNextLesson={goToNextLesson}
+          hasPreviousLesson={lessons.findIndex(l => l.id === lessonId) > 0}
+          hasNextLesson={lessons.findIndex(l => l.id === lessonId) < lessons.length - 1}
         />
       </div>
     );

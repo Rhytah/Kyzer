@@ -11,7 +11,7 @@ export default function QuizForm({ quiz = null, courseId, onSuccess, onCancel })
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isEditing] = useState(!!quiz);
+  const [isEditing] = useState(!!quiz?.id);
 
   const [formData, setFormData] = useState({
     title: '',

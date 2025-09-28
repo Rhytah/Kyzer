@@ -32,6 +32,9 @@ const DraggableImage = ({
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
+    end: (item, monitor) => {
+      console.log('Drag ended:', { item, didDrop: monitor.didDrop() });
+    },
   });
 
   const opacity = isDragging ? 0.5 : 1;
@@ -142,6 +145,62 @@ const DropZone = ({ index, onDrop }) => {
   );
 };
 
+// Draggable container with drop zones
+const DraggableImageContainer = ({ 
+  image, 
+  index, 
+  onRemove, 
+  onRotate, 
+  onZoom,
+  onPreview,
+  isSelected,
+  onSelect,
+  onDrop,
+  rotation
+}) => {
+  const [{ isOver, canDrop }, drop] = useDrop({
+    accept: ITEM_TYPE,
+    drop: (item) => {
+      if (item.index !== index) {
+        onDrop(item.index, index);
+      }
+    },
+    collect: (monitor) => ({
+      isOver: monitor.isOver(),
+      canDrop: monitor.canDrop(),
+    }),
+  });
+
+  return (
+    <div
+      ref={drop}
+      className={`
+        relative transition-all duration-200
+        ${isOver && canDrop ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}
+      `}
+    >
+      <DropZone index={index} onDrop={onDrop} />
+      <div
+        style={{
+          transform: rotation ? `rotate(${rotation}deg)` : 'none'
+        }}
+        className="transition-transform duration-300"
+      >
+        <DraggableImage
+          image={image}
+          index={index}
+          onRemove={onRemove}
+          onRotate={onRotate}
+          onZoom={onZoom}
+          onPreview={onPreview}
+          isSelected={isSelected}
+          onSelect={onSelect}
+        />
+      </div>
+    </div>
+  );
+};
+
 // Layout selector component
 const LayoutSelector = ({ currentLayout, onLayoutChange }) => {
   const layouts = [
@@ -195,14 +254,31 @@ const ImageArrangement = ({
   }
 
   const handleDrop = useCallback((dragIndex, dropIndex) => {
+    console.log('Drag and drop:', { dragIndex, dropIndex, totalImages: images.length });
+    
+    // Don't do anything if dropping on the same position
+    if (dragIndex === dropIndex) {
+      console.log('Dropped on same position, no change needed');
+      return;
+    }
+    
+    // Validate indices
+    if (dragIndex < 0 || dragIndex >= images.length || dropIndex < 0 || dropIndex >= images.length) {
+      console.error('Invalid drag/drop indices:', { dragIndex, dropIndex, totalImages: images.length });
+      return;
+    }
+    
     const newImages = [...images];
     const draggedItem = newImages[dragIndex];
     
     // Remove the dragged item
     newImages.splice(dragIndex, 1);
     
+    // Adjust drop index if we removed an item before the drop position
+    const adjustedDropIndex = dragIndex < dropIndex ? dropIndex - 1 : dropIndex;
+    
     // Insert at new position
-    newImages.splice(dropIndex, 0, draggedItem);
+    newImages.splice(adjustedDropIndex, 0, draggedItem);
     
     // Update page numbers
     const updatedImages = newImages.map((image, index) => ({
@@ -210,6 +286,11 @@ const ImageArrangement = ({
       pageNumber: index + 1,
       currentOrder: index + 1
     }));
+    
+    console.log('Updated images after drag and drop:', updatedImages.map(img => ({ 
+      pageNumber: img.pageNumber, 
+      originalPageNum: img.originalPageNum 
+    })));
     
     onImagesChange(updatedImages);
   }, [images, onImagesChange]);
@@ -346,26 +427,19 @@ const ImageArrangement = ({
           <DropZone index={0} onDrop={handleDrop} />
           <div className={renderLayout()}>
             {images.map((image, index) => (
-              <React.Fragment key={`${image.originalPageNum}-${index}`}>
-                <div
-                  style={{
-                    transform: rotations[index] ? `rotate(${rotations[index]}deg)` : 'none'
-                  }}
-                  className="transition-transform duration-300"
-                >
-                  <DraggableImage
-                    image={image}
-                    index={index}
-                    onRemove={handleRemove}
-                    onRotate={handleRotate}
-                    onZoom={handleZoom}
-                    onPreview={onPreview}
-                    isSelected={selectedImages.has(index)}
-                    onSelect={handleSelect}
-                  />
-                </div>
-                <DropZone index={index + 1} onDrop={handleDrop} />
-              </React.Fragment>
+              <DraggableImageContainer
+                key={`${image.originalPageNum}-${index}-${image.pageNumber}`}
+                image={image}
+                index={index}
+                onRemove={handleRemove}
+                onRotate={handleRotate}
+                onZoom={handleZoom}
+                onPreview={onPreview}
+                isSelected={selectedImages.has(index)}
+                onSelect={handleSelect}
+                onDrop={handleDrop}
+                rotation={rotations[index]}
+              />
             ))}
           </div>
         </div>

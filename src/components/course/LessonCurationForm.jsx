@@ -8,6 +8,7 @@ import Input from '@/components/ui/Input';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui';
 import SlideEditor from './SlideEditor';
+import QuizSlideForm from './QuizSlideForm';
 import {
   uploadFile,
   getFileUrl,
@@ -26,7 +27,10 @@ import {
   Image,
   Video,
   File,
-  Music
+  Music,
+  Grid3X3,
+  X,
+  ArrowUp
 } from 'lucide-react';
 
 export default function LessonCurationForm({ 
@@ -39,6 +43,10 @@ export default function LessonCurationForm({
   const { user } = useAuth();
   const { success, error: showError } = useToast();
   
+  // Refs for scrolling
+  const slidesContainerRef = useRef(null);
+  const quizFormRef = useRef(null);
+  
   // Store selectors
   const createPresentation = useCourseStore(state => state.actions.createPresentation);
   const updatePresentation = useCourseStore(state => state.actions.updatePresentation);
@@ -46,6 +54,9 @@ export default function LessonCurationForm({
   const updateSlide = useCourseStore(state => state.actions.updateSlide);
   const deleteSlide = useCourseStore(state => state.actions.deleteSlide);
   const reorderSlides = useCourseStore(state => state.actions.reorderSlides);
+  const createQuiz = useCourseStore(state => state.actions.createQuiz);
+  const upsertQuizQuestions = useCourseStore(state => state.actions.upsertQuizQuestions);
+  const fetchQuizzes = useCourseStore(state => state.actions.fetchQuizzes);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -58,8 +69,12 @@ export default function LessonCurationForm({
   const [error, setError] = useState('');
   const [isEditing] = useState(!!presentation);
   const [isUploading, setIsUploading] = useState(false);
+  const [isCreatingQuiz, setIsCreatingQuiz] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [draggedSlide, setDraggedSlide] = useState(null);
+  const [showQuizForm, setShowQuizForm] = useState(false);
+  const [existingQuizzes, setExistingQuizzes] = useState([]);
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
 
   // Initialize form with presentation data if editing
   useEffect(() => {
@@ -110,6 +125,49 @@ export default function LessonCurationForm({
       isNew: true
     };
     setSlides(prev => [...prev, newSlide]);
+    
+    // Scroll to the new slide after state update
+    setTimeout(() => {
+      // Find the newly added slide element by its ID
+      const newSlideElement = document.querySelector(`[data-slide-id="${newSlide.id}"]`);
+      if (newSlideElement) {
+        newSlideElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      } else if (slidesContainerRef.current) {
+        // Fallback to scrolling to the container if slide element not found
+        slidesContainerRef.current.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    }, 100);
+  };
+
+  const handleAddQuiz = () => {
+    setShowQuizForm(true);
+    
+    // Scroll to quiz form section after state update
+    setTimeout(() => {
+      if (quizFormRef.current) {
+        quizFormRef.current.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    }, 100);
+  };
+
+  const handleQuizSuccess = () => {
+    setShowQuizForm(false);
+  };
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
   };
 
   const updateSlideData = (slideId, updates) => {
@@ -186,6 +244,10 @@ export default function LessonCurationForm({
         setError(`Slide ${slide.slide_number} file is required`);
         return false;
       }
+      if (slide.content_type === 'quiz' && (!slide.metadata || !slide.metadata.quiz_id)) {
+        setError(`Slide ${slide.slide_number} quiz data is required`);
+        return false;
+      }
     }
     
     return true;
@@ -221,6 +283,7 @@ export default function LessonCurationForm({
       if (presentationData.error) {
         setError(presentationData.error);
         showError(presentationData.error);
+        setLoading(false);
         return;
       }
 
@@ -247,10 +310,9 @@ export default function LessonCurationForm({
         await deleteSlide(slide.id);
       }
 
-      // Update existing slides
+      // Update existing slides (excluding slide_number to avoid conflicts)
       for (const slide of existingSlides) {
         const slideData = {
-          slide_number: slide.slide_number,
           content_type: slide.content_type,
           title: slide.title,
           content_url: slide.content_url,
@@ -264,7 +326,8 @@ export default function LessonCurationForm({
         await updateSlide(slide.id, slideData);
       }
 
-      // Create new slides
+      // Create new slides and collect their actual IDs
+      const createdSlideIds = [];
       for (const slide of newSlides) {
         const slideData = {
           presentation_id: presentationId,
@@ -279,7 +342,19 @@ export default function LessonCurationForm({
           is_required: slide.is_required
         };
 
-        await createSlide(slideData);
+        const createdSlide = await createSlide(slideData);
+        if (createdSlide.data) {
+          createdSlideIds.push(createdSlide.data.id);
+        }
+      }
+
+      // Reorder all slides to ensure correct slide numbers
+      // Use actual database IDs for existing slides and newly created slides
+      const existingSlideIds = existingSlides.map(slide => slide.id);
+      const allSlideIds = [...existingSlideIds, ...createdSlideIds];
+      
+      if (allSlideIds.length > 0) {
+        await reorderSlides(presentationId, allSlideIds);
       }
 
       const message = isEditing 
@@ -303,8 +378,117 @@ export default function LessonCurationForm({
       case 'pdf': return <File className="w-4 h-4" />;
       case 'audio': return <Music className="w-4 h-4" />;
       case 'document': return <FileText className="w-4 h-4" />;
+      case 'quiz': return <Grid3X3 className="w-4 h-4" />;
       default: return <FileText className="w-4 h-4" />;
     }
+  };
+
+  // Fetch existing quizzes for the course
+  useEffect(() => {
+    if (courseId) {
+      const loadQuizzes = async () => {
+        try {
+          const result = await fetchQuizzes(courseId);
+          if (result.data) {
+            setExistingQuizzes(result.data);
+          }
+        } catch (error) {
+          console.error('Failed to load quizzes:', error);
+        }
+      };
+      loadQuizzes();
+    }
+  }, [courseId, fetchQuizzes]);
+
+  // Scroll to top button visibility
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const shouldShow = scrollTop > 100;
+      setShowScrollToTop(shouldShow);
+    };
+
+    // Check initial scroll position
+    handleScroll();
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Handle adding quiz slide
+  const handleAddQuizSlide = async (quizData) => {
+    setIsCreatingQuiz(true);
+    try {
+      // Create quiz first
+      const quizResult = await createQuiz(quizData, courseId, user.id);
+      if (quizResult.error) {
+        showError('Failed to create quiz: ' + quizResult.error);
+        return;
+      }
+
+      // Save quiz questions if they exist
+      if (quizData.questions && quizData.questions.length > 0) {
+        const questionsResult = await upsertQuizQuestions(quizResult.data.id, quizData.questions);
+        if (questionsResult.error) {
+          showError('Failed to save quiz questions: ' + questionsResult.error);
+          return;
+        }
+      }
+
+      // Create quiz slide
+      const quizSlide = {
+        id: `temp_${Date.now()}`,
+        slide_number: slides.length + 1,
+        content_type: 'quiz',
+        title: quizData.title,
+        content_url: '',
+        content_text: quizData.description || '',
+        content_format: 'quiz',
+        duration_seconds: quizData.time_limit_minutes ? quizData.time_limit_minutes * 60 : 300, // Default 5 minutes
+        metadata: {
+          quiz_id: quizResult.data.id,
+          pass_threshold: quizData.pass_threshold,
+          time_limit_minutes: quizData.time_limit_minutes,
+          question_count: quizData.questions ? quizData.questions.length : 0
+        },
+        is_required: true,
+        isNew: true
+      };
+
+      setSlides(prev => [...prev, quizSlide]);
+      setShowQuizForm(false);
+      success('Quiz slide added successfully!');
+    } catch (error) {
+      showError('Failed to create quiz slide: ' + error.message);
+    } finally {
+      setIsCreatingQuiz(false);
+    }
+  };
+
+  // Handle selecting existing quiz
+  const handleSelectExistingQuiz = (quiz) => {
+    const quizSlide = {
+      id: `temp_${Date.now()}`,
+      slide_number: slides.length + 1,
+      content_type: 'quiz',
+      title: quiz.title,
+      content_url: '',
+      content_text: quiz.description || '',
+      content_format: 'quiz',
+      duration_seconds: quiz.time_limit_minutes ? quiz.time_limit_minutes * 60 : 300,
+      metadata: {
+        quiz_id: quiz.id,
+        pass_threshold: quiz.pass_threshold,
+        time_limit_minutes: quiz.time_limit_minutes,
+        question_count: quiz.question_count || 0
+      },
+      is_required: true,
+      isNew: true
+    };
+
+    setSlides(prev => [...prev, quizSlide]);
+    setShowQuizForm(false);
+    success('Quiz slide added successfully!');
   };
 
   return (
@@ -371,15 +555,27 @@ export default function LessonCurationForm({
               <h3 className="text-lg font-semibold text-gray-900">
                 Slides ({slides.length})
               </h3>
-              <Button
-                type="button"
-                onClick={addSlide}
-                variant="outline"
-                size="sm"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Slide
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  onClick={addSlide}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Slide
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleAddQuiz}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <Grid3X3 className="w-4 h-4" />
+                  Add Quiz
+                </Button>
+              </div>
             </div>
 
             {slides.length === 0 ? (
@@ -388,15 +584,20 @@ export default function LessonCurationForm({
                 <p>No slides yet. Click "Add Slide" to get started.</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div ref={slidesContainerRef} className="space-y-4">
                 {slides.map((slide, index) => (
                   <div
                     key={slide.id}
+                    data-slide-id={slide.id}
                     draggable
                     onDragStart={(e) => handleDragStart(e, slide.id)}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, slide.id)}
-                    className={`border rounded-lg p-4 bg-white hover:shadow-md transition-shadow ${
+                    className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
+                      slide.content_type === 'quiz' 
+                        ? 'bg-blue-50 border-blue-200' 
+                        : 'bg-white'
+                    } ${
                       draggedSlide === slide.id ? 'opacity-50' : ''
                     }`}
                   >
@@ -406,10 +607,19 @@ export default function LessonCurationForm({
                         <span className="text-sm font-medium text-gray-600">
                           Slide {slide.slide_number}
                         </span>
-                        <div className="flex items-center gap-1 text-gray-500">
+                        <div className={`flex items-center gap-1 ${
+                          slide.content_type === 'quiz' ? 'text-blue-600' : 'text-gray-500'
+                        }`}>
                           {getContentTypeIcon(slide.content_type)}
-                          <span className="text-xs capitalize">{slide.content_type}</span>
+                          <span className="text-xs capitalize font-medium">
+                            {slide.content_type === 'quiz' ? 'Quiz' : slide.content_type}
+                          </span>
                         </div>
+                        {slide.content_type === 'quiz' && (
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
+                            Assessment
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -423,6 +633,23 @@ export default function LessonCurationForm({
                       </div>
                     </div>
 
+                    {/* Quiz metadata display */}
+                    {slide.content_type === 'quiz' && slide.metadata && (
+                      <div className="mb-3 p-3 bg-blue-100 rounded-lg">
+                        <div className="text-sm text-blue-800 space-y-1">
+                          {slide.metadata.question_count > 0 && (
+                            <p><strong>{slide.metadata.question_count}</strong> questions</p>
+                          )}
+                          {slide.metadata.pass_threshold && (
+                            <p>Pass threshold: <strong>{slide.metadata.pass_threshold}%</strong></p>
+                          )}
+                          {slide.metadata.time_limit_minutes && (
+                            <p>Time limit: <strong>{slide.metadata.time_limit_minutes} minutes</strong></p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <SlideEditor
                       slide={slide}
                       onUpdate={(updates) => updateSlideData(slide.id, updates)}
@@ -433,6 +660,44 @@ export default function LessonCurationForm({
               </div>
             )}
           </div>
+
+          {/* Quiz Form Section */}
+          {showQuizForm && (
+            <div ref={quizFormRef} className="border-t pt-6">
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Add Quiz to Presentation</h3>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowQuizForm(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                
+                <QuizSlideForm
+                  onAddQuizSlide={handleAddQuizSlide}
+                  onQuizSuccess={handleQuizSuccess}
+                  existingQuizzes={existingQuizzes}
+                  onSelectExistingQuiz={(quiz) => {
+                    // Handle selecting existing quiz
+                    handleAddQuizSlide({
+                      title: quiz.title,
+                      description: quiz.description,
+                      pass_threshold: quiz.pass_threshold,
+                      time_limit_minutes: quiz.time_limit_minutes,
+                      lesson_id: lessonId,
+                      quiz_id: quiz.id
+                    });
+                  }}
+                  presentationId={presentation?.id}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-4 pt-6 border-t">
@@ -446,18 +711,31 @@ export default function LessonCurationForm({
             </Button>
             <Button
               type="submit"
-              disabled={loading || isUploading}
+              disabled={loading || isUploading || isCreatingQuiz}
             >
               {loading ? (
+                <LoadingSpinner size="sm" className="mr-2" />
+              ) : isCreatingQuiz ? (
                 <LoadingSpinner size="sm" className="mr-2" />
               ) : (
                 <Save className="w-4 h-4 mr-2" />
               )}
-              {isEditing ? 'Update Presentation' : 'Create Presentation'}
+              {isCreatingQuiz ? 'Adding Quiz...' : isEditing ? 'Update Presentation' : 'Create Presentation'}
             </Button>
           </div>
         </form>
       </div>
+
+      {/* Scroll to Top Button */}
+      {showScrollToTop && (
+        <Button
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 z-[9999] bg-primary-default hover:bg-primary-dark text-white rounded-full p-3 shadow-2xl transition-all duration-300 hover:scale-105 border-2 border-white"
+          size="sm"
+        >
+          <ArrowUp className="w-5 h-5" />
+        </Button>
+      )}
     </Card>
   );
 }
