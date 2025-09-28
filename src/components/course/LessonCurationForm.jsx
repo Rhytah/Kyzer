@@ -2,11 +2,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useCourseStore } from '@/store/courseStore';
 import { useAuth } from '@/hooks/auth/useAuth';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
-import Input from '@/components/ui/Input';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { useToast } from '@/components/ui';
+import { 
+  Button, 
+  Card, 
+  Input, 
+  LoadingSpinner, 
+  useToast,
+  ContentTypeIcon,
+  ActionButton,
+  StatusBadge
+} from '@/components/ui';
 import SlideEditor from './SlideEditor';
 import QuizSlideForm from './QuizSlideForm';
 import {
@@ -372,15 +377,7 @@ export default function LessonCurationForm({
   };
 
   const getContentTypeIcon = (contentType) => {
-    switch (contentType) {
-      case 'video': return <Video className="w-4 h-4" />;
-      case 'image': return <Image className="w-4 h-4" />;
-      case 'pdf': return <File className="w-4 h-4" />;
-      case 'audio': return <Music className="w-4 h-4" />;
-      case 'document': return <FileText className="w-4 h-4" />;
-      case 'quiz': return <Grid3X3 className="w-4 h-4" />;
-      default: return <FileText className="w-4 h-4" />;
-    }
+    return <ContentTypeIcon type={contentType} size={16} className="w-4 h-4" />;
   };
 
   // Fetch existing quizzes for the course
@@ -565,16 +562,14 @@ export default function LessonCurationForm({
                   <Plus className="w-4 h-4 mr-2" />
                   Add Slide
                 </Button>
-                <Button
-                  type="button"
+                <ActionButton
+                  action="add"
                   onClick={handleAddQuiz}
                   variant="outline"
                   size="sm"
-                  className="flex items-center gap-2"
                 >
-                  <Grid3X3 className="w-4 h-4" />
                   Add Quiz
-                </Button>
+                </ActionButton>
               </div>
             </div>
 
@@ -616,9 +611,9 @@ export default function LessonCurationForm({
                           </span>
                         </div>
                         {slide.content_type === 'quiz' && (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
+                          <StatusBadge status="info" size="sm">
                             Assessment
-                          </span>
+                          </StatusBadge>
                         )}
                       </div>
                       <div className="flex items-center gap-2">

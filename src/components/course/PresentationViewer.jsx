@@ -1,6 +1,6 @@
 // src/components/course/PresentationViewer.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useToast, Button, Card } from '@/components/ui';
+import { useToast, Button, Card, ContentTypeIcon } from '@/components/ui';
 import LessonCurationForm from './LessonCurationForm';
 import {
   ChevronLeft,
@@ -25,15 +25,7 @@ import {
   ArrowUp
 } from 'lucide-react';
 
-const CONTENT_TYPE_ICONS = {
-  text: FileText,
-  image: Image,
-  video: Video,
-  pdf: File,
-  audio: Music,
-  document: File,
-  quiz: Grid3X3
-};
+// Content type icons are now handled by ContentTypeIcon component
 
 // Utility functions for external video platforms
 const isYouTubeUrl = (url) => {
@@ -372,8 +364,7 @@ export default function PresentationViewer({
   }, [isPlaying, currentSlide?.duration_seconds, handleNextSlide]);
 
   const getContentTypeIcon = (contentType) => {
-    const IconComponent = CONTENT_TYPE_ICONS[contentType] || FileText;
-    return <IconComponent className="w-4 h-4" />;
+    return <ContentTypeIcon type={contentType} size={16} className="w-4 h-4" />;
   };
 
   // Standardized 16:9 content container

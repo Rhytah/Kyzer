@@ -28,10 +28,15 @@ import PresentationViewer from '@/components/course/PresentationViewer'
 import QuizResult from '@/components/quiz/QuizResult'
 import { useCourseStore } from '@/store/courseStore'
 import { useAuth } from '@/hooks/auth/useAuth'
-import Button from '@/components/ui/Button'
-import Card from '@/components/ui/Card'
-import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { useToast } from '@/components/ui'
+import { 
+  Button, 
+  Card, 
+  LoadingSpinner, 
+  useToast,
+  ActionButton,
+  StatusBadge,
+  ContentTypeIcon
+} from '@/components/ui'
 
 // Custom hook for intersection observer (lazy loading)
 const useIntersectionObserver = (options = {}) => {
@@ -828,9 +833,9 @@ export default function LessonView() {
         )}
         {pdfUrl && (
           <div className="mt-3 flex justify-end">
-            <Button variant="secondary" onClick={() => window.open(pdfUrl, '_blank')}>
+            <ActionButton action="view" variant="secondary" onClick={() => window.open(pdfUrl, '_blank')}>
               Open in new tab
-            </Button>
+            </ActionButton>
           </div>
         )}
       </div>
@@ -883,9 +888,9 @@ export default function LessonView() {
         )}
         {pptUrl && (
           <div className="mt-3 flex justify-end">
-            <Button variant="secondary" onClick={() => window.open(pptUrl, '_blank')}>
+            <ActionButton action="view" variant="secondary" onClick={() => window.open(pptUrl, '_blank')}>
               Open in new tab
-            </Button>
+            </ActionButton>
           </div>
         )}
       </div>
@@ -1395,9 +1400,9 @@ export default function LessonView() {
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold text-text-dark mb-4">Lesson Not Found</h2>
         <p className="text-text-light mb-6">The lesson you're looking for doesn't exist.</p>
-        <Button onClick={() => navigate(`/app/courses/${courseId}`)}>
+        <ActionButton action="previous" onClick={() => navigate(`/app/courses/${courseId}`)}>
           Back to Course
-        </Button>
+        </ActionButton>
       </div>
     )
   }
@@ -1740,19 +1745,18 @@ export default function LessonView() {
 
         {/* Navigation */}
         <div className="flex justify-between">
-          <Button
-            variant="secondary"
+          <ActionButton
+            action="previous"
             onClick={goToPreviousLesson}
             disabled={lessons.findIndex(l => l.id === lessonId) === 0}
+            variant="secondary"
           >
-            <ChevronLeft className="w-4 h-4 mr-2" />
             Previous Lesson
-          </Button>
+          </ActionButton>
           
-          <Button onClick={goToNextLesson}>
+          <ActionButton action="next" onClick={goToNextLesson}>
             Next Lesson
-            <ChevronRight className="w-4 h-4 ml-2" />
-          </Button>
+          </ActionButton>
         </div>
       </div>
 
