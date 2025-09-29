@@ -17,9 +17,14 @@ import {
   TrendingUp,
   Award
 } from "lucide-react";
-import Button from "@/components/ui/Button";
-import Card from "@/components/ui/Card";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { 
+  Button, 
+  Card, 
+  LoadingSpinner,
+  ActionButton,
+  StatusBadge,
+  EmptyState
+} from "@/components/ui";
 
 const CourseCatalog = () => {
   const navigate = useNavigate();
@@ -408,14 +413,12 @@ const CourseCatalog = () => {
           {/* Action Buttons */}
           <div className="flex items-center justify-between">
             <div className="flex gap-2">
-              <Button
+              <ActionButton
+                action="view"
+                onClick={() => navigate(`/app/courses/${course.id}`)}
                 variant="outline"
                 size="sm"
-                onClick={() => navigate(`/app/courses/${course.id}`)}
-              >
-                <Play className="w-4 h-4 mr-2" />
-                Preview
-              </Button>
+              />
             </div>
 
             <Button
@@ -467,9 +470,9 @@ const CourseCatalog = () => {
           Error Loading Courses
         </h3>
         <p className="text-gray-600 mb-4">{error}</p>
-        <Button onClick={() => fetchCourses()}>
+        <ActionButton action="refresh" onClick={() => fetchCourses()}>
           Try Again
-        </Button>
+        </ActionButton>
       </Card>
     );
   }
@@ -595,24 +598,17 @@ const CourseCatalog = () => {
 
       {/* Course Grid/List */}
       {sortedCourses.length === 0 ? (
-        <Card className="p-12 text-center">
-          <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            No courses found
-          </h3>
-          <p className="text-gray-600 mb-4">
-            Try adjusting your search criteria or browse all courses
-          </p>
-          <Button
-            onClick={() => {
-              setSearchTerm("");
-              setSelectedCategory("all");
-              setSelectedLevel("all");
-            }}
-          >
-            View All Courses
-          </Button>
-        </Card>
+        <EmptyState
+          icon="book"
+          title="No courses found"
+          description="Try adjusting your search criteria or browse all courses"
+          actionText="View All Courses"
+          action={() => {
+            setSearchTerm("");
+            setSelectedCategory("all");
+            setSelectedLevel("all");
+          }}
+        />
       ) : (
         <div
           className={

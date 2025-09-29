@@ -124,7 +124,7 @@ export default function Contact() {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background-light px-4">
+      <div className="min-h-screen flex items-center justify-center px-4">
         <Card className="max-w-md w-full text-center p-8">
           <div className="w-16 h-16 bg-success-light rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-8 h-8 text-success-default" />

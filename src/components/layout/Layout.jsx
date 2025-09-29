@@ -66,10 +66,10 @@ export default function Layout() {
         )}
 
         {/* Main Content */}
-        <main className={`flex-1 transition-all duration-300 ease-in-out ${
-          desktopSidebarCollapsed ? 'ml-0' : 'ml-0'
+        <main className={`flex-1 transition-all duration-300 ease-in-out  mr-4 mt-6 ${
+          desktopSidebarCollapsed ? 'ml-2' : 'ml-2'
         }`}>
-          <div className="p-6 pb-20 lg:pb-6">
+          <div className="pb-10 lg:pb-6">
             <Breadcrumbs />
             <Outlet />
           </div>

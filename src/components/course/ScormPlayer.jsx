@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Download } from 'lucide-react';
 import { useAuth } from '@/hooks/auth/useAuth';
 import { useCourseStore } from '@/store/courseStore';
 import { supabase } from '@/lib/supabase';
@@ -26,6 +27,30 @@ const ScormPlayer = ({
   const [extractionError, setExtractionError] = useState(null);
   const [scormHtmlContent, setScormHtmlContent] = useState(null);
   const [useDirectDisplay, setUseDirectDisplay] = useState(false);
+  const [loadingStep, setLoadingStep] = useState('');
+
+  // Test SCORM URL accessibility
+  const testScormUrl = useCallback(async (url) => {
+    try {
+      const response = await fetch(url, { 
+        method: 'HEAD',
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      return {
+        accessible: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        contentType: response.headers.get('content-type'),
+        contentLength: response.headers.get('content-length')
+      };
+    } catch (error) {
+      return {
+        accessible: false,
+        error: error.message
+      };
+    }
+  }, []);
 
   // Process SCORM package and create content URL
   const processScormPackage = useCallback(async () => {
@@ -34,6 +59,18 @@ const ScormPlayer = ({
     try {
       setIsLoading(true);
       setExtractionError(null);
+      setLoadingStep('Testing URL accessibility...');
+
+      // First test if the URL is accessible
+      console.log('Testing SCORM URL accessibility...');
+      const urlTest = await testScormUrl(scormUrl);
+      console.log('URL test result:', urlTest);
+      
+      if (!urlTest.accessible) {
+        throw new Error(`SCORM package is not accessible: ${urlTest.error || `HTTP ${urlTest.status} ${urlTest.statusText}`}`);
+      }
+
+      setLoadingStep('Downloading SCORM package...');
 
       // The scormUrl should now be a public URL from Supabase storage
       // We need to extract the ZIP file and create a proper SCORM viewer
@@ -43,22 +80,41 @@ const ScormPlayer = ({
       console.error('Error processing SCORM package:', error);
       setExtractionError('Failed to process SCORM package: ' + error.message);
       setIsLoading(false);
+      setLoadingStep('');
     }
-  }, [scormUrl]);
+  }, [scormUrl, testScormUrl]);
 
   // Extract and display SCORM package from ZIP file
   const extractAndDisplayScorm = useCallback(async (zipUrl) => {
     try {
       console.log('Extracting SCORM package from:', zipUrl);
       
-      // Download the ZIP file
-      const response = await fetch(zipUrl);
+      setLoadingStep('Downloading SCORM package...');
+      
+      // Download the ZIP file with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      const response = await fetch(zipUrl, { 
+        signal: controller.signal,
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      
+      clearTimeout(timeoutId);
+      
       if (!response.ok) {
         throw new Error(`Failed to download SCORM package: ${response.status} ${response.statusText}`);
       }
       
       const zipBlob = await response.blob();
       console.log('Downloaded ZIP file, size:', zipBlob.size);
+      
+      if (zipBlob.size === 0) {
+        throw new Error('Downloaded ZIP file is empty');
+      }
+      
+      setLoadingStep('Parsing SCORM manifest...');
       
       // Use the proper SCORM parser to find the correct entry point
       const parser = new SCORMPackageParser(zipBlob);
@@ -78,6 +134,8 @@ const ScormPlayer = ({
       
       console.log('Found launch URL from manifest:', entryPoint);
       
+      setLoadingStep('Extracting content files...');
+      
       // Use JSZip to extract the specific file
       const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
@@ -91,6 +149,17 @@ const ScormPlayer = ({
       
       const content = await entryFile.async('text');
       console.log('Extracted content length:', content.length);
+      
+      // Check if the content is a placeholder or not implemented
+      if (content.includes('Not implemented yet') || content.includes('placeholder') || content.length < 100) {
+        console.warn('SCORM content appears to be a placeholder or not fully implemented');
+        setLoadingStep('Content appears to be a placeholder...');
+      }
+      
+      setLoadingStep('Preparing content for display...');
+      
+      // Check if content is a placeholder
+      const isPlaceholder = content.includes('Not implemented yet') || content.includes('placeholder') || content.length < 100;
       
       // Create a complete HTML page with the SCORM content
       // We need to handle relative paths and assets
@@ -145,6 +214,18 @@ const ScormPlayer = ({
             .download-link:hover {
               background: #218838;
             }
+            .placeholder-notice {
+              background: #fff3cd;
+              border: 1px solid #ffeaa7;
+              color: #856404;
+              padding: 15px;
+              border-radius: 8px;
+              margin-bottom: 20px;
+            }
+            .placeholder-notice h3 {
+              margin: 0 0 10px 0;
+              color: #856404;
+            }
           </style>
         </head>
         <body>
@@ -157,6 +238,12 @@ const ScormPlayer = ({
                   Download Original Package
                 </a>
               </div>
+              ${isPlaceholder ? `
+                <div class="placeholder-notice">
+                  <h3>⚠️ Content Notice</h3>
+                  <p>This SCORM package appears to contain placeholder content that is not fully implemented. The package structure is valid, but the actual learning content may not be available.</p>
+                </div>
+              ` : ''}
               <div id="scorm-main-content">
                 ${content}
               </div>
@@ -177,11 +264,30 @@ const ScormPlayer = ({
       setScormContentUrl(contentUrl);
       setScormHtmlContent(htmlContent); // Store HTML content for direct display fallback
       setIsLoading(false);
+      setLoadingStep('');
       
     } catch (error) {
       console.error('Error extracting SCORM package:', error);
-      setExtractionError('Failed to extract SCORM package: ' + error.message);
+      
+      let errorMessage = 'Failed to extract SCORM package: ';
+      
+      if (error.name === 'AbortError') {
+        errorMessage += 'Request timed out. Please check your internet connection and try again.';
+      } else if (error.message.includes('Failed to download')) {
+        errorMessage += `Download failed: ${error.message}`;
+      } else if (error.message.includes('Invalid SCORM package')) {
+        errorMessage += `Invalid package format: ${error.message}`;
+      } else if (error.message.includes('No launch URL found')) {
+        errorMessage += 'SCORM package is missing required manifest information.';
+      } else if (error.message.includes('Entry point file not found')) {
+        errorMessage += 'SCORM package structure is invalid.';
+      } else {
+        errorMessage += error.message;
+      }
+      
+      setExtractionError(errorMessage);
       setIsLoading(false);
+      setLoadingStep('');
     }
   }, []);
 
@@ -425,7 +531,7 @@ const ScormPlayer = ({
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
           <h3 className="text-lg font-medium text-red-800 mb-2">SCORM Loading Error</h3>
           <p className="text-red-600 mb-4">{error || extractionError}</p>
-          <div className="space-x-2">
+          <div className="space-x-2 mb-4">
             <button
               onClick={() => window.location.reload()}
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
@@ -441,6 +547,19 @@ const ScormPlayer = ({
               </button>
             )}
           </div>
+          {scormUrl && (
+            <div className="mt-4 p-3 bg-gray-100 rounded-lg">
+              <p className="text-sm text-gray-600 mb-2">Alternative: Download the SCORM package directly</p>
+              <a
+                href={scormUrl}
+                download
+                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download SCORM Package
+              </a>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -452,7 +571,10 @@ const ScormPlayer = ({
         <div className="flex items-center justify-center h-64 bg-gray-50 border border-gray-200 rounded-lg">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading SCORM content...</p>
+            <p className="text-gray-600 mb-2">Loading SCORM content...</p>
+            {loadingStep && (
+              <p className="text-sm text-gray-500">{loadingStep}</p>
+            )}
           </div>
         </div>
       )}

@@ -25,13 +25,17 @@ import {
 } from 'lucide-react'
 import { ScormPlayer } from '@/components/course'
 import PresentationViewer from '@/components/course/PresentationViewer'
-import QuizResult from '@/components/quiz/QuizResult'
 import { useCourseStore } from '@/store/courseStore'
 import { useAuth } from '@/hooks/auth/useAuth'
-import Button from '@/components/ui/Button'
-import Card from '@/components/ui/Card'
-import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import { useToast } from '@/components/ui'
+import { 
+  Button, 
+  Card, 
+  LoadingSpinner, 
+  useToast,
+  ActionButton,
+  StatusBadge,
+  ContentTypeIcon
+} from '@/components/ui'
 
 // Custom hook for intersection observer (lazy loading)
 const useIntersectionObserver = (options = {}) => {
@@ -84,22 +88,10 @@ export default function LessonView() {
   const [haltVideo, setHaltVideo] = useState(false)
   const [playerKey, setPlayerKey] = useState(0)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  // Quiz state
+  const [quizzesByLesson, setQuizzesByLesson] = useState({})
+  const [quizCompletionStatus, setQuizCompletionStatus] = useState({})
   const [quiz, setQuiz] = useState(null)
   const [quizQuestions, setQuizQuestions] = useState([])
-  const [quizStarted, setQuizStarted] = useState(false)
-  const [quizAnswers, setQuizAnswers] = useState({})
-  const [quizTimeLeftSec, setQuizTimeLeftSec] = useState(null)
-  const quizTimerRef = useRef(null)
-  const quizBlockRef = useRef(null)
-  const [quizzesByLesson, setQuizzesByLesson] = useState({})
-  
-  // Quiz results state
-  const [showQuizResult, setShowQuizResult] = useState(false)
-  const [quizResult, setQuizResult] = useState(null)
-  const [quizStartTime, setQuizStartTime] = useState(null)
-  const [quizCompleted, setQuizCompleted] = useState(false)
-  const [quizCompletionData, setQuizCompletionData] = useState(null)
   const { success, error: showError } = useToast()
 
   // Player refs
@@ -232,12 +224,34 @@ export default function LessonView() {
                 const map = {};
                 // order quizzes by created_at ascending so they appear stable
                 const sorted = [...courseQuizzes].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-                sorted.forEach(q => {
-                  if (!q.lesson_id) return;
+
+                // Filter to only include quizzes that have questions
+                const quizzesWithQuestions = [];
+                for (const quiz of sorted) {
+                  if (!quiz.lesson_id) continue;
+
+                  // Check if quiz has questions
+                  try {
+                    const { data: questions } = await actions.fetchQuizQuestions(quiz.id);
+                    if (questions && questions.length > 0) {
+                      quizzesWithQuestions.push({
+                        ...quiz,
+                        question_count: questions.length
+                      });
+                    }
+                  } catch (error) {
+                    console.log(`Could not fetch questions for quiz ${quiz.id}:`, error);
+                    // Skip this quiz if we can't fetch its questions
+                  }
+                }
+
+                // Build the map with only quizzes that have questions
+                quizzesWithQuestions.forEach(q => {
                   if (!map[q.lesson_id]) map[q.lesson_id] = [];
                   map[q.lesson_id].push(q);
-                })
-                setQuizzesByLesson(map)
+                });
+
+                setQuizzesByLesson(map);
               } else {
                 setQuizzesByLesson({})
               }
@@ -286,28 +300,7 @@ export default function LessonView() {
     }
   }, [courseId, lessonId, courses, actions, user?.id])
 
-  // If URL contains #quiz, scroll to quiz section once quiz is loaded
-  useEffect(() => {
-    if (location.hash === '#quiz' && quiz && quizQuestions.length > 0 && quizBlockRef.current) {
-      quizBlockRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-  }, [location.hash, quiz, quizQuestions])
 
-  // Manage quiz timer
-  useEffect(() => {
-    if (!quizStarted) return
-    if (!quiz || !quiz.time_limit_minutes || quiz.time_limit_minutes <= 0) return
-    if (quizTimeLeftSec === null) return
-    if (quizTimeLeftSec <= 0) {
-      // Auto submit on time up
-      handleSubmitQuiz()
-      return
-    }
-    quizTimerRef.current = setTimeout(() => setQuizTimeLeftSec((s) => (s !== null ? s - 1 : s)), 1000)
-    return () => {
-      if (quizTimerRef.current) clearTimeout(quizTimerRef.current)
-    }
-  }, [quizStarted, quiz, quizTimeLeftSec])
 
   useEffect(() => {
     // Auto-save progress every 30 seconds
@@ -457,172 +450,20 @@ export default function LessonView() {
     return hasVideoExtension;
   };
 
-  const quizLocked = !!(lesson?.is_required && !isCompleted)
 
-  const startQuiz = () => {
-    if (quizLocked) {
-      showError('Complete this required lesson to unlock the quiz')
-      return
-    }
-    setQuizStarted(true)
-    setQuizAnswers({})
-    setQuizStartTime(Date.now())
-    if (quiz?.time_limit_minutes && quiz.time_limit_minutes > 0) {
-      setQuizTimeLeftSec(quiz.time_limit_minutes * 60)
-    } else {
-      setQuizTimeLeftSec(null)
-    }
-  }
 
-  const setAnswer = (qIndex, value) => {
-    setQuizAnswers((prev) => ({ ...prev, [qIndex]: value }))
-  }
 
-  const handleSubmitQuiz = useCallback(async () => {
-    // Calculate score
-    let score = 0
-    const max = quizQuestions.length
-    quizQuestions.forEach((q, idx) => {
-      const type = q.question_type
-      const correct = q.correct_answer
-      const ans = quizAnswers[idx]
-      if (type === 'multiple_choice') {
-        if (typeof ans === 'number' && ans === correct) score += 1
-      } else if (type === 'multiple_select') {
-        const aSet = new Set(Array.isArray(ans) ? ans : [])
-        const cSet = new Set(Array.isArray(correct) ? correct : [])
-        if (aSet.size === cSet.size && [...aSet].every(v => cSet.has(v))) score += 1
-      } else if (type === 'true_false') {
-        if (typeof ans === 'boolean' && ans === !!correct) score += 1
-      } else if (type === 'short_answer') {
-        if ((ans || '').toString().trim().toLowerCase() === ((correct || '').toString().trim().toLowerCase())) score += 1
-      }
-    })
-    
-    // Calculate time spent
-    const timeSpent = quizStartTime ? Math.floor((Date.now() - quizStartTime) / 1000) : 0
-    
-    try {
-      if (user?.id && quiz?.id) {
-        const result = await actions.submitQuizAttempt(user.id, quiz.id, quizAnswers, score, max)
-        
-        // Update quiz result with completion status
-        if (result.data) {
-          setQuizResult(prev => ({
-            ...prev,
-            passed: result.data.passed,
-            percentage: result.data.percentage
-          }))
-          
-          // If quiz was passed, mark as completed
-          if (result.data.passed) {
-            setQuizCompleted(true)
-            setQuizCompletionData({
-              score: result.data.score,
-              maxScore: result.data.max_score,
-              percentage: result.data.percentage,
-              completedAt: new Date().toISOString()
-            })
-            
-            // Update quiz completion status for navigation
-            setQuizCompletionStatus(prev => ({
-              ...prev,
-              [quiz.id]: true
-            }))
-          }
-        }
-      }
-      
-      // Set quiz result data
-      setQuizResult({
-        score,
-        maxScore: max,
-        timeSpent,
-        userAnswers: { ...quizAnswers },
-        passed: result?.data?.passed || false,
-        percentage: result?.data?.percentage || 0
-      })
-      
-      // Show detailed results instead of just a toast
-      setShowQuizResult(true)
-      
-    } catch (_) {
-      showError('Failed to submit quiz')
-    } finally {
-      setQuizStarted(false)
-      setQuizTimeLeftSec(null)
-    }
-  }, [user?.id, quiz?.id, quizQuestions, quizAnswers, quizStartTime, actions, showError])
-
-  // Handle quiz result actions
-  const handleRetakeQuiz = () => {
-    setShowQuizResult(false)
-    setQuizResult(null)
-    setQuizCompleted(false)
-    setQuizCompletionData(null)
-    startQuiz()
-  }
-
-  const handleCloseQuizResult = () => {
-    setShowQuizResult(false)
-    setQuizResult(null)
-  }
-
-  // Check if quiz has been completed
-  const checkQuizCompletion = useCallback(async () => {
-    if (!user?.id || !quiz?.id) return
-
-    try {
-      const { data: attempts } = await actions.fetchQuizAttempts(user.id, quiz.id)
-      if (attempts && attempts.length > 0) {
-        // Find the most recent attempt
-        const latestAttempt = attempts.sort((a, b) => 
-          new Date(b.completed_at) - new Date(a.completed_at)
-        )[0]
-        
-        if (latestAttempt.passed) {
-          setQuizCompleted(true)
-          setQuizCompletionData({
-            score: latestAttempt.score,
-            maxScore: latestAttempt.max_score,
-            percentage: latestAttempt.percentage,
-            completedAt: latestAttempt.completed_at
-          })
-        }
-      }
-    } catch (error) {
-      // Silently handle error - quiz completion check is not critical
-    }
-  }, [user?.id, quiz?.id, actions])
-
-  // Check quiz completion when quiz loads
-  useEffect(() => {
-    if (quiz && user) {
-      checkQuizCompletion()
-    }
-  }, [quiz, user, checkQuizCompletion])
-
-  // Helper function to check if a quiz is completed
+  // Check if a quiz is completed
   const isQuizCompleted = useCallback(async (quizId) => {
-    if (!user?.id || !quizId) return false
-    
+    if (!user?.id || !quizId) return false;
     try {
-      const { data: attempts } = await actions.fetchQuizAttempts(user.id, quizId)
-      if (attempts && attempts.length > 0) {
-        // Find the most recent attempt
-        const latestAttempt = attempts.sort((a, b) => 
-          new Date(b.completed_at) - new Date(a.completed_at)
-        )[0]
-        return latestAttempt.passed || false
-      }
-      return false
+      const { data } = await actions.fetchQuizAttempt(user.id, quizId);
+      return data && data.completed;
     } catch (error) {
-      return false
+      console.error('Error checking quiz completion:', error);
+      return false;
     }
-  }, [user?.id, actions])
-
-  // State to track quiz completion status for navigation
-  const [quizCompletionStatus, setQuizCompletionStatus] = useState({})
+  }, [user?.id, actions]);
 
   // Load quiz completion status for all quizzes
   const loadQuizCompletionStatus = useCallback(async () => {
@@ -720,10 +561,14 @@ export default function LessonView() {
 
   // Memoized values for the main component
   const lessonDescriptionHtml = useMemo(() => {
-    // For presentation-type lessons, don't try to parse content_text as it contains split PDF data
+    // For presentation-type lessons, show the lesson description or content
     if (lesson?.content_type === 'presentation') {
-      // For presentations, we'll show the presentation description in the PresentationWrapper
-      // or show a generic message here
+      const description = lesson?.description || lesson?.content_text;
+      if (description && !description.startsWith('{')) {
+        // If it's not JSON data, show the description
+        return <p className="text-text-light">{description}</p>;
+      }
+      // For presentations with JSON data, show a generic message
       return <p className="text-text-light">This lesson contains a presentation with slides.</p>;
     }
     
@@ -828,9 +673,9 @@ export default function LessonView() {
         )}
         {pdfUrl && (
           <div className="mt-3 flex justify-end">
-            <Button variant="secondary" onClick={() => window.open(pdfUrl, '_blank')}>
+            <ActionButton action="view" variant="secondary" onClick={() => window.open(pdfUrl, '_blank')}>
               Open in new tab
-            </Button>
+            </ActionButton>
           </div>
         )}
       </div>
@@ -883,9 +728,9 @@ export default function LessonView() {
         )}
         {pptUrl && (
           <div className="mt-3 flex justify-end">
-            <Button variant="secondary" onClick={() => window.open(pptUrl, '_blank')}>
+            <ActionButton action="view" variant="secondary" onClick={() => window.open(pptUrl, '_blank')}>
               Open in new tab
-            </Button>
+            </ActionButton>
           </div>
         )}
       </div>
@@ -1081,54 +926,23 @@ export default function LessonView() {
     }
 
     return (
-      <div className="space-y-4">
-        {/* Presentation Header */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-                {presentation.title}
-              </h2>
-              {presentation.description && (
-                <p className="text-gray-600 mb-3">{presentation.description}</p>
-              )}
-              <div className="flex items-center gap-4 text-sm text-gray-500">
-                <span className="flex items-center gap-1">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  {presentation.total_slides} slides
-                </span>
-                <span className="flex items-center gap-1">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  {Math.ceil(presentation.estimated_duration / 60)} min estimated
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Presentation Viewer */}
-        <PresentationViewer 
-          presentation={presentation}
-          lesson={lesson}
-          onSlideComplete={(slideIndex) => {
-            // Handle slide completion if needed
-          }}
-          onPresentationComplete={() => {
-            // Handle presentation completion
-            setIsCompleted(true);
-          }}
-          isCompleted={isCompleted}
-          onMarkComplete={markAsCompleted}
-          onPreviousLesson={goToPreviousLesson}
-          onNextLesson={goToNextLesson}
-          hasPreviousLesson={lessons.findIndex(l => l.id === lessonId) > 0}
-          hasNextLesson={lessons.findIndex(l => l.id === lessonId) < lessons.length - 1}
-        />
-      </div>
+      <PresentationViewer 
+        presentation={presentation}
+        lesson={lesson}
+        onSlideComplete={(slideIndex) => {
+          // Handle slide completion if needed
+        }}
+        onPresentationComplete={() => {
+          // Handle presentation completion
+          setIsCompleted(true);
+        }}
+        isCompleted={isCompleted}
+        onMarkComplete={markAsCompleted}
+        onPreviousLesson={goToPreviousLesson}
+        onNextLesson={goToNextLesson}
+        hasPreviousLesson={lessons.findIndex(l => l.id === lessonId) > 0}
+        hasNextLesson={lessons.findIndex(l => l.id === lessonId) < lessons.length - 1}
+      />
     );
   });
 
@@ -1395,9 +1209,9 @@ export default function LessonView() {
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold text-text-dark mb-4">Lesson Not Found</h2>
         <p className="text-text-light mb-6">The lesson you're looking for doesn't exist.</p>
-        <Button onClick={() => navigate(`/app/courses/${courseId}`)}>
+        <ActionButton action="previous" onClick={() => navigate(`/app/courses/${courseId}`)}>
           Back to Course
-        </Button>
+        </ActionButton>
       </div>
     )
   }
@@ -1571,147 +1385,6 @@ export default function LessonView() {
           )}
         </Card> */}
 
-        {/* Quiz block (below the lesson content) */}
-        {quiz && quizQuestions.length > 0 && (
-          <div ref={quizBlockRef}>
-            <Card className={`p-6 ${quizCompleted ? 'border-green-200 bg-green-50' : ''}`}>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-xl font-semibold text-text-dark">Quiz: {quiz.title}</h3>
-                  {quizCompleted && (
-                    <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                      <CheckCircle className="w-4 h-4" />
-                      Completed
-                    </div>
-                  )}
-                </div>
-                {quiz?.time_limit_minutes ? (
-                  <span className="text-sm text-text-muted">Time limit: {quiz.time_limit_minutes} min</span>
-                ) : null}
-              </div>
-              {!quizStarted ? (
-                <div className="space-y-3">
-                  {quizLocked && (
-                    <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-3">
-                      Complete this required lesson to unlock the quiz.
-                    </div>
-                  )}
-                  
-                  {quizCompleted ? (
-                    <div className="space-y-4">
-                      <div className="bg-green-100 border border-green-200 rounded-lg p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <CheckCircle className="w-5 h-5 text-green-600" />
-                          <span className="font-medium text-green-800">Quiz Completed Successfully!</span>
-                        </div>
-                        <div className="text-sm text-green-700">
-                          <p>Score: {quizCompletionData?.score}/{quizCompletionData?.maxScore} ({quizCompletionData?.percentage}%)</p>
-                          <p>Completed: {quizCompletionData?.completedAt ? new Date(quizCompletionData.completedAt).toLocaleDateString() : 'Recently'}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-3">
-                        <Button onClick={startQuiz} variant="secondary">
-                          <RotateCcw className="w-4 h-4 mr-2" />
-                          Retake Quiz
-                        </Button>
-                        <Button onClick={() => setShowQuizResult(true)}>
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          View Results
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <p className="text-text-light">Pass threshold: {quiz.pass_threshold ?? 70}%</p>
-                      <Button onClick={startQuiz} disabled={quizLocked}>Start Quiz</Button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {quiz?.time_limit_minutes ? (
-                    <div className="text-sm text-text-muted">Time left: {formatTime(quizTimeLeftSec || 0)}</div>
-                  ) : null}
-                  {quizQuestions.map((q, idx) => (
-                    <div key={idx} className="border rounded p-4">
-                      <div className="font-medium mb-2">{idx + 1}. {q.question_text}</div>
-                      {q.question_type === 'multiple_choice' && (
-                        <div className="space-y-2">
-                          {(q.options || []).map((opt, oi) => (
-                            <label key={oi} className="flex items-center gap-2">
-                              <input type="radio" name={`q-${idx}`} checked={quizAnswers[idx] === oi} onChange={() => setAnswer(idx, oi)} />
-                              <span>{opt}</span>
-                            </label>
-                          ))}
-                        </div>
-                      )}
-                      {q.question_type === 'multiple_select' && (
-                        <div className="space-y-2">
-                          {(q.options || []).map((opt, oi) => (
-                            <label key={oi} className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={Array.isArray(quizAnswers[idx]) ? quizAnswers[idx].includes(oi) : false}
-                                onChange={(e) => {
-                                  const prev = new Set(Array.isArray(quizAnswers[idx]) ? quizAnswers[idx] : [])
-                                  if (e.target.checked) prev.add(oi); else prev.delete(oi)
-                                  setAnswer(idx, Array.from(prev))
-                                }}
-                              />
-                              <span>{opt}</span>
-                            </label>
-                          ))}
-                        </div>
-                      )}
-                      {q.question_type === 'true_false' && (
-                        <div className="flex gap-4">
-                          <label className="flex items-center gap-2">
-                            <input type="radio" name={`q-${idx}`} checked={quizAnswers[idx] === true} onChange={() => setAnswer(idx, true)} />
-                            <span>True</span>
-                          </label>
-                          <label className="flex items-center gap-2">
-                            <input type="radio" name={`q-${idx}`} checked={quizAnswers[idx] === false} onChange={() => setAnswer(idx, false)} />
-                            <span>False</span>
-                          </label>
-                        </div>
-                      )}
-                      {q.question_type === 'short_answer' && (
-                        <input
-                          type="text"
-                          className="w-full px-3 py-2 border rounded"
-                          value={(quizAnswers[idx] || '').toString()}
-                          onChange={(e) => setAnswer(idx, e.target.value)}
-                          placeholder="Your answer"
-                        />
-                      )}
-                    </div>
-                  ))}
-                  <div className="flex justify-end">
-                    <Button onClick={handleSubmitQuiz}>Submit Quiz</Button>
-                  </div>
-                </div>
-              )}
-            </Card>
-          </div>
-        )}
-
-        {/* Quiz Results */}
-        {showQuizResult && (quizResult || quizCompletionData) && (
-          <div className="mt-6">
-            <QuizResult
-              quiz={quiz}
-              questions={quizQuestions}
-              userAnswers={quizResult?.userAnswers || {}}
-              score={quizResult?.score || quizCompletionData?.score || 0}
-              maxScore={quizResult?.maxScore || quizCompletionData?.maxScore || 0}
-              timeSpent={quizResult?.timeSpent || 0}
-              passed={quizResult?.passed || quizCompletionData?.percentage >= (quiz?.pass_threshold || 70)}
-              percentage={quizResult?.percentage || quizCompletionData?.percentage || 0}
-              onRetake={handleRetakeQuiz}
-              onClose={handleCloseQuizResult}
-            />
-          </div>
-        )}
 
         {/* Resources */}
         {lesson.content_url && (
@@ -1740,19 +1413,18 @@ export default function LessonView() {
 
         {/* Navigation */}
         <div className="flex justify-between">
-          <Button
-            variant="secondary"
+          <ActionButton
+            action="previous"
             onClick={goToPreviousLesson}
             disabled={lessons.findIndex(l => l.id === lessonId) === 0}
+            variant="secondary"
           >
-            <ChevronLeft className="w-4 h-4 mr-2" />
             Previous Lesson
-          </Button>
+          </ActionButton>
           
-          <Button onClick={goToNextLesson}>
+          <ActionButton action="next" onClick={goToNextLesson}>
             Next Lesson
-            <ChevronRight className="w-4 h-4 ml-2" />
-          </Button>
+          </ActionButton>
         </div>
       </div>
 
@@ -1796,75 +1468,120 @@ export default function LessonView() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-text-dark">Course Content</h3>
             <div className="text-sm text-text-light">
-              {lessons.filter(lesson => courseProgress[courseId]?.[lesson.id]?.completed).length} / {lessons.length} completed
+              {(() => {
+                const completedLessons = lessons.filter(lesson => courseProgress[courseId]?.[lesson.id]?.completed).length;
+                const completedQuizzes = Object.values(quizzesByLesson).flat().filter(qz => quizCompletionStatus[qz.id]).length;
+                const totalQuizzes = Object.values(quizzesByLesson).flat().length;
+                const totalItems = lessons.length + totalQuizzes;
+                const completedItems = completedLessons + completedQuizzes;
+                return `${completedItems} / ${totalItems} completed`;
+              })()}
             </div>
           </div>
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {lessons.map((courseLesson, index) => (
-              <div key={courseLesson.id}>
-                <button
-                  onClick={() => navigate(`/app/courses/${courseId}/lesson/${courseLesson.id}`)}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${
-                    courseLesson.id === lessonId
-                      ? 'bg-primary-light text-primary-default'
-                      : 'hover:bg-background-light'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex-shrink-0">
-                      {courseProgress[courseId]?.[courseLesson.id]?.completed ? (
-                        <CheckCircle className="w-5 h-5 text-success-default" />
-                      ) : courseLesson.id === lessonId ? (
-                        <Play className="w-5 h-5 text-primary-default" />
-                      ) : (
-                        <div className="w-5 h-5 rounded-full border border-background-dark flex items-center justify-center">
-                          <span className="text-xs">{index + 1}</span>
+            {(() => {
+              // Create a combined list of lessons and quizzes in order
+              const combinedItems = [];
+              let itemIndex = 0;
+              
+              lessons.forEach((courseLesson) => {
+                // Add the lesson
+                combinedItems.push({
+                  type: 'lesson',
+                  data: courseLesson,
+                  index: itemIndex++
+                });
+                
+                // Add quizzes for this lesson immediately after
+                if (Array.isArray(quizzesByLesson[courseLesson.id]) && quizzesByLesson[courseLesson.id].length > 0) {
+                  quizzesByLesson[courseLesson.id].forEach((qz, qi) => {
+                    combinedItems.push({
+                      type: 'quiz',
+                      data: qz,
+                      lessonId: courseLesson.id,
+                      index: itemIndex++
+                    });
+                  });
+                }
+              });
+              
+              return combinedItems.map((item) => {
+                if (item.type === 'lesson') {
+                  const courseLesson = item.data;
+                  const isCurrentLesson = courseLesson.id === lessonId;
+                  return (
+                    <button
+                      key={courseLesson.id}
+                      onClick={() => navigate(`/app/courses/${courseId}/lesson/${courseLesson.id}`)}
+                      className={`w-full text-left p-3 rounded-lg transition-colors ${
+                        isCurrentLesson
+                          ? 'bg-primary-light text-primary-default'
+                          : 'hover:bg-background-light'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex-shrink-0">
+                          {courseProgress[courseId]?.[courseLesson.id]?.completed ? (
+                            <CheckCircle className="w-5 h-5 text-success-default" />
+                          ) : isCurrentLesson ? (
+                            <Play className="w-5 h-5 text-primary-default" />
+                          ) : (
+                            <div className="w-5 h-5 rounded-full border border-background-dark flex items-center justify-center">
+                              <span className="text-xs">{item.index + 1}</span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-sm truncate">{courseLesson.title}</h4>
-                      <p className="text-xs text-text-light">{formatTime(courseLesson.duration_minutes * 60 || 0)}</p>
-                    </div>
-                  </div>
-                </button>
-                {Array.isArray(quizzesByLesson[courseLesson.id]) && quizzesByLesson[courseLesson.id].length > 0 && (
-                  <div className="pl-10 py-1 space-y-1">
-                    {quizzesByLesson[courseLesson.id].map((qz, qi) => {
-                      const isCompleted = quizCompletionStatus[qz.id] || false
-                      return (
-                        <button
-                          key={`${courseLesson.id}-${qz.id}`}
-                          onClick={() => {
-                            if (courseLesson.id === lessonId) {
-                              if (quizBlockRef.current) {
-                                quizBlockRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                              }
-                            } else {
-                              navigate(`/app/courses/${courseId}/lesson/${courseLesson.id}#quiz`)
-                            }
-                          }}
-                          className={`w-full text-left text-xs flex items-center gap-2 hover:text-primary-default ${
-                            isCompleted ? 'text-green-600' : 'text-text-medium'
-                          }`}
-                        >
-                          <div className="flex items-center gap-1">
-                            {isCompleted ? (
-                              <CheckCircle className="w-3 h-3 text-green-500" />
-                            ) : (
-                              <span className="w-3 h-3 rounded-full border border-gray-300 flex items-center justify-center">
-                                <span className="text-xs">•</span>
-                              </span>
-                            )}
-                            <span>Quiz{quizzesByLesson[courseLesson.id].length > 1 ? ` ${qi + 1}` : ''}: {qz.title}</span>
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            ))}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm truncate">{courseLesson.title}</h4>
+                          <p className="text-xs text-text-light">{formatTime(courseLesson.duration_minutes * 60 || 0)}</p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                } else {
+                  // Quiz item
+                  const qz = item.data;
+                  const isCompleted = quizCompletionStatus[qz.id] || false;
+                  const isCurrentQuiz = lessonId === item.lessonId && quiz?.id === qz.id;
+                  
+                  return (
+                    <button
+                      key={`quiz-${qz.id}`}
+                      onClick={() => {
+                        navigate(`/app/courses/${courseId}/quiz/${qz.id}`);
+                      }}
+                      className={`w-full text-left p-3 rounded-lg transition-colors ${
+                        isCurrentQuiz
+                          ? 'bg-primary-light text-primary-default'
+                          : 'hover:bg-background-light'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex-shrink-0">
+                          {isCompleted ? (
+                            <CheckCircle className="w-5 h-5 text-success-default" />
+                          ) : isCurrentQuiz ? (
+                            <Play className="w-5 h-5 text-primary-default" />
+                          ) : (
+                            <div className="w-5 h-5 rounded-full border border-background-dark flex items-center justify-center">
+                              <span className="text-xs">{item.index + 1}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm truncate">
+                            <span className="text-primary-default">Quiz:</span> {qz.title}
+                          </h4>
+                          <p className="text-xs text-text-light">
+                            {qz.time_limit_minutes ? `${qz.time_limit_minutes} min` : 'No time limit'} • {qz.question_count || 0} questions
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                }
+              });
+            })()}
           </div>
         </Card>
 

@@ -1,8 +1,14 @@
 // src/components/course/SlideEditor.jsx
 import { useState, useRef, useEffect } from 'react';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import { useToast } from '@/components/ui';
+import { 
+  Button, 
+  Input, 
+  useToast,
+  ContentTypeIcon,
+  ActionButton,
+  StatusBadge,
+  FormField
+} from '@/components/ui';
 import {
   uploadFile,
   getFileUrl,
@@ -25,13 +31,13 @@ import {
 } from 'lucide-react';
 
 const CONTENT_TYPES = [
-  { value: 'text', label: 'Text Content', icon: FileText },
-  { value: 'image', label: 'Image', icon: Image },
-  { value: 'video', label: 'Video', icon: Video },
-  { value: 'pdf', label: 'PDF Document', icon: File },
-  { value: 'audio', label: 'Audio', icon: Music },
-  { value: 'document', label: 'Document', icon: File },
-  { value: 'quiz', label: 'Quiz/Assessment', icon: Grid3X3 }
+  { value: 'text', label: 'Text Content' },
+  { value: 'image', label: 'Image' },
+  { value: 'video', label: 'Video' },
+  { value: 'pdf', label: 'PDF Document' },
+  { value: 'audio', label: 'Audio' },
+  { value: 'document', label: 'Document' },
+  { value: 'quiz', label: 'Quiz/Assessment' }
 ];
 
 const TEXT_FORMATS = [
@@ -201,8 +207,7 @@ export default function SlideEditor({ slide, onUpdate, courseId }) {
   };
 
   const getContentTypeIcon = (contentType) => {
-    const type = CONTENT_TYPES.find(t => t.value === contentType);
-    return type ? <type.icon className="w-4 h-4" /> : <FileText className="w-4 h-4" />;
+    return <ContentTypeIcon type={contentType} size={16} className="w-4 h-4" />;
   };
 
   const renderContentInput = () => {
@@ -285,15 +290,14 @@ export default function SlideEditor({ slide, onUpdate, courseId }) {
                     Upload File
                   </label>
                   <div className="flex items-center gap-4">
-                    <Button
-                      type="button"
-                      variant="outline"
+                    <ActionButton
+                      action="upload"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isUploading}
+                      variant="outline"
                     >
-                      <Upload className="w-4 h-4 mr-2" />
                       {isUploading ? 'Uploading...' : 'Choose File'}
-                    </Button>
+                    </ActionButton>
                     <span className="text-sm text-gray-500">
                       {FILE_TYPE_VALIDATION.pdf?.message}
                     </span>
@@ -390,15 +394,14 @@ export default function SlideEditor({ slide, onUpdate, courseId }) {
                 Upload File
               </label>
               <div className="flex items-center gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
+                <ActionButton
+                  action="upload"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
+                  variant="outline"
                 >
-                  <Upload className="w-4 h-4 mr-2" />
                   {isUploading ? 'Uploading...' : 'Choose File'}
-                </Button>
+                </ActionButton>
                 <span className="text-sm text-gray-500">
                   {FILE_TYPE_VALIDATION[contentType]?.message}
                 </span>
@@ -429,15 +432,14 @@ export default function SlideEditor({ slide, onUpdate, courseId }) {
 
             {localSlide.content_url && (
               <div className="mt-4">
-                <Button
-                  type="button"
+                <ActionButton
+                  action={showPreview ? "hide" : "view"}
+                  onClick={() => setShowPreview(!showPreview)}
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowPreview(!showPreview)}
                 >
-                  <Eye className="w-4 h-4 mr-2" />
                   {showPreview ? 'Hide Preview' : 'Show Preview'}
-                </Button>
+                </ActionButton>
               </div>
             )}
           </div>
@@ -514,22 +516,19 @@ export default function SlideEditor({ slide, onUpdate, courseId }) {
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Content Type
-          </label>
-          <select
-            value={localSlide.content_type}
-            onChange={(e) => handleInputChange('content_type', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            {CONTENT_TYPES.map(type => (
-              <option key={type.value} value={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <FormField
+          label="Content Type"
+          name="content_type"
+          value={localSlide.content_type}
+          onChange={(e) => handleInputChange('content_type', e.target.value)}
+          type="select"
+        >
+          {CONTENT_TYPES.map(type => (
+            <option key={type.value} value={type.value}>
+              {type.label}
+            </option>
+          ))}
+        </FormField>
       </div>
 
       {/* Content Configuration */}
@@ -582,14 +581,13 @@ export default function SlideEditor({ slide, onUpdate, courseId }) {
         <div className="border rounded-lg p-4 bg-white">
           <div className="flex items-center justify-between mb-3">
             <h4 className="font-medium text-gray-700">Preview</h4>
-            <Button
-              type="button"
+            <ActionButton
+              action="cancel"
+              onClick={() => setShowPreview(false)}
               variant="ghost"
               size="sm"
-              onClick={() => setShowPreview(false)}
-            >
-              <X className="w-4 h-4" />
-            </Button>
+              showText={false}
+            />
           </div>
           
           <div className="max-h-64 overflow-auto">

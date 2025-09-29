@@ -1,7 +1,9 @@
 // src/components/course/PresentationViewer.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useToast, Button, Card } from '@/components/ui';
+import { useToast, Button, Card, ContentTypeIcon } from '@/components/ui';
 import LessonCurationForm from './LessonCurationForm';
+import QuizSlide from './QuizSlide';
+import { useCourseStore } from '@/store/courseStore';
 import {
   ChevronLeft,
   ChevronRight,
@@ -25,15 +27,7 @@ import {
   ArrowUp
 } from 'lucide-react';
 
-const CONTENT_TYPE_ICONS = {
-  text: FileText,
-  image: Image,
-  video: Video,
-  pdf: File,
-  audio: Music,
-  document: File,
-  quiz: Grid3X3
-};
+// Content type icons are now handled by ContentTypeIcon component
 
 // Utility functions for external video platforms
 const isYouTubeUrl = (url) => {
@@ -143,6 +137,7 @@ export default function PresentationViewer({
   hasNextLesson = true
 }) {
   const { success, error: showError } = useToast();
+  const actions = useCourseStore(state => state.actions);
 
   // Add custom scrollbar styles
   useEffect(() => {
@@ -178,6 +173,13 @@ export default function PresentationViewer({
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
+  // Quiz-related state
+  const [quizData, setQuizData] = useState({});
+  const [quizQuestions, setQuizQuestions] = useState({});
+  const [quizLoading, setQuizLoading] = useState({});
+  const [quizResults, setQuizResults] = useState({}); // Store quiz completion results
+  const [quizAttempts, setQuizAttempts] = useState({}); // Track attempts per slide
+  
   const progressIntervalRef = useRef(null);
   const slideTimeoutRef = useRef(null);
 
@@ -185,6 +187,44 @@ export default function PresentationViewer({
   const totalSlides = presentation?.slides?.length || 0;
   const progress = totalSlides > 0 ? ((currentSlideIndex + 1) / totalSlides) * 100 : 0;
 
+  // Function to fetch quiz data for a quiz slide
+  const fetchQuizData = useCallback(async (slide) => {
+    if (slide.content_type !== 'quiz' || !slide.metadata?.quiz_id) return;
+    
+    const slideId = slide.id;
+    const quizId = slide.metadata.quiz_id;
+    
+    // Avoid refetching if already loaded
+    if (quizData[slideId] || quizLoading[slideId]) return;
+    
+    try {
+      setQuizLoading(prev => ({ ...prev, [slideId]: true }));
+      
+      // Fetch quiz data and questions
+      const [quizResult, questionsResult] = await Promise.all([
+        actions.fetchQuiz(quizId),
+        actions.fetchQuizQuestions(quizId)
+      ]);
+      
+      if (quizResult.data) {
+        setQuizData(prev => ({ ...prev, [slideId]: quizResult.data }));
+      }
+      
+      if (questionsResult.data) {
+        setQuizQuestions(prev => ({ ...prev, [slideId]: questionsResult.data }));
+      }
+    } catch (error) {
+      showError(`Failed to load quiz: ${error.message}`);
+    } finally {
+      setQuizLoading(prev => ({ ...prev, [slideId]: false }));
+    }
+  }, [actions, quizData, quizLoading, showError]);
+  // Fetch quiz data when current slide is a quiz
+  useEffect(() => {
+    if (currentSlide?.content_type === 'quiz') {
+      fetchQuizData(currentSlide);
+    }
+  }, [currentSlide, fetchQuizData]);
 
   const markSlideComplete = (slideIndex) => {
     if (!completedSlides.has(slideIndex)) {
@@ -372,8 +412,7 @@ export default function PresentationViewer({
   }, [isPlaying, currentSlide?.duration_seconds, handleNextSlide]);
 
   const getContentTypeIcon = (contentType) => {
-    const IconComponent = CONTENT_TYPE_ICONS[contentType] || FileText;
-    return <IconComponent className="w-4 h-4" />;
+    return <ContentTypeIcon type={contentType} size={16} className="w-4 h-4" />;
   };
 
   // Standardized 16:9 content container
@@ -671,59 +710,129 @@ export default function PresentationViewer({
         );
 
       case 'quiz':
+        const slideId = currentSlide.id;
+        const currentQuizData = quizData[slideId];
+        const currentQuizQuestions = quizQuestions[slideId];
+        const isLoading = quizLoading[slideId];
+        
+        if (isLoading) {
+          return (
+            <ContentContainer>
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading quiz...</p>
+                </div>
+              </div>
+            </ContentContainer>
+          );
+        }
+        
+        if (!currentQuizData || !currentQuizQuestions) {
+          return (
+            <ContentContainer>
+              <div className="w-full h-full flex flex-col items-center justify-center p-6">
+                <div className="text-center max-w-2xl">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Grid3X3 className="w-8 h-8 text-blue-600" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    {currentSlide.title || 'Knowledge Check'}
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    {currentSlide.content_text || 'Test your knowledge with this interactive quiz.'}
+                  </p>
+                  
+                  {/* Quiz Information */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <div className="flex items-center justify-center gap-2 text-blue-700 mb-2">
+                      <Grid3X3 className="w-5 h-5" />
+                      <span className="font-medium">Quiz Assessment</span>
+                    </div>
+                    
+                    {/* Quiz metadata display */}
+                    {currentSlide.metadata && (
+                      <div className="text-sm text-blue-600 space-y-1">
+                        {currentSlide.metadata.question_count > 0 && (
+                          <p><strong>{currentSlide.metadata.question_count}</strong> questions</p>
+                        )}
+                        {currentSlide.metadata.pass_threshold && (
+                          <p>Pass threshold: <strong>{currentSlide.metadata.pass_threshold}%</strong></p>
+                        )}
+                        {currentSlide.metadata.time_limit_minutes && (
+                          <p>Time limit: <strong>{currentSlide.metadata.time_limit_minutes} minutes</strong></p>
+                        )}
+                      </div>
+                    )}
+                    
+                    <p className="text-sm text-blue-600 mt-2">
+                      Quiz data not available.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </ContentContainer>
+          );
+        }
+        
         return (
           <ContentContainer>
-            <div className="w-full h-full flex flex-col items-center justify-center p-6">
-              <div className="text-center max-w-2xl">
-                <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Grid3X3 className="w-8 h-8 text-blue-600" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  {currentSlide.title || 'Knowledge Check'}
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  {currentSlide.content_text || 'Test your knowledge with this interactive quiz.'}
-                </p>
-                
-                {/* Quiz Information */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <div className="flex items-center justify-center gap-2 text-blue-700 mb-2">
-                    <Grid3X3 className="w-5 h-5" />
-                    <span className="font-medium">Quiz Assessment</span>
-                  </div>
+            <div className="w-full h-full overflow-auto p-4">
+              <QuizSlide
+                quiz={currentQuizData}
+                questions={currentQuizQuestions}
+                timeLimitMinutes={currentQuizData.time_limit_minutes}
+                maxAttempts={currentQuizData.max_attempts || 3}
+                currentAttempt={quizAttempts[slideId] || 1}
+                storedResult={quizResults[slideId]}
+                onQuizComplete={(result) => {
+                  const slideId = currentSlide.id;
                   
-                  {/* Quiz metadata display */}
-                  {currentSlide.metadata && (
-                    <div className="text-sm text-blue-600 space-y-1">
-                      {currentSlide.metadata.question_count > 0 && (
-                        <p><strong>{currentSlide.metadata.question_count}</strong> questions</p>
-                      )}
-                      {currentSlide.metadata.pass_threshold && (
-                        <p>Pass threshold: <strong>{currentSlide.metadata.pass_threshold}%</strong></p>
-                      )}
-                      {currentSlide.metadata.time_limit_minutes && (
-                        <p>Time limit: <strong>{currentSlide.metadata.time_limit_minutes} minutes</strong></p>
-                      )}
-                    </div>
-                  )}
+                  // Store quiz result
+                  setQuizResults(prev => ({
+                    ...prev,
+                    [slideId]: result
+                  }));
                   
-                  <p className="text-sm text-blue-600 mt-2">
-                    Click "Start Quiz" to begin the assessment.
-                  </p>
-                </div>
-                
-                <Button 
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3"
-                  onClick={() => {
-                    // Mark this slide as completed when quiz is started
-                    markSlideComplete(currentSlideIndex);
-                    success('Quiz started! (Quiz functionality coming soon)');
-                  }}
-                >
-                  <Grid3X3 className="w-4 h-4 mr-2" />
-                  Start Quiz
-                </Button>
-              </div>
+                  // Increment attempt count
+                  setQuizAttempts(prev => ({
+                    ...prev,
+                    [slideId]: (prev[slideId] || 0) + 1
+                  }));
+                  
+                  markSlideComplete(currentSlideIndex);
+                  success(`Quiz completed! Score: ${result.score}/${result.maxScore} (${result.percentage}%)`);
+                  
+                  // Auto-advance to next slide after a short delay
+                  setTimeout(() => {
+                    if (currentSlideIndex < totalSlides - 1) {
+                      handleNextSlide();
+                    } else {
+                      // If this is the last slide, complete the presentation
+                      handlePresentationComplete();
+                    }
+                  }, 2000);
+                }}
+                onQuizRetake={() => {
+                  const slideId = currentSlide.id;
+                  
+                  // Clear stored quiz result for this slide
+                  setQuizResults(prev => {
+                    const newResults = { ...prev };
+                    delete newResults[slideId];
+                    return newResults;
+                  });
+                  
+                  // Reset completion status
+                  setCompletedSlides(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(currentSlideIndex);
+                    return newSet;
+                  });
+                  
+                  console.log('🎯 PresentationViewer: Quiz retake - cleared stored result for slide:', slideId);
+                }}
+              />
             </div>
           </ContentContainer>
         );

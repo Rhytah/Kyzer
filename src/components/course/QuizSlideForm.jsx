@@ -76,12 +76,17 @@ const QuizSlideForm = ({
 
   // Add question to quiz
   const addQuestion = () => {
+    console.log('🎯 QuizSlideForm: addQuestion called');
+    console.log('🎯 QuizSlideForm: currentQuestion:', currentQuestion);
+
     if (!currentQuestion.question_text.trim()) {
+      console.log('🎯 QuizSlideForm: No question text provided');
       showError('Please enter a question');
       return;
     }
 
     if (currentQuestion.options.filter(opt => opt.trim()).length < 2) {
+      console.log('🎯 QuizSlideForm: Not enough options provided');
       showError('Please provide at least 2 options');
       return;
     }
@@ -92,8 +97,13 @@ const QuizSlideForm = ({
       order_index: questions.length + 1
     };
 
-    setQuestions(prev => [...prev, newQuestion]);
-    
+    console.log('🎯 QuizSlideForm: Adding new question:', newQuestion);
+    setQuestions(prev => {
+      const updated = [...prev, newQuestion];
+      console.log('🎯 QuizSlideForm: Updated questions array:', updated);
+      return updated;
+    });
+
     // Reset form
     setCurrentQuestion({
       question_text: '',
@@ -102,7 +112,8 @@ const QuizSlideForm = ({
       correct_answer: 0,
       explanation: ''
     });
-    
+
+    console.log('🎯 QuizSlideForm: Question added successfully!');
     success('Question added successfully!');
   };
 
@@ -113,6 +124,8 @@ const QuizSlideForm = ({
 
   // Create new quiz and add as slide
   const createQuizSlide = async () => {
+    console.log('🎯 QuizSlideForm: createQuizSlide started');
+    
     if (!quizForm.title.trim()) {
       showError('Please enter a quiz title');
       return;
@@ -129,8 +142,15 @@ const QuizSlideForm = ({
     );
 
     if (!confirmed) {
+      console.log('🎯 QuizSlideForm: User cancelled quiz creation');
       return;
     }
+
+    console.log('🎯 QuizSlideForm: Starting quiz creation with data:', { 
+      title: quizForm.title, 
+      questionsCount: questions.length,
+      presentationId 
+    });
 
     try {
       const quizData = {
@@ -140,24 +160,42 @@ const QuizSlideForm = ({
       };
 
       if (onAddQuizSlide) {
-        await onAddQuizSlide(quizData);
+        console.log('🎯 QuizSlideForm: Calling onAddQuizSlide...');
+        const result = await onAddQuizSlide(quizData);
+        console.log('🎯 QuizSlideForm: onAddQuizSlide result:', result);
         
-        // Reset form
-        setQuizForm({
-          title: '',
-          description: '',
-          pass_threshold: 70,
-          time_limit_minutes: null
-        });
-        setQuestions([]);
-        setShowCreateForm(false);
-        
-        // Notify parent component that quiz was successfully created
-        if (onQuizSuccess) {
-          onQuizSuccess();
+        // Only reset form and notify success if the quiz was actually created successfully
+        // Check if onAddQuizSlide returned an error or if it completed successfully
+        if (result && result.error) {
+          console.log('🎯 QuizSlideForm: Error from onAddQuizSlide:', result.error);
+          showError('Failed to create quiz slide: ' + result.error);
+          return;
         }
+        
+        console.log('🎯 QuizSlideForm: Quiz created successfully, keeping form open for more questions...');
+        // Reset only the questions array and current question to allow user to create another quiz
+        setQuestions([]);
+        setCurrentQuestion({
+          question_text: '',
+          question_type: 'multiple_choice',
+          options: ['', ''],
+          correct_answer: 0,
+          explanation: ''
+        });
+
+        // Show success message and keep form open
+        success('Quiz slide added! You can create another quiz slide or close the form.');
+
+        // DON'T call onQuizSuccess - this was causing the form to close
+        // if (onQuizSuccess) {
+        //   console.log('🎯 QuizSlideForm: Calling onQuizSuccess...');
+        //   onQuizSuccess();
+        // }
+        
+        console.log('🎯 QuizSlideForm: createQuizSlide completed successfully');
       }
     } catch (error) {
+      console.log('🎯 QuizSlideForm: Error in createQuizSlide:', error);
       showError('Failed to create quiz slide: ' + error.message);
     }
   };
@@ -167,11 +205,13 @@ const QuizSlideForm = ({
     if (onSelectExistingQuiz) {
       onSelectExistingQuiz(quiz);
       setShowExistingQuizzes(false);
-      
-      // Notify parent component that quiz was successfully selected
-      if (onQuizSuccess) {
-        onQuizSuccess();
-      }
+
+      // DON'T call onQuizSuccess - this causes the form to close unexpectedly
+      // Let the user continue adding more quiz slides if they want
+      // if (onQuizSuccess) {
+      //   onQuizSuccess();
+      // }
+      success('Existing quiz added as slide! You can add more quiz slides or close the form.');
     }
   };
 
@@ -181,6 +221,7 @@ const QuizSlideForm = ({
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Select Existing Quiz</h3>
           <Button
+            type="button"
             variant="secondary"
             onClick={() => setShowExistingQuizzes(false)}
           >
@@ -208,6 +249,7 @@ const QuizSlideForm = ({
                     </div>
                   </div>
                   <Button
+                    type="button"
                     size="sm"
                     onClick={() => handleSelectExistingQuiz(quiz)}
                     className="ml-4"
@@ -229,11 +271,41 @@ const QuizSlideForm = ({
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold">Create Quiz Slide</h3>
           <Button
+            type="button"
             variant="secondary"
-            onClick={() => setShowCreateForm(false)}
+            onClick={() => {
+              // Reset form when user cancels
+              setQuizForm({
+                title: '',
+                description: '',
+                pass_threshold: 70,
+                time_limit_minutes: null
+              });
+              setQuestions([]);
+              setShowCreateForm(false);
+            }}
           >
-            Cancel
+            Close
           </Button>
+        </div>
+
+        {/* Disclaimer */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="w-5 h-5 text-yellow-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h4 className="text-sm font-medium text-yellow-800">
+                Single Question Limitation
+              </h4>
+              <p className="text-sm text-yellow-700 mt-1">
+                When creating quizzes in edit presentation mode, you can only add one question per quiz slide. For multi-question quizzes, please create them separately in the quiz management section.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Quiz Basic Info */}
@@ -352,6 +424,7 @@ const QuizSlideForm = ({
                       />
                       {currentQuestion.options.length > 2 && (
                         <Button
+                          type="button"
                           size="sm"
                           variant="secondary"
                           onClick={() => removeOption(index)}
@@ -363,6 +436,7 @@ const QuizSlideForm = ({
                     </div>
                   ))}
                   <Button
+                    type="button"
                     size="sm"
                     variant="secondary"
                     onClick={addOption}
@@ -432,6 +506,7 @@ const QuizSlideForm = ({
             </div>
             
             <Button
+              type="button"
               onClick={addQuestion}
               className="w-full flex items-center justify-center gap-2"
               variant="outline"
@@ -457,6 +532,7 @@ const QuizSlideForm = ({
                       </p>
                     </div>
                     <Button
+                      type="button"
                       size="sm"
                       variant="secondary"
                       onClick={() => removeQuestion(index)}
@@ -475,6 +551,7 @@ const QuizSlideForm = ({
         <div className="border-t pt-6">
           <div className="flex gap-3">
             <Button
+              type="button"
               onClick={createQuizSlide}
               disabled={questions.length === 0}
               className="flex-1"
@@ -482,11 +559,22 @@ const QuizSlideForm = ({
               Create Quiz Slide ({questions.length} questions)
             </Button>
             <Button
+              type="button"
               variant="outline"
-              onClick={() => setShowCreateForm(false)}
+              onClick={() => {
+                // Reset form when user cancels
+                setQuizForm({
+                  title: '',
+                  description: '',
+                  pass_threshold: 70,
+                  time_limit_minutes: null
+                });
+                setQuestions([]);
+                setShowCreateForm(false);
+              }}
               className="px-6"
             >
-              Cancel
+              Done / Close Form
             </Button>
           </div>
           {questions.length === 0 && (
@@ -502,6 +590,7 @@ const QuizSlideForm = ({
   return (
     <div className="space-y-4">
       <Button
+        type="button"
         onClick={() => setShowCreateForm(true)}
         className="w-full flex items-center justify-center gap-2"
       >
@@ -511,6 +600,7 @@ const QuizSlideForm = ({
       
       {existingQuizzes.length > 0 && (
         <Button
+          type="button"
           onClick={() => setShowExistingQuizzes(true)}
           variant="secondary"
           className="w-full flex items-center justify-center gap-2"

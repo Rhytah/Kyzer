@@ -303,9 +303,9 @@ export default function Sidebar({ mobile = false, onClose, collapsed = false, on
   };
 
   const sidebarClasses = mobile
-    ? "w-64 bg-background-white h-full flex flex-col shadow-xl"
+    ? "w-640bg-background-white h-full flex flex-col shadow-xl"
     : `hidden lg:block bg-background-white border-r border-border min-h-screen fixed left-0 top-16 z-20 transition-all duration-300 overflow-visible ${
-        collapsed ? 'w-20' : 'w-64'
+        collapsed ? 'w-20' : 'w-60'
       }`;
 
   if (corporateLoading) {
