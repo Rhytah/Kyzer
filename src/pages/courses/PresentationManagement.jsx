@@ -9,6 +9,9 @@ import Card from '@/components/ui/Card';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import LessonCurationForm from '@/components/course/LessonCurationForm';
 import PresentationViewer from '@/components/course/PresentationViewer';
+import PresentationThumbnail from '@/components/course/PresentationThumbnail';
+import SlideThumbnail from '@/components/course/SlideThumbnail';
+import PresentationCard from '@/components/course/PresentationCard';
 import {
   Plus,
   Edit,
@@ -21,7 +24,10 @@ import {
   Video,
   File,
   Music,
-  Grid3X3
+  Grid3X3,
+  ChevronDown,
+  ChevronUp,
+  List
 } from 'lucide-react';
 
 export default function PresentationManagement() {
@@ -36,6 +42,7 @@ export default function PresentationManagement() {
   const [showForm, setShowForm] = useState(false);
   const [showViewer, setShowViewer] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showSlideDetails, setShowSlideDetails] = useState(false);
 
   const fetchLesson = useCourseStore(state => state.actions.fetchLesson);
   const fetchPresentationByLesson = useCourseStore(state => state.actions.fetchPresentationByLesson);
@@ -133,6 +140,8 @@ export default function PresentationManagement() {
   };
 
   const handleFormSuccess = (newPresentation) => {
+    console.log('🎯 PresentationManagement: handleFormSuccess called - this will close the form and return to overview');
+    console.log('🎯 PresentationManagement: New presentation data:', newPresentation);
     setPresentation(newPresentation);
     setShowForm(false);
     success('Presentation saved successfully');
@@ -331,118 +340,193 @@ export default function PresentationManagement() {
       {/* Content */}
       {presentation ? (
         <div className="space-y-6">
-          {/* Presentation Info */}
-          <Card>
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {presentation.title}
-                </h2>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Settings className="w-4 h-4" />
-                  <span>{presentation.total_slides} slides</span>
-                  {presentation.estimated_duration && (
-                    <>
-                      <span>•</span>
-                      <span>{presentation.estimated_duration} min</span>
-                    </>
-                  )}
-                </div>
-              </div>
-              
-              {presentation.description && (
-                <p className="text-gray-600 mb-4">{presentation.description}</p>
-              )}
-
-              <div className="flex items-center gap-4">
-                <Button onClick={handleViewPresentation}>
-                  <Eye className="w-4 h-4 mr-2" />
-                  View Presentation
-                </Button>
-                <Button onClick={handleEditPresentation} variant="outline">
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit Presentation
-                </Button>
-              </div>
-            </div>
-          </Card>
+          {/* Presentation Info with Thumbnail */}
+          <PresentationCard
+            presentation={presentation}
+            onView={handleViewPresentation}
+            onEdit={handleEditPresentation}
+            onDelete={handleDeletePresentation}
+            showActions={true}
+            compact={false}
+          />
 
           {/* Slides Overview */}
           <Card>
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Slides Overview</h3>
-              
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">Slides Overview</h3>
+                <Button
+                  onClick={handleEditPresentation}
+                  variant="outline"
+                  size="sm"
+                  className="text-sm"
+                >
+                  <Edit className="w-4 h-4 mr-1" />
+                  Edit Slides
+                </Button>
+              </div>
+
               {presentation.slides && presentation.slides.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {presentation.slides.map((slide, index) => (
-                    <div
-                      key={slide.id}
-                      className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
-                        slide.content_type === 'quiz' 
-                          ? 'bg-blue-50 border-blue-200' 
-                          : 'bg-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                          slide.content_type === 'quiz' 
-                            ? 'bg-blue-200 text-blue-700' 
-                            : 'bg-blue-100 text-blue-600'
-                        }`}>
-                          {slide.slide_number}
+                <div className="space-y-6">
+                  {/* Visual Slide Grid */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Slide Thumbnails</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                      {presentation.slides.map((slide, index) => (
+                        <div key={slide.id} className="flex flex-col items-center">
+                          <SlideThumbnail
+                            slide={slide}
+                            index={index}
+                            size="small"
+                            onClick={() => handleViewPresentation()}
+                            className="hover:scale-105 transition-transform"
+                          />
+                          <div className="mt-1 text-xs text-gray-500 text-center">
+                            <div className="font-medium truncate w-24">
+                              {slide.title || `Slide ${slide.slide_number}`}
+                            </div>
+                          </div>
                         </div>
-                        <div className={`flex items-center gap-1 ${
-                          slide.content_type === 'quiz' ? 'text-blue-600' : 'text-gray-500'
-                        }`}>
-                          {getContentTypeIcon(slide.content_type)}
-                          <span className="text-xs capitalize font-medium">
-                            {slide.content_type === 'quiz' ? 'Quiz' : slide.content_type}
-                          </span>
-                        </div>
-                        {slide.content_type === 'quiz' && (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
-                            Assessment
-                          </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-gray-200"></div>
+
+                  {/* Collapsible Detailed Slide List */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-700">Slide Details</h4>
+                        {!showSlideDetails && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            View detailed information about all {presentation.slides.length} slides
+                          </p>
                         )}
                       </div>
-                      
-                      <h4 className="font-medium text-gray-900 mb-1">
-                        {slide.title}
-                      </h4>
-                      
-                      {/* Quiz metadata display */}
-                      {slide.content_type === 'quiz' && slide.metadata && (
-                        <div className="mb-2 p-2 bg-blue-100 rounded text-xs text-blue-800">
-                          {slide.metadata.question_count > 0 && (
-                            <p><strong>{slide.metadata.question_count}</strong> questions</p>
-                          )}
-                          {slide.metadata.pass_threshold && (
-                            <p>Pass: <strong>{slide.metadata.pass_threshold}%</strong></p>
-                          )}
-                          {slide.metadata.time_limit_minutes && (
-                            <p>Time: <strong>{slide.metadata.time_limit_minutes}min</strong></p>
-                          )}
-                        </div>
-                      )}
-                      
-                      {slide.duration_seconds && (
-                        <p className="text-xs text-gray-500">
-                          {slide.duration_seconds}s
-                        </p>
-                      )}
-                      
-                      {slide.is_required && (
-                        <span className="inline-block mt-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
-                          Required
-                        </span>
-                      )}
+                      <Button
+                        onClick={() => setShowSlideDetails(!showSlideDetails)}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2 text-xs h-8"
+                      >
+                        <List className="w-3 h-3" />
+                        {showSlideDetails ? 'Hide Details' : 'Show Details'}
+                        {showSlideDetails ? (
+                          <ChevronUp className="w-3 h-3" />
+                        ) : (
+                          <ChevronDown className="w-3 h-3" />
+                        )}
+                      </Button>
                     </div>
-                  ))}
+
+                    {/* Collapsible content with animation */}
+                    <div
+                      className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                        showSlideDetails
+                          ? 'max-h-screen opacity-100'
+                          : 'max-h-0 opacity-0'
+                      }`}
+                      style={{
+                        maxHeight: showSlideDetails ? `${presentation.slides.length * 120}px` : '0px'
+                      }}
+                    >
+                      <div className="space-y-3 mt-3">
+                        {presentation.slides.map((slide, index) => (
+                            <div
+                              key={slide.id}
+                              className={`flex items-center gap-4 p-3 border rounded-lg hover:shadow-sm transition-shadow ${
+                                slide.content_type === 'quiz'
+                                  ? 'bg-blue-50 border-blue-200'
+                                  : 'bg-white border-gray-200'
+                              }`}
+                            >
+                              {/* Slide thumbnail */}
+                              <div className="flex-shrink-0">
+                                <SlideThumbnail
+                                  slide={slide}
+                                  index={index}
+                                  size="small"
+                                  onClick={() => handleViewPresentation()}
+                                />
+                              </div>
+
+                              {/* Slide info */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3 mb-1">
+                                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                    slide.content_type === 'quiz'
+                                      ? 'bg-blue-200 text-blue-700'
+                                      : 'bg-gray-200 text-gray-700'
+                                  }`}>
+                                    {slide.content_type === 'quiz' ? 'Quiz' : slide.content_type}
+                                  </span>
+                                  {slide.is_required && (
+                                    <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium">
+                                      Required
+                                    </span>
+                                  )}
+                                </div>
+
+                                <h4 className="font-medium text-gray-900 truncate">
+                                  {slide.title}
+                                </h4>
+
+                                <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
+                                  <span>Slide {slide.slide_number}</span>
+                                  {slide.duration_seconds && (
+                                    <span>{slide.duration_seconds}s</span>
+                                  )}
+                                  {slide.content_type === 'quiz' && slide.metadata && (
+                                    <>
+                                      {slide.metadata.question_count && (
+                                        <span>{slide.metadata.question_count} questions</span>
+                                      )}
+                                      {slide.metadata.time_limit_minutes && (
+                                        <span>{slide.metadata.time_limit_minutes}min limit</span>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+
+                                {/* Quiz metadata */}
+                                {slide.content_type === 'quiz' && slide.metadata && (
+                                  <div className="mt-2 flex items-center gap-3 text-xs text-blue-600">
+                                    {slide.metadata.pass_threshold && (
+                                      <span>Pass: {slide.metadata.pass_threshold}%</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Action button */}
+                              <div className="flex-shrink-0">
+                                <Button
+                                  onClick={() => handleViewPresentation()}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs"
+                                >
+                                  <Eye className="w-3 h-3 mr-1" />
+                                  View
+                                </Button>
+                              </div>
+                            </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <div className="text-center text-gray-500 py-8">
-                  <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p>No slides yet. Click "Edit Presentation" to add slides.</p>
+                <div className="text-center text-gray-500 py-12">
+                  <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <h4 className="text-lg font-medium text-gray-600 mb-2">No slides yet</h4>
+                  <p className="text-sm text-gray-500 mb-4">Start building your presentation by adding some slides.</p>
+                  <Button onClick={handleEditPresentation} variant="outline">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Your First Slide
+                  </Button>
                 </div>
               )}
             </div>

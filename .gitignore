@@ -31,3 +31,5 @@ improved_organization_members_schema.sql
 fix_organization_invitations_departments_fk.sql
 migrate_organization_members.sql
 update_lessons_schema.sql
+CLAUDE.md
+package-lock.json

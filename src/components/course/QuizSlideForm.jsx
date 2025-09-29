@@ -162,10 +162,19 @@ const QuizSlideForm = ({
         }
         
         console.log('🎯 QuizSlideForm: Quiz created successfully, keeping form open for more questions...');
-        // Don't reset the form - let user continue adding more questions
-        // Just show success message and keep form open
-        success('Quiz slide added! You can add more questions or create another quiz slide.');
-        
+        // Reset only the questions array and current question to allow user to create another quiz
+        setQuestions([]);
+        setCurrentQuestion({
+          question_text: '',
+          question_type: 'multiple_choice',
+          options: ['', ''],
+          correct_answer: 0,
+          explanation: ''
+        });
+
+        // Show success message and keep form open
+        success('Quiz slide added! You can create another quiz slide or close the form.');
+
         // DON'T call onQuizSuccess - this was causing the form to close
         // if (onQuizSuccess) {
         //   console.log('🎯 QuizSlideForm: Calling onQuizSuccess...');
@@ -185,11 +194,13 @@ const QuizSlideForm = ({
     if (onSelectExistingQuiz) {
       onSelectExistingQuiz(quiz);
       setShowExistingQuizzes(false);
-      
-      // Notify parent component that quiz was successfully selected
-      if (onQuizSuccess) {
-        onQuizSuccess();
-      }
+
+      // DON'T call onQuizSuccess - this causes the form to close unexpectedly
+      // Let the user continue adding more quiz slides if they want
+      // if (onQuizSuccess) {
+      //   onQuizSuccess();
+      // }
+      success('Existing quiz added as slide! You can add more quiz slides or close the form.');
     }
   };
 
@@ -199,6 +210,7 @@ const QuizSlideForm = ({
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Select Existing Quiz</h3>
           <Button
+            type="button"
             variant="secondary"
             onClick={() => setShowExistingQuizzes(false)}
           >
@@ -226,6 +238,7 @@ const QuizSlideForm = ({
                     </div>
                   </div>
                   <Button
+                    type="button"
                     size="sm"
                     onClick={() => handleSelectExistingQuiz(quiz)}
                     className="ml-4"
@@ -247,6 +260,7 @@ const QuizSlideForm = ({
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold">Create Quiz Slide</h3>
           <Button
+            type="button"
             variant="secondary"
             onClick={() => {
               // Reset form when user cancels
@@ -262,6 +276,25 @@ const QuizSlideForm = ({
           >
             Close
           </Button>
+        </div>
+
+        {/* Disclaimer */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="w-5 h-5 text-yellow-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h4 className="text-sm font-medium text-yellow-800">
+                Single Question Limitation
+              </h4>
+              <p className="text-sm text-yellow-700 mt-1">
+                When creating quizzes in edit presentation mode, you can only add one question per quiz slide. For multi-question quizzes, please create them separately in the quiz management section.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Quiz Basic Info */}
@@ -380,6 +413,7 @@ const QuizSlideForm = ({
                       />
                       {currentQuestion.options.length > 2 && (
                         <Button
+                          type="button"
                           size="sm"
                           variant="secondary"
                           onClick={() => removeOption(index)}
@@ -391,6 +425,7 @@ const QuizSlideForm = ({
                     </div>
                   ))}
                   <Button
+                    type="button"
                     size="sm"
                     variant="secondary"
                     onClick={addOption}
@@ -460,6 +495,7 @@ const QuizSlideForm = ({
             </div>
             
             <Button
+              type="button"
               onClick={addQuestion}
               className="w-full flex items-center justify-center gap-2"
               variant="outline"
@@ -485,6 +521,7 @@ const QuizSlideForm = ({
                       </p>
                     </div>
                     <Button
+                      type="button"
                       size="sm"
                       variant="secondary"
                       onClick={() => removeQuestion(index)}
@@ -503,6 +540,7 @@ const QuizSlideForm = ({
         <div className="border-t pt-6">
           <div className="flex gap-3">
             <Button
+              type="button"
               onClick={createQuizSlide}
               disabled={questions.length === 0}
               className="flex-1"
@@ -510,6 +548,7 @@ const QuizSlideForm = ({
               Create Quiz Slide ({questions.length} questions)
             </Button>
             <Button
+              type="button"
               variant="outline"
               onClick={() => {
                 // Reset form when user cancels
@@ -540,6 +579,7 @@ const QuizSlideForm = ({
   return (
     <div className="space-y-4">
       <Button
+        type="button"
         onClick={() => setShowCreateForm(true)}
         className="w-full flex items-center justify-center gap-2"
       >
@@ -549,6 +589,7 @@ const QuizSlideForm = ({
       
       {existingQuizzes.length > 0 && (
         <Button
+          type="button"
           onClick={() => setShowExistingQuizzes(true)}
           variant="secondary"
           className="w-full flex items-center justify-center gap-2"

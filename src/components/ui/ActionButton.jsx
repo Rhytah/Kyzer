@@ -142,6 +142,7 @@ const ActionButton = ({
 
   return (
     <Button
+      type="button"
       variant={buttonVariant}
       size={size}
       disabled={disabled || loading}

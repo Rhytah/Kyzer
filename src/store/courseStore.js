@@ -121,6 +121,21 @@ const useCourseStore = create((set, get) => ({
       }
     },
 
+    // Fetch single quiz by ID
+    fetchQuiz: async (quizId) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.QUIZZES)
+          .select('*')
+          .eq('id', quizId)
+          .single();
+        if (error) throw error;
+        return { data: data || null, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
     // Quiz Questions: Upsert a list (create/update with order)
     upsertQuizQuestions: async (quizId, questions) => {
       try {
