@@ -220,10 +220,16 @@ export default function PresentationViewer({
       setQuizLoading(prev => ({ ...prev, [slideId]: false }));
     }
   }, [actions, quizData, quizLoading, showError]);
-  // Fetch quiz data when current slide is a quiz
+  // Fetch quiz data when current slide is a quiz and manage loading states
   useEffect(() => {
     if (currentSlide?.content_type === 'quiz') {
       fetchQuizData(currentSlide);
+    } else {
+      // Clear loading state for non-quiz slides after a brief delay
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [currentSlide, fetchQuizData]);
 
@@ -243,6 +249,7 @@ export default function PresentationViewer({
   const handleNextSlide = useCallback(() => {
     if (currentSlideIndex < totalSlides - 1) {
       markSlideComplete(currentSlideIndex);
+      setIsLoading(true); // Show loading for next slide
       setCurrentSlideIndex(prev => prev + 1);
       setSlideProgress(0);
     } else {
@@ -254,12 +261,14 @@ export default function PresentationViewer({
 
   const handlePrevSlide = useCallback(() => {
     if (currentSlideIndex > 0) {
+      setIsLoading(true); // Show loading for previous slide
       setCurrentSlideIndex(prev => prev - 1);
       setSlideProgress(0);
     }
   }, [currentSlideIndex]);
 
   const handleSlideClick = (index) => {
+    setIsLoading(true); // Show loading for clicked slide
     setCurrentSlideIndex(index);
     setSlideProgress(0);
   };
@@ -444,9 +453,9 @@ export default function PresentationViewer({
     return <ContentTypeIcon type={contentType} size={16} className="w-4 h-4" />;
   };
 
-  // Standardized 16:9 content container
+  // Standardized content container with fixed height
   const ContentContainer = ({ children, className = "" }) => (
-    <div className={`w-full aspect-video bg-gray-50 rounded-lg overflow-hidden ${className}`}>
+    <div className={`w-full h-full bg-gray-50 rounded-lg overflow-hidden ${className}`}>
       <div className="w-full h-full flex items-center justify-center p-4">
         {children}
       </div>
@@ -524,7 +533,7 @@ export default function PresentationViewer({
           <div className="w-full h-full bg-red-50 border border-gray-200 rounded overflow-hidden relative">
             <div className="w-full h-full flex items-center justify-center">
               <div className="text-center">
-                <File className="w-5 h-5 text-red-600 mb-1" />
+                <File className="w-5 h-100 text-red-600 mb-1" />
                 <div className="text-red-600 text-xs font-medium truncate px-1">
                   {title || 'PDF Document'}
                 </div>
@@ -617,25 +626,27 @@ export default function PresentationViewer({
         if (embedUrl) {
           // Render external video as iframe embed (YouTube, Vimeo)
           return (
-            <div className="w-full">
-              <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
-                <iframe
-                  src={embedUrl}
-                  title={currentSlide.title}
-                  className="w-full h-full rounded-sm border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  onLoad={() => setIsLoading(false)}
-                  onError={() => {
-                    setIsLoading(false);
-                    showError('Failed to load external video');
-                  }}
-                />
+            <ContentContainer>
+              <div className="w-full max-w-4xl">
+                <div className="w-full aspect-video bg-gray-900 rounded-lg overflow-hidden">
+                  <iframe
+                    src={embedUrl}
+                    title={currentSlide.title}
+                    className="w-full h-full rounded-sm border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    onLoad={() => setIsLoading(false)}
+                    onError={() => {
+                      setIsLoading(false);
+                      showError('Failed to load external video');
+                    }}
+                  />
+                </div>
+                <div className="mt-2 text-xs text-text-light text-center">
+                  {platform} Video
+                </div>
               </div>
-              <div className="mt-2 text-xs text-text-light text-center">
-                {platform} Video
-              </div>
-            </div>
+            </ContentContainer>
           );
         } else if (platform) {
           // Render external video as clickable link (TikTok, Instagram, Twitter)
@@ -674,17 +685,20 @@ export default function PresentationViewer({
           // Render as regular HTML5 video
           return (
             <ContentContainer>
-              <video
-                src={content_url}
-                controls
-                className="w-full h-full rounded-sm shadow-lg"
-                onLoadStart={() => setIsLoading(true)}
-                onCanPlay={() => setIsLoading(false)}
-                onError={() => {
-                  setIsLoading(false);
-                  showError('Failed to load video');
-                }}
-              />
+              <div className="w-full max-w-4xl">
+                <video
+                  src={content_url}
+                  controls
+                  className="w-full h-auto max-h-full rounded-sm shadow-lg"
+                  style={{ objectFit: 'contain' }}
+                  onLoadStart={() => setIsLoading(true)}
+                  onCanPlay={() => setIsLoading(false)}
+                  onError={() => {
+                    setIsLoading(false);
+                    showError('Failed to load video');
+                  }}
+                />
+              </div>
             </ContentContainer>
           );
         }
@@ -692,16 +706,19 @@ export default function PresentationViewer({
       case 'pdf':
         return (
           <ContentContainer>
-            <iframe
-              src={`${content_url}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
-              className="w-full h-full rounded-sm shadow-lg"
-              title={currentSlide.title}
-              onLoad={() => setIsLoading(false)}
-              onError={() => {
-                setIsLoading(false);
-                showError('Failed to load PDF');
-              }}
-            />
+            <div className="w-full h-full">
+              <iframe
+                src={`${content_url}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
+                className="w-full h-full rounded-sm shadow-lg border-0"
+                title={currentSlide.title}
+                style={{ minHeight: '600px' }}
+                onLoad={() => setIsLoading(false)}
+                onError={() => {
+                  setIsLoading(false);
+                  showError('Failed to load PDF');
+                }}
+              />
+            </div>
           </ContentContainer>
         );
 
@@ -1038,7 +1055,7 @@ export default function PresentationViewer({
         </div>
 
         {/* Slide Content */}
-        <div className="relative min-h-96">
+        <div className="relative min-h-100">
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-default"></div>
@@ -1066,8 +1083,8 @@ export default function PresentationViewer({
           </div>
 
           <div
-            className={`bg-gray-50 p-4 select-none ${
-              isInFullscreen ? 'min-h-[70vh] flex items-center justify-center' : 'min-h-64'
+            className={`bg-gray-50 p-4 select-none relative ${
+              isInFullscreen ? 'h-[70vh] flex items-center justify-center' : 'h-100'
             }`}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
@@ -1078,6 +1095,14 @@ export default function PresentationViewer({
               touchAction: 'pan-y' // Allow vertical scrolling but not horizontal
             }}
           >
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
+                  <span className="text-sm text-gray-600">Loading slide...</span>
+                </div>
+              </div>
+            )}
             {renderSlideContent()}
           </div>
         </div>
