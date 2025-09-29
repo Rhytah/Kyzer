@@ -457,8 +457,8 @@ export default function LessonView() {
   const isQuizCompleted = useCallback(async (quizId) => {
     if (!user?.id || !quizId) return false;
     try {
-      const { data } = await actions.fetchQuizAttempt(user.id, quizId);
-      return data && data.completed;
+      const { data } = await actions.fetchQuizAttempts(user.id, quizId);
+      return data && data.length > 0 && data.some(attempt => attempt.completed);
     } catch (error) {
       console.error('Error checking quiz completion:', error);
       return false;

@@ -168,6 +168,7 @@ export default function PresentationViewer({
   const [slideProgress, setSlideProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [touchStartX, setTouchStartX] = useState(null);
+  const [touchStartY, setTouchStartY] = useState(null);
   const [touchEndX, setTouchEndX] = useState(null);
   const [showEditForm, setShowEditForm] = useState(false);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
@@ -308,26 +309,54 @@ export default function PresentationViewer({
 
   // Touch navigation
   const handleTouchStart = useCallback((event) => {
+    if (!event.targetTouches || event.targetTouches.length === 0) return;
+
     setTouchEndX(null);
     setTouchStartX(event.targetTouches[0].clientX);
+    setTouchStartY(event.targetTouches[0].clientY);
   }, []);
 
   const handleTouchMove = useCallback((event) => {
-    setTouchEndX(event.targetTouches[0].clientX);
-  }, []);
+    if (!event.targetTouches || event.targetTouches.length === 0) return;
+    if (!touchStartX || !touchStartY) return;
 
-  const handleTouchEnd = useCallback(() => {
+    // Prevent scrolling during horizontal swipe
+    const deltaX = Math.abs(event.targetTouches[0].clientX - touchStartX);
+    const deltaY = Math.abs(event.targetTouches[0].clientY - touchStartY);
+
+    if (deltaX > deltaY && deltaX > 10) {
+      event.preventDefault();
+    }
+
+    setTouchEndX(event.targetTouches[0].clientX);
+  }, [touchStartX, touchStartY]);
+
+  const handleTouchEnd = useCallback((event) => {
     if (!touchStartX || !touchEndX) return;
-    
+
     const distance = touchStartX - touchEndX;
     const isLeftSwipe = distance > 50;
     const isRightSwipe = distance < -50;
 
+    console.log('🎯 PresentationViewer: Touch end', {
+      touchStartX,
+      touchEndX,
+      distance,
+      isLeftSwipe,
+      isRightSwipe
+    });
+
     if (isLeftSwipe) {
+      console.log('🎯 PresentationViewer: Left swipe detected - going to next slide');
       handleNextSlide();
     } else if (isRightSwipe) {
+      console.log('🎯 PresentationViewer: Right swipe detected - going to previous slide');
       handlePrevSlide();
     }
+
+    // Reset touch state
+    setTouchStartX(null);
+    setTouchEndX(null);
   }, [touchStartX, touchEndX, handleNextSlide, handlePrevSlide]);
 
   // Set up keyboard navigation
@@ -1036,14 +1065,18 @@ export default function PresentationViewer({
             )} */}
           </div>
 
-          <div 
-            className={`bg-gray-50 p-4 touch-none select-none ${
+          <div
+            className={`bg-gray-50 p-4 select-none ${
               isInFullscreen ? 'min-h-[70vh] flex items-center justify-center' : 'min-h-64'
             }`}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
-            style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
+            style={{
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              touchAction: 'pan-y' // Allow vertical scrolling but not horizontal
+            }}
           >
             {renderSlideContent()}
           </div>
