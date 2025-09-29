@@ -64,6 +64,7 @@ export default function LessonCurationForm({
   const createQuiz = useCourseStore(state => state.actions.createQuiz);
   const upsertQuizQuestions = useCourseStore(state => state.actions.upsertQuizQuestions);
   const fetchQuizzes = useCourseStore(state => state.actions.fetchQuizzes);
+  const fetchQuizQuestions = useCourseStore(state => state.actions.fetchQuizQuestions);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -627,7 +628,23 @@ export default function LessonCurationForm({
         try {
           const result = await fetchQuizzes(courseId);
           if (result.data) {
-            setExistingQuizzes(result.data);
+            // Filter to only include quizzes that have questions
+            const quizzesWithQuestions = [];
+            for (const quiz of result.data) {
+              try {
+                const { data: questions } = await fetchQuizQuestions(quiz.id);
+                if (questions && questions.length > 0) {
+                  quizzesWithQuestions.push({
+                    ...quiz,
+                    question_count: questions.length
+                  });
+                }
+              } catch (error) {
+                console.log(`Could not fetch questions for quiz ${quiz.id}:`, error);
+                // Skip this quiz if we can't fetch its questions
+              }
+            }
+            setExistingQuizzes(quizzesWithQuestions);
           }
         } catch (error) {
           console.error('Failed to load quizzes:', error);
@@ -635,7 +652,7 @@ export default function LessonCurationForm({
       };
       loadQuizzes();
     }
-  }, [courseId, fetchQuizzes]);
+  }, [courseId, fetchQuizzes, fetchQuizQuestions]);
 
   // Scroll to top button visibility
   useEffect(() => {

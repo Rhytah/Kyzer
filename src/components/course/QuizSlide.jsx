@@ -10,7 +10,10 @@ const QuizSlide = ({
   onQuizComplete, 
   onQuizRetake,
   timeLimitMinutes = null,
-  isRetake = false 
+  isRetake = false,
+  maxAttempts = 3,
+  currentAttempt = 1,
+  storedResult = null
 }) => {
   const { success, error: showError } = useToast();
   
@@ -20,6 +23,24 @@ const QuizSlide = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [quizResult, setQuizResult] = useState(null);
+
+  // Debug logging
+  console.log('🎯 QuizSlide: Props received:', {
+    quiz,
+    questions,
+    questionsLength: questions?.length,
+    maxAttempts,
+    currentAttempt,
+    storedResult
+  });
+
+  // Show stored result if available
+  useEffect(() => {
+    if (storedResult && !showResults) {
+      setShowResults(true);
+      setQuizResult(storedResult);
+    }
+  }, [storedResult, showResults]);
 
   // Timer effect
   useEffect(() => {
@@ -137,6 +158,7 @@ const QuizSlide = ({
 
   // Handle retake
   const handleRetake = () => {
+    console.log('🎯 QuizSlide: handleRetake called - resetting quiz state');
     setCurrentQuestionIndex(0);
     setAnswers({});
     setTimeLeft(timeLimitMinutes ? timeLimitMinutes * 60 : null);
@@ -144,6 +166,7 @@ const QuizSlide = ({
     setQuizResult(null);
     
     if (onQuizRetake) {
+      console.log('🎯 QuizSlide: Calling onQuizRetake callback');
       onQuizRetake();
     }
   };
@@ -241,13 +264,24 @@ const QuizSlide = ({
     }
   };
 
-  if (showResults && quizResult) {
+  // Use stored result if available, otherwise use current quizResult
+  const displayResult = storedResult || quizResult;
+  
+  if (showResults && displayResult) {
+    console.log('🎯 QuizSlide: Rendering results with:', {
+      quizResult: displayResult,
+      maxAttempts,
+      currentAttempt,
+      attemptsLeft: maxAttempts - currentAttempt,
+      isStoredResult: !!storedResult
+    });
+    
     return (
       <div className="space-y-6">
         {/* Results Summary */}
         <Card className="p-6 text-center">
           <div className="mb-6">
-            {quizResult.passed ? (
+            {displayResult.passed ? (
               <div className="flex items-center justify-center mb-4">
                 <CheckCircle className="w-16 h-16 text-green-500" />
               </div>
@@ -258,13 +292,13 @@ const QuizSlide = ({
             )}
             
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              {quizResult.passed ? 'Congratulations!' : 'Keep Learning!'}
+              {displayResult.passed ? 'Congratulations!' : 'Keep Learning!'}
             </h2>
             
             <p className="text-gray-600 mb-4">
-              {quizResult.passed 
-                ? `You passed the quiz with a score of ${quizResult.score}/${quizResult.maxScore} (${quizResult.percentage}%)`
-                : `You scored ${quizResult.score}/${quizResult.maxScore} (${quizResult.percentage}%). The passing threshold is ${quiz.pass_threshold || 70}%`
+              {displayResult.passed 
+                ? `You passed the quiz with a score of ${displayResult.score}/${displayResult.maxScore} (${displayResult.percentage}%)`
+                : `You scored ${displayResult.score}/${displayResult.maxScore} (${displayResult.percentage}%). The passing threshold is ${quiz.pass_threshold || 70}%`
               }
             </p>
           </div>
@@ -272,34 +306,55 @@ const QuizSlide = ({
           {/* Score Breakdown */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto mb-6">
             <div className="bg-gray-50 rounded-lg p-4">
-              <div className="text-2xl font-bold text-blue-600">{quizResult.score}/{quizResult.maxScore}</div>
+              <div className="text-2xl font-bold text-blue-600">{displayResult.score}/{displayResult.maxScore}</div>
               <div className="text-sm text-gray-600">Questions Correct</div>
             </div>
             
             <div className="bg-gray-50 rounded-lg p-4">
-              <div className="text-2xl font-bold text-purple-600">{quizResult.percentage}%</div>
+              <div className="text-2xl font-bold text-purple-600">{displayResult.percentage}%</div>
               <div className="text-sm text-gray-600">Final Score</div>
             </div>
             
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="text-2xl font-bold text-green-600">
-                {Math.floor(quizResult.timeSpent / 60)}:{(quizResult.timeSpent % 60).toString().padStart(2, '0')}
+                {Math.floor(displayResult.timeSpent / 60)}:{(displayResult.timeSpent % 60).toString().padStart(2, '0')}
               </div>
               <div className="text-sm text-gray-600">Time Taken</div>
+            </div>
+          </div>
+
+          {/* Quiz Status and Attempts */}
+          <div className="bg-white rounded-lg p-4 mb-6 border">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+              <div>
+                <div className="text-lg font-bold text-gray-900">
+                  {displayResult.passed ? '✅ PASSED' : '❌ FAILED'}
+                </div>
+                <div className="text-sm text-gray-600">Quiz Result</div>
+              </div>
+              
+              <div>
+                <div className="text-lg font-bold text-blue-600">
+                  {maxAttempts - currentAttempt} attempts left
+                </div>
+                <div className="text-sm text-gray-600">Remaining Attempts</div>
+              </div>
             </div>
           </div>
         </Card>
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button 
-            onClick={handleRetake}
-            variant="secondary"
-            className="flex items-center gap-2"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Retake Quiz
-          </Button>
+          {!displayResult.passed && (maxAttempts - currentAttempt) > 0 && (
+            <Button 
+              onClick={handleRetake}
+              variant="secondary"
+              className="flex items-center gap-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Retake Quiz ({maxAttempts - currentAttempt} attempts left)
+            </Button>
+          )}
           
           <Button 
             onClick={() => onQuizComplete && onQuizComplete(quizResult)}
@@ -309,6 +364,13 @@ const QuizSlide = ({
             Continue
           </Button>
         </div>
+
+        {/* No attempts warning */}
+        {!displayResult.passed && (maxAttempts - currentAttempt) === 0 && (
+          <div className="text-center text-red-600 text-sm">
+            ⚠️ No attempts remaining
+          </div>
+        )}
       </div>
     );
   }

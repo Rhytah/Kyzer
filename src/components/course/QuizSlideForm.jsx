@@ -76,12 +76,17 @@ const QuizSlideForm = ({
 
   // Add question to quiz
   const addQuestion = () => {
+    console.log('🎯 QuizSlideForm: addQuestion called');
+    console.log('🎯 QuizSlideForm: currentQuestion:', currentQuestion);
+
     if (!currentQuestion.question_text.trim()) {
+      console.log('🎯 QuizSlideForm: No question text provided');
       showError('Please enter a question');
       return;
     }
 
     if (currentQuestion.options.filter(opt => opt.trim()).length < 2) {
+      console.log('🎯 QuizSlideForm: Not enough options provided');
       showError('Please provide at least 2 options');
       return;
     }
@@ -92,8 +97,13 @@ const QuizSlideForm = ({
       order_index: questions.length + 1
     };
 
-    setQuestions(prev => [...prev, newQuestion]);
-    
+    console.log('🎯 QuizSlideForm: Adding new question:', newQuestion);
+    setQuestions(prev => {
+      const updated = [...prev, newQuestion];
+      console.log('🎯 QuizSlideForm: Updated questions array:', updated);
+      return updated;
+    });
+
     // Reset form
     setCurrentQuestion({
       question_text: '',
@@ -102,7 +112,8 @@ const QuizSlideForm = ({
       correct_answer: 0,
       explanation: ''
     });
-    
+
+    console.log('🎯 QuizSlideForm: Question added successfully!');
     success('Question added successfully!');
   };
 

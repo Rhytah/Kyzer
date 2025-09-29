@@ -177,6 +177,8 @@ export default function PresentationViewer({
   const [quizData, setQuizData] = useState({});
   const [quizQuestions, setQuizQuestions] = useState({});
   const [quizLoading, setQuizLoading] = useState({});
+  const [quizResults, setQuizResults] = useState({}); // Store quiz completion results
+  const [quizAttempts, setQuizAttempts] = useState({}); // Track attempts per slide
   
   const progressIntervalRef = useRef(null);
   const slideTimeoutRef = useRef(null);
@@ -217,7 +219,6 @@ export default function PresentationViewer({
       setQuizLoading(prev => ({ ...prev, [slideId]: false }));
     }
   }, [actions, quizData, quizLoading, showError]);
-
   // Fetch quiz data when current slide is a quiz
   useEffect(() => {
     if (currentSlide?.content_type === 'quiz') {
@@ -781,7 +782,24 @@ export default function PresentationViewer({
                 quiz={currentQuizData}
                 questions={currentQuizQuestions}
                 timeLimitMinutes={currentQuizData.time_limit_minutes}
+                maxAttempts={currentQuizData.max_attempts || 3}
+                currentAttempt={quizAttempts[slideId] || 1}
+                storedResult={quizResults[slideId]}
                 onQuizComplete={(result) => {
+                  const slideId = currentSlide.id;
+                  
+                  // Store quiz result
+                  setQuizResults(prev => ({
+                    ...prev,
+                    [slideId]: result
+                  }));
+                  
+                  // Increment attempt count
+                  setQuizAttempts(prev => ({
+                    ...prev,
+                    [slideId]: (prev[slideId] || 0) + 1
+                  }));
+                  
                   markSlideComplete(currentSlideIndex);
                   success(`Quiz completed! Score: ${result.score}/${result.maxScore} (${result.percentage}%)`);
                   
@@ -796,12 +814,23 @@ export default function PresentationViewer({
                   }, 2000);
                 }}
                 onQuizRetake={() => {
-                  // Allow retaking the quiz - reset completion status
+                  const slideId = currentSlide.id;
+                  
+                  // Clear stored quiz result for this slide
+                  setQuizResults(prev => {
+                    const newResults = { ...prev };
+                    delete newResults[slideId];
+                    return newResults;
+                  });
+                  
+                  // Reset completion status
                   setCompletedSlides(prev => {
                     const newSet = new Set(prev);
                     newSet.delete(currentSlideIndex);
                     return newSet;
                   });
+                  
+                  console.log('🎯 PresentationViewer: Quiz retake - cleared stored result for slide:', slideId);
                 }}
               />
             </div>

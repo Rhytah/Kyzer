@@ -28,6 +28,7 @@ import Settings from "@/pages/dashboard/Settings";
 import CourseCatalog from "@/pages/courses/CourseCatalog";
 import CourseDetail from "@/pages/courses/CourseDetail";
 import LessonView from "@/pages/courses/LessonView";
+import QuizView from "@/pages/courses/QuizView";
 import MyCourses from "@/pages/courses/MyCourses";
 import CourseCompletion from "@/pages/courses/CourseCompletion";
 import CourseLearning from "@/pages/courses/CourseLearning";
@@ -107,6 +108,7 @@ export const router = createBrowserRouter([
                 { path: ":courseId", element: <CourseDetail /> },
                 { path: ":courseId/learning", element: <CourseLearning /> },
                 { path: ":courseId/lesson/:lessonId", element: <LessonView /> },
+                { path: ":courseId/quiz/:quizId", element: <QuizView /> },
                 { path: ":courseId/lesson/:lessonId/presentation", element: <PresentationManagement /> },
                 { path: ":courseId/completion", element: <CourseCompletion /> },
               ],
