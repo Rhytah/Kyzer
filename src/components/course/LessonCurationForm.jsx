@@ -165,7 +165,81 @@ export default function LessonCurationForm({
   };
 
   const handleQuizSuccess = () => {
+    console.log('🎯 LessonCurationForm: handleQuizSuccess called');
     setShowQuizForm(false);
+    console.log('🎯 LessonCurationForm: Quiz form closed via handleQuizSuccess');
+    // The quiz has been added to local slides state
+    // No need to do anything else as the slide is already in the slides array
+    // The parent will get updated when the form is submitted
+  };
+
+  // Auto-save function to persist quiz slides immediately
+  const autoSavePresentation = async () => {
+    console.log('🎯 LessonCurationForm: autoSavePresentation started');
+    
+    let presentationData;
+    
+    if (isEditing) {
+      presentationData = await updatePresentation(presentation.id, {
+        title: formData.title,
+        description: formData.description,
+        estimated_duration: formData.estimated_duration ? parseInt(formData.estimated_duration) : null
+      });
+    } else {
+      presentationData = await createPresentation({
+        lesson_id: lessonId,
+        title: formData.title,
+        description: formData.description,
+        estimated_duration: formData.estimated_duration ? parseInt(formData.estimated_duration) : null,
+        created_by: user.id
+      });
+    }
+
+    if (presentationData.error) {
+      throw new Error(presentationData.error);
+    }
+
+    const presentationId = presentationData.data.id;
+    
+    // Separate new slides from existing slides
+    const newSlides = slides.filter(slide => slide.isNew);
+    const existingSlides = slides.filter(slide => !slide.isNew);
+    
+    // Create new slides and collect their actual IDs
+    const createdSlideIds = [];
+    for (const slide of newSlides) {
+      const slideData = {
+        presentation_id: presentationId,
+        slide_number: slide.slide_number,
+        content_type: slide.content_type,
+        title: slide.title,
+        content_url: slide.content_url,
+        content_text: slide.content_text,
+        content_format: slide.content_format,
+        duration_seconds: slide.duration_seconds,
+        metadata: slide.metadata,
+        is_required: slide.is_required
+      };
+
+      const createdSlide = await createSlide(slideData);
+      if (createdSlide.data) {
+        createdSlideIds.push(createdSlide.data.id);
+        // Update the slide in local state to mark it as not new
+        setSlides(prev => prev.map(s => 
+          s.id === slide.id ? { ...s, id: createdSlide.data.id, isNew: false } : s
+        ));
+      }
+    }
+
+    // Reorder all slides to ensure correct slide numbers
+    const existingSlideIds = existingSlides.map(slide => slide.id);
+    const allSlideIds = [...existingSlideIds, ...createdSlideIds];
+    
+    if (allSlideIds.length > 0) {
+      await reorderSlides(presentationId, allSlideIds);
+    }
+
+    console.log('🎯 LessonCurationForm: autoSavePresentation completed successfully');
   };
 
   const scrollToTop = () => {
@@ -414,25 +488,37 @@ export default function LessonCurationForm({
 
   // Handle adding quiz slide
   const handleAddQuizSlide = async (quizData) => {
+    console.log('🎯 LessonCurationForm: handleAddQuizSlide started with data:', quizData);
     setIsCreatingQuiz(true);
     try {
       // Create quiz first
+      console.log('🎯 LessonCurationForm: Creating quiz...');
       const quizResult = await createQuiz(quizData, courseId, user.id);
+      console.log('🎯 LessonCurationForm: Quiz creation result:', quizResult);
+      
       if (quizResult.error) {
+        console.log('🎯 LessonCurationForm: Quiz creation failed:', quizResult.error);
         showError('Failed to create quiz: ' + quizResult.error);
-        return;
+        setIsCreatingQuiz(false);
+        return { error: quizResult.error };
       }
 
       // Save quiz questions if they exist
       if (quizData.questions && quizData.questions.length > 0) {
+        console.log('🎯 LessonCurationForm: Saving quiz questions...');
         const questionsResult = await upsertQuizQuestions(quizResult.data.id, quizData.questions);
+        console.log('🎯 LessonCurationForm: Questions save result:', questionsResult);
+        
         if (questionsResult.error) {
+          console.log('🎯 LessonCurationForm: Questions save failed:', questionsResult.error);
           showError('Failed to save quiz questions: ' + questionsResult.error);
-          return;
+          setIsCreatingQuiz(false);
+          return { error: questionsResult.error };
         }
       }
 
       // Create quiz slide
+      console.log('🎯 LessonCurationForm: Creating quiz slide object...');
       const quizSlide = {
         id: `temp_${Date.now()}`,
         slide_number: slides.length + 1,
@@ -452,13 +538,20 @@ export default function LessonCurationForm({
         isNew: true
       };
 
+      console.log('🎯 LessonCurationForm: Adding quiz slide to slides array:', quizSlide);
       setSlides(prev => [...prev, quizSlide]);
-      setShowQuizForm(false);
-      success('Quiz slide added successfully!');
-    } catch (error) {
-      showError('Failed to create quiz slide: ' + error.message);
-    } finally {
+      console.log('🎯 LessonCurationForm: Keeping quiz form open for user to continue editing...');
+      // Don't close the form - let user continue adding more quiz slides or questions
       setIsCreatingQuiz(false);
+      success('Quiz slide added successfully! You can add more questions or create another quiz slide.');
+      
+      console.log('🎯 LessonCurationForm: handleAddQuizSlide completed successfully');
+      return { success: true, quizSlide };
+    } catch (error) {
+      console.log('🎯 LessonCurationForm: Error in handleAddQuizSlide:', error);
+      showError('Failed to create quiz slide: ' + error.message);
+      setIsCreatingQuiz(false);
+      return { error: error.message };
     }
   };
 

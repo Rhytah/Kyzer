@@ -42,6 +42,23 @@ export default function PresentationManagement() {
   const deletePresentation = useCourseStore(state => state.actions.deletePresentation);
   const testPresentationTables = useCourseStore(state => state.actions.testPresentationTables);
 
+  // Function to refresh presentation data
+  const refreshPresentationData = async () => {
+    if (!lessonId) return;
+    
+    try {
+      const presentationResult = await fetchPresentationByLesson(lessonId);
+      if (presentationResult.error) {
+        console.log('No presentation found for lesson:', lessonId);
+        setPresentation(null);
+      } else if (presentationResult.data) {
+        setPresentation(presentationResult.data);
+      }
+    } catch (err) {
+      console.error('Failed to refresh presentation data:', err);
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       if (!lessonId) {
@@ -119,10 +136,14 @@ export default function PresentationManagement() {
     setPresentation(newPresentation);
     setShowForm(false);
     success('Presentation saved successfully');
+    // Also refresh to ensure we have the latest data
+    refreshPresentationData();
   };
 
   const handleFormCancel = () => {
     setShowForm(false);
+    // Refresh presentation data when returning from form
+    refreshPresentationData();
   };
 
   const handleViewPresentation = () => {

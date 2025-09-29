@@ -22,6 +22,7 @@ const FormField = ({
   rightIcon,
   contentType,
   className = '',
+  children,
   ...props
 }) => {
   const hasError = !!error;
@@ -32,22 +33,53 @@ const FormField = ({
     className
   );
 
-  const inputProps = {
-    name,
-    type,
-    value,
-    onChange,
-    onBlur,
-    placeholder,
-    disabled,
-    required,
-    leftIcon: leftIcon || (contentType ? <ContentTypeIcon type={contentType} /> : undefined),
-    rightIcon: rightIcon || (hasError ? AlertCircle : hasSuccess ? CheckCircle : undefined),
-    className: clsx(
-      hasError && 'border-red-300 focus:border-red-500 focus:ring-red-500',
-      hasSuccess && 'border-green-300 focus:border-green-500 focus:ring-green-500'
-    ),
-    ...props
+  const inputClasses = clsx(
+    'w-full px-3 py-2 border rounded-lg transition-colors duration-200',
+    'focus:outline-none focus:ring-2 focus:ring-offset-2',
+    'placeholder:text-gray-400',
+    hasError
+      ? 'border-red-300 bg-red-50 text-red-900 hover:border-red-400 focus:ring-red-500 focus:border-red-500'
+      : 'border-gray-300 bg-white hover:border-gray-400 focus:ring-blue-500 focus:border-blue-500',
+    hasSuccess && 'border-green-300 focus:border-green-500 focus:ring-green-500',
+    disabled && 'bg-gray-100 cursor-not-allowed',
+    className
+  );
+
+  const renderInput = () => {
+    if (type === 'select') {
+      return (
+        <select
+          name={name}
+          value={value}
+          onChange={onChange}
+          onBlur={onBlur}
+          disabled={disabled}
+          required={required}
+          className={inputClasses}
+          {...props}
+        >
+          {children}
+        </select>
+      );
+    }
+
+    // For other input types, use the Input component
+    const inputProps = {
+      name,
+      type,
+      value,
+      onChange,
+      onBlur,
+      placeholder,
+      disabled,
+      required,
+      leftIcon: leftIcon || (contentType ? <ContentTypeIcon type={contentType} /> : undefined),
+      rightIcon: rightIcon || (hasError ? AlertCircle : hasSuccess ? CheckCircle : undefined),
+      className: inputClasses,
+      ...props
+    };
+
+    return <Input {...inputProps} />;
   };
 
   return (
@@ -59,7 +91,7 @@ const FormField = ({
         </label>
       )}
       
-      <Input {...inputProps} />
+      {renderInput()}
       
       {/* Helper text, error, or success message */}
       {error && (

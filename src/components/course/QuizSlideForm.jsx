@@ -113,6 +113,8 @@ const QuizSlideForm = ({
 
   // Create new quiz and add as slide
   const createQuizSlide = async () => {
+    console.log('🎯 QuizSlideForm: createQuizSlide started');
+    
     if (!quizForm.title.trim()) {
       showError('Please enter a quiz title');
       return;
@@ -129,8 +131,15 @@ const QuizSlideForm = ({
     );
 
     if (!confirmed) {
+      console.log('🎯 QuizSlideForm: User cancelled quiz creation');
       return;
     }
+
+    console.log('🎯 QuizSlideForm: Starting quiz creation with data:', { 
+      title: quizForm.title, 
+      questionsCount: questions.length,
+      presentationId 
+    });
 
     try {
       const quizData = {
@@ -140,24 +149,33 @@ const QuizSlideForm = ({
       };
 
       if (onAddQuizSlide) {
-        await onAddQuizSlide(quizData);
+        console.log('🎯 QuizSlideForm: Calling onAddQuizSlide...');
+        const result = await onAddQuizSlide(quizData);
+        console.log('🎯 QuizSlideForm: onAddQuizSlide result:', result);
         
-        // Reset form
-        setQuizForm({
-          title: '',
-          description: '',
-          pass_threshold: 70,
-          time_limit_minutes: null
-        });
-        setQuestions([]);
-        setShowCreateForm(false);
-        
-        // Notify parent component that quiz was successfully created
-        if (onQuizSuccess) {
-          onQuizSuccess();
+        // Only reset form and notify success if the quiz was actually created successfully
+        // Check if onAddQuizSlide returned an error or if it completed successfully
+        if (result && result.error) {
+          console.log('🎯 QuizSlideForm: Error from onAddQuizSlide:', result.error);
+          showError('Failed to create quiz slide: ' + result.error);
+          return;
         }
+        
+        console.log('🎯 QuizSlideForm: Quiz created successfully, keeping form open for more questions...');
+        // Don't reset the form - let user continue adding more questions
+        // Just show success message and keep form open
+        success('Quiz slide added! You can add more questions or create another quiz slide.');
+        
+        // DON'T call onQuizSuccess - this was causing the form to close
+        // if (onQuizSuccess) {
+        //   console.log('🎯 QuizSlideForm: Calling onQuizSuccess...');
+        //   onQuizSuccess();
+        // }
+        
+        console.log('🎯 QuizSlideForm: createQuizSlide completed successfully');
       }
     } catch (error) {
+      console.log('🎯 QuizSlideForm: Error in createQuizSlide:', error);
       showError('Failed to create quiz slide: ' + error.message);
     }
   };
@@ -230,9 +248,19 @@ const QuizSlideForm = ({
           <h3 className="text-lg font-semibold">Create Quiz Slide</h3>
           <Button
             variant="secondary"
-            onClick={() => setShowCreateForm(false)}
+            onClick={() => {
+              // Reset form when user cancels
+              setQuizForm({
+                title: '',
+                description: '',
+                pass_threshold: 70,
+                time_limit_minutes: null
+              });
+              setQuestions([]);
+              setShowCreateForm(false);
+            }}
           >
-            Cancel
+            Close
           </Button>
         </div>
 
@@ -483,10 +511,20 @@ const QuizSlideForm = ({
             </Button>
             <Button
               variant="outline"
-              onClick={() => setShowCreateForm(false)}
+              onClick={() => {
+                // Reset form when user cancels
+                setQuizForm({
+                  title: '',
+                  description: '',
+                  pass_threshold: 70,
+                  time_limit_minutes: null
+                });
+                setQuestions([]);
+                setShowCreateForm(false);
+              }}
               className="px-6"
             >
-              Cancel
+              Done / Close Form
             </Button>
           </div>
           {questions.length === 0 && (

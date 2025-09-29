@@ -8,6 +8,7 @@ import {
   Music, 
   Grid3X3,
   FileType,
+  Code,
   HelpCircle
 } from 'lucide-react';
 
@@ -25,6 +26,7 @@ const ContentTypeIcon = ({
     pdf: File,
     document: File,
     quiz: Grid3X3,
+    scorm: Code,
     // Legacy mappings
     'image/jpeg': Image,
     'image/png': Image,
@@ -42,6 +44,8 @@ const ContentTypeIcon = ({
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': File,
     'application/vnd.ms-powerpoint': File,
     'application/vnd.openxmlformats-officedocument.presentationml.presentation': File,
+    'application/zip': Code,
+    'application/x-zip-compressed': Code,
     'text/plain': FileText,
     'text/html': FileText,
     'text/markdown': FileText
