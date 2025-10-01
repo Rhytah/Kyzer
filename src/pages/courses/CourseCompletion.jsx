@@ -23,6 +23,7 @@ import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import { useCourseStore } from '@/store/courseStore'
 import { useAuth } from '@/hooks/auth/useAuth'
+import CertificatePreviewModal from '@/components/course/CertificatePreviewModal'
 
 export default function CourseCompletion() {
   const { courseId } = useParams()
@@ -38,6 +39,7 @@ export default function CourseCompletion() {
   const [review, setReview] = useState('')
   const [showReviewForm, setShowReviewForm] = useState(false)
   const [recommendedCourses, setRecommendedCourses] = useState([])
+  const [showCertificateModal, setShowCertificateModal] = useState(false)
 
   // Mock completion data
   const mockCompletionData = {
@@ -178,7 +180,16 @@ export default function CourseCompletion() {
           // Ensure certificate exists
           const { data: existingCert } = await actions.getCertificateForCourse(user.id, courseId)
           if (!existingCert) {
-            await actions.createCertificate(user.id, courseId)
+            // Get default certificate template and generate certificate
+            const { data: templates } = await actions.fetchCertificateTemplates();
+            const defaultTemplate = templates?.find(t => t.is_default) || templates?.[0];
+
+            if (defaultTemplate) {
+              await actions.generateCertificateFromTemplate(user.id, courseId, defaultTemplate.id);
+            } else {
+              // Fallback to basic certificate creation if no template exists
+              await actions.createCertificate(user.id, courseId);
+            }
           }
         }
         // Compute recommended courses from actual data (prefer same category)
@@ -210,9 +221,33 @@ export default function CourseCompletion() {
     return `${hours}h ${mins}m`
   }
 
-  const handleDownloadCertificate = () => {
-    // In real app, this would trigger certificate download
-    window.open(completionData.certificate.downloadUrl, '_blank')
+  const handleDownloadCertificate = async () => {
+    try {
+      // Get the user's certificate for this course
+      const { data: userCertificate } = await actions.getCertificateForCourse(user.id, courseId);
+
+      if (userCertificate) {
+        // Generate and download the certificate with filled placeholders
+        const generateCertificatePreview = actions.generateCertificatePreview;
+        const { blob, filename } = await generateCertificatePreview(userCertificate.id);
+
+        // Create download link
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        console.error('No certificate found for this course');
+      }
+    } catch (error) {
+      console.error('Error downloading certificate:', error);
+      // Fallback to mock download
+      window.open(completionData.certificate.downloadUrl, '_blank');
+    }
   }
 
   const handleShareCertificate = () => {
@@ -302,9 +337,9 @@ export default function CourseCompletion() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button onClick={handleDownloadCertificate} size="lg">
-            <Download className="w-5 h-5 mr-2" />
-            Download Certificate
+          <Button onClick={() => setShowCertificateModal(true)} size="lg">
+            <Award className="w-5 h-5 mr-2" />
+            View Certificate
           </Button>
           <Button variant="secondary" onClick={handleShareCertificate} size="lg">
             <Share2 className="w-5 h-5 mr-2" />
@@ -496,6 +531,15 @@ export default function CourseCompletion() {
           </Button>
         </Link>
       </div>
+
+      {/* Certificate Preview Modal */}
+      <CertificatePreviewModal
+        courseId={courseId}
+        courseName={course?.title || 'Course'}
+        userId={user?.id}
+        isOpen={showCertificateModal}
+        onClose={() => setShowCertificateModal(false)}
+      />
     </div>
   )
 }

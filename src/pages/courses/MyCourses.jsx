@@ -464,9 +464,9 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useCourseStore } from '@/store/courseStore'
 import { useAuth } from '@/hooks/auth/useAuth'
-import { 
-  BookOpen, 
-  Clock, 
+import {
+  BookOpen,
+  Clock,
   Play,
   Award,
   TrendingUp,
@@ -475,11 +475,44 @@ import {
   Search,
   MoreVertical,
   Download,
-  Star
+  Star,
+  Eye
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import CertificatePreviewModal from '@/components/course/CertificatePreviewModal'
+
+// Certificate Button Component
+function CertificateButton({ course }) {
+  const { user } = useAuth();
+  const [showCertificateModal, setShowCertificateModal] = useState(false);
+
+  const handleViewCertificate = () => {
+    setShowCertificateModal(true);
+  };
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={handleViewCertificate}
+        title="View Certificate"
+      >
+        <Award className="w-4 h-4" />
+      </Button>
+
+      <CertificatePreviewModal
+        courseId={course.id}
+        courseName={course.title}
+        userId={user?.id}
+        isOpen={showCertificateModal}
+        onClose={() => setShowCertificateModal(false)}
+      />
+    </>
+  );
+}
 
 export default function MyCourses() {
   const { user } = useAuth()
@@ -633,16 +666,7 @@ export default function MyCourses() {
                   Review Course
                 </Button>
               </Link>
-              {/* Certificate download will be available when certificates are implemented */}
-              {/* {course.certificate && (
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => window.open(course.certificate.downloadUrl, '_blank')}
-                >
-                  <Download className="w-4 h-4" />
-                </Button>
-              )} */}
+              <CertificateButton course={course} />
             </div>
           ) : course.status === 'not-started' ? (
             <Link to={`/app/courses/${course.id}`} className="w-full">

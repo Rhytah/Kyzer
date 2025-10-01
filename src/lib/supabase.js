@@ -90,10 +90,15 @@ export const TABLES = {
   
   // Certificates
   CERTIFICATES: 'certificates',
+  CERTIFICATE_TEMPLATES: 'certificate_templates',
   
   // Presentation/Lesson Curation
   LESSON_PRESENTATIONS: 'lesson_presentations',
   PRESENTATION_SLIDES: 'presentation_slides',
+
+  // Progress Tracking
+  SLIDE_PROGRESS: 'slide_progress',
+  PRESENTATION_PROGRESS: 'presentation_progress',
   
   // Profile views
   USER_PROFILES: 'user_profiles',

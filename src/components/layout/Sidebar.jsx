@@ -59,7 +59,10 @@ export default function Sidebar({ mobile = false, onClose, collapsed = false, on
       children: [
         { name: "Enrolled", href: "/app/courses" },
         { name: "Browse Catalog", href: "/app/courses/catalog" },
-        ...(canViewCourseManagement ? [{ name: "Manage Courses", href: "/app/courses/management" }] : [])
+        ...(canViewCourseManagement ? [
+          { name: "Manage Courses", href: "/app/courses/management" },
+          { name: "Certificate Templates", href: "/app/courses/certificate-templates" }
+        ] : [])
       ]
     },
     { 

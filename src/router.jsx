@@ -35,6 +35,7 @@ import CourseLearning from "@/pages/courses/CourseLearning";
 import CourseManagement from "@/pages/courses/CourseManagement";
 import CategoriesManagement from "@/pages/courses/CategoriesManagement";
 import PresentationManagement from "@/pages/courses/PresentationManagement";
+import CertificateTemplates from "@/pages/courses/CertificateTemplates";
 
 // Corporate Pages
 import CompanyDashboard from "@/pages/corporate/CompanyDashboard";
@@ -105,6 +106,14 @@ export const router = createBrowserRouter([
                   ) 
                 },
                 { path: "categories", element: <CategoriesManagement /> },
+                {
+                  path: "certificate-templates",
+                  element: (
+                    <CourseManagementGuard>
+                      <CertificateTemplates />
+                    </CourseManagementGuard>
+                  )
+                },
                 { path: ":courseId", element: <CourseDetail /> },
                 { path: ":courseId/learning", element: <CourseLearning /> },
                 { path: ":courseId/lesson/:lessonId", element: <LessonView /> },

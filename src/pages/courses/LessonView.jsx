@@ -926,9 +926,10 @@ export default function LessonView() {
     }
 
     return (
-      <PresentationViewer 
+      <PresentationViewer
         presentation={presentation}
         lesson={lesson}
+        userId={user?.id}
         onSlideComplete={(slideIndex) => {
           // Handle slide completion if needed
         }}

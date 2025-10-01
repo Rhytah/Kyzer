@@ -11,6 +11,7 @@ const useCourseStore = create((set, get) => ({
   courseProgress: {},
   quizAttempts: {},
   certificates: [],
+  certificateTemplates: [],
   categories: [],
   courseModules: {}, // New: Store modules by course ID
   loading: {
@@ -701,6 +702,247 @@ const useCourseStore = create((set, get) => ({
         return { data, error: null };
       } catch (error) {
         return { data: null, error };
+      }
+    },
+
+    // Certificate Templates Management
+    fetchCertificateTemplates: async () => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.CERTIFICATE_TEMPLATES)
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        set({ certificateTemplates: data || [] });
+        return { data, error: null };
+      } catch (error) {
+        return { data: [], error };
+      }
+    },
+
+    createCertificateTemplate: async (templateData) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.CERTIFICATE_TEMPLATES)
+          .insert({
+            name: templateData.name,
+            description: templateData.description,
+            template_url: templateData.template_url,
+            placeholders: templateData.placeholders || {},
+            is_default: templateData.is_default || false,
+            created_by: templateData.created_by,
+            created_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Refresh templates
+        const { data: updated } = await get().actions.fetchCertificateTemplates();
+        set({ certificateTemplates: updated || [] });
+
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error };
+      }
+    },
+
+    updateCertificateTemplate: async (templateId, updates) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.CERTIFICATE_TEMPLATES)
+          .update({
+            ...updates,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', templateId)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Refresh templates
+        const { data: updated } = await get().actions.fetchCertificateTemplates();
+        set({ certificateTemplates: updated || [] });
+
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error };
+      }
+    },
+
+    deleteCertificateTemplate: async (templateId) => {
+      try {
+        const { error } = await supabase
+          .from(TABLES.CERTIFICATE_TEMPLATES)
+          .delete()
+          .eq('id', templateId);
+
+        if (error) throw error;
+
+        // Refresh templates
+        const { data: updated } = await get().actions.fetchCertificateTemplates();
+        set({ certificateTemplates: updated || [] });
+
+        return { error: null };
+      } catch (error) {
+        return { error };
+      }
+    },
+
+    // Generate certificate from template
+    generateCertificateFromTemplate: async (userId, courseId, templateId) => {
+      try {
+        // Get user and course data
+        const [userProfile, courseData, templateData] = await Promise.all([
+          getUserProfile(userId),
+          supabase.from(TABLES.COURSES).select('*').eq('id', courseId).single(),
+          supabase.from(TABLES.CERTIFICATE_TEMPLATES).select('*').eq('id', templateId).single()
+        ]);
+
+        if (userProfile && courseData.data && templateData.data) {
+          const certificateData = {
+            user_id: userId,
+            course_id: courseId,
+            template_id: templateId,
+            issued_at: new Date().toISOString(),
+            certificate_data: {
+              user_name: `${userProfile.first_name} ${userProfile.last_name}`,
+              course_title: courseData.data.title,
+              completion_date: new Date().toLocaleDateString(),
+              instructor_name: courseData.data.instructor || 'Kyzer LMS',
+              issue_date: new Date().toLocaleDateString(),
+              certificate_id: `CERT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+              organization_name: userProfile.organization?.name || 'Kyzer LMS',
+            }
+          };
+
+          const { data, error } = await supabase
+            .from(TABLES.CERTIFICATES)
+            .insert(certificateData)
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          // Refresh certificates
+          const { data: updated } = await get().actions.fetchCertificates(userId);
+          set({ certificates: updated || [] });
+
+          return { data, error: null };
+        } else {
+          throw new Error('Missing required data for certificate generation');
+        }
+      } catch (error) {
+        return { data: null, error };
+      }
+    },
+
+    // Generate certificate preview/download with filled placeholders
+    generateCertificatePreview: async (certificateId) => {
+      try {
+        // Get certificate with template data
+        const { data: certificate, error } = await supabase
+          .from(TABLES.CERTIFICATES)
+          .select(`
+            *,
+            template:${TABLES.CERTIFICATE_TEMPLATES}(*),
+            course:${TABLES.COURSES}(*)
+          `)
+          .eq('id', certificateId)
+          .single();
+
+        if (error) throw error;
+
+        if (!certificate.template) {
+          throw new Error('Certificate template not found');
+        }
+
+        // Create a canvas to overlay text on the template image
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+
+          // Set a timeout for image loading
+          const timeout = setTimeout(() => {
+            reject(new Error('Certificate template image failed to load (timeout)'));
+          }, 10000);
+
+          img.onload = () => {
+            clearTimeout(timeout);
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = img.width;
+            canvas.height = img.height;
+
+            // Draw the template image
+            ctx.drawImage(img, 0, 0);
+
+            // Add text overlays for placeholders
+            const placeholderData = certificate.certificate_data;
+            const placeholders = certificate.template.placeholders || {};
+
+            // Set font styles
+            ctx.fillStyle = '#000000';
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 24px Arial';
+
+            // Calculate positions based on image size (these would be configurable)
+            const centerX = canvas.width / 2;
+            const positions = {
+              '{{user_name}}': { x: centerX, y: canvas.height * 0.45 },
+              '{{course_title}}': { x: centerX, y: canvas.height * 0.55 },
+              '{{completion_date}}': { x: centerX * 1.5, y: canvas.height * 0.75 },
+              '{{certificate_id}}': { x: centerX * 0.5, y: canvas.height * 0.75 },
+              '{{instructor_name}}': { x: centerX, y: canvas.height * 0.65 },
+              '{{organization_name}}': { x: centerX, y: canvas.height * 0.25 },
+            };
+
+            // Fill in the placeholders
+            Object.keys(placeholders).forEach(placeholder => {
+              const position = positions[placeholder];
+              const value = placeholderData[placeholder.replace(/[{}]/g, '')];
+
+              if (position && value) {
+                ctx.fillText(value, position.x, position.y);
+              }
+            });
+
+            // Convert to blob for download
+            canvas.toBlob((blob) => {
+              resolve({
+                blob,
+                url: URL.createObjectURL(blob),
+                filename: `certificate-${certificate.certificate_data.certificate_id}.png`
+              });
+            }, 'image/png');
+          };
+
+          img.onerror = (error) => {
+            clearTimeout(timeout);
+            console.error('Certificate template image load error:', error);
+            reject(new Error('Failed to load certificate template image'));
+          };
+
+          // Handle different types of image URLs
+          const templateUrl = certificate.template.template_url;
+          if (templateUrl.startsWith('data:')) {
+            // Data URL - should load directly
+            img.src = templateUrl;
+          } else if (templateUrl.startsWith('http')) {
+            // External URL - might have CORS issues
+            img.src = templateUrl;
+          } else {
+            // Relative or Supabase storage URL
+            img.src = templateUrl;
+          }
+        });
+      } catch (error) {
+        throw error;
       }
     },
 
@@ -1695,6 +1937,269 @@ const useCourseStore = create((set, get) => ({
         return { success: true, error: null };
       } catch (error) {
         return { success: false, error: error.message };
+      }
+    },
+
+    // ==========================================
+    // PRESENTATION PROGRESS TRACKING
+    // ==========================================
+
+    // Track slide completion and time spent
+    updateSlideProgress: async (userId, slideId, presentationId, lessonId, courseId, metadata = {}) => {
+      try {
+        const progressData = {
+          user_id: userId,
+          slide_id: slideId,
+          presentation_id: presentationId,
+          lesson_id: lessonId,
+          course_id: courseId,
+          viewed_at: new Date().toISOString(),
+          time_spent_seconds: metadata.timeSpent || 0,
+          completed: metadata.completed || true,
+          metadata: {
+            ...metadata,
+            slide_order: metadata.slideOrder,
+            quiz_scores: metadata.quizScores || {},
+            interactions: metadata.interactions || {}
+          },
+        };
+
+        const { data, error } = await supabase
+          .from(TABLES.SLIDE_PROGRESS)
+          .upsert(progressData, {
+            onConflict: 'user_id,slide_id',
+            ignoreDuplicates: false
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Update overall presentation progress
+        await get().actions.calculatePresentationProgress(userId, presentationId, lessonId, courseId);
+
+        return { data, error: null };
+      } catch (error) {
+        console.error('Error updating slide progress:', error);
+        return { data: null, error: error.message };
+      }
+    },
+
+    // Calculate and update presentation progress
+    calculatePresentationProgress: async (userId, presentationId, lessonId, courseId) => {
+      try {
+        // Get total slides in presentation
+        const { data: allSlides, error: slidesError } = await supabase
+          .from(TABLES.PRESENTATION_SLIDES)
+          .select('id')
+          .eq('presentation_id', presentationId)
+          .order('slide_number', { ascending: true });
+
+        if (slidesError) throw slidesError;
+
+        // Get completed slides
+        const { data: completedSlides, error: progressError } = await supabase
+          .from(TABLES.SLIDE_PROGRESS)
+          .select('slide_id, time_spent_seconds, metadata')
+          .eq('user_id', userId)
+          .eq('presentation_id', presentationId)
+          .eq('completed', true);
+
+        if (progressError) throw progressError;
+
+        const totalSlides = allSlides?.length || 0;
+        const completedCount = completedSlides?.length || 0;
+        const progressPercentage = totalSlides > 0 ? Math.round((completedCount / totalSlides) * 100) : 0;
+
+        // Calculate total time spent
+        const totalTimeSpent = completedSlides?.reduce((sum, slide) =>
+          sum + (slide.time_spent_seconds || 0), 0) || 0;
+
+        // Aggregate quiz scores if any
+        const quizScores = {};
+        completedSlides?.forEach(slide => {
+          if (slide.metadata?.quizScores) {
+            Object.assign(quizScores, slide.metadata.quizScores);
+          }
+        });
+
+        // Update or create presentation progress record
+        const progressData = {
+          user_id: userId,
+          presentation_id: presentationId,
+          lesson_id: lessonId,
+          course_id: courseId,
+          progress_percentage: progressPercentage,
+          completed_slides: completedCount,
+          total_slides: totalSlides,
+          total_time_spent_seconds: totalTimeSpent,
+          completed: progressPercentage === 100,
+          completed_at: progressPercentage === 100 ? new Date().toISOString() : null,
+          last_accessed: new Date().toISOString(),
+          metadata: {
+            quiz_scores: quizScores,
+            last_slide_viewed: completedSlides?.length > 0 ?
+              completedSlides[completedSlides.length - 1].slide_id : null,
+          },
+        };
+
+        const { data, error } = await supabase
+          .from(TABLES.PRESENTATION_PROGRESS)
+          .upsert(progressData, {
+            onConflict: 'user_id,presentation_id',
+            ignoreDuplicates: false
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // If presentation is completed, update lesson progress
+        if (progressPercentage === 100) {
+          await get().actions.updateLessonProgress(
+            userId,
+            lessonId,
+            courseId,
+            true,
+            {
+              completed_via: 'presentation',
+              presentation_id: presentationId,
+              slides_completed: completedCount,
+              total_time_spent: totalTimeSpent,
+              quiz_scores: quizScores,
+              completed_at: new Date().toISOString()
+            }
+          );
+        }
+
+        return { data, error: null };
+      } catch (error) {
+        console.error('Error calculating presentation progress:', error);
+        return { data: null, error: error.message };
+      }
+    },
+
+    // Fetch presentation progress for a user
+    fetchPresentationProgress: async (userId, presentationId) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.PRESENTATION_PROGRESS)
+          .select('*')
+          .eq('user_id', userId)
+          .eq('presentation_id', presentationId)
+          .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+        return { data: data || null, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    // Fetch slide progress for a presentation
+    fetchSlideProgress: async (userId, presentationId) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.SLIDE_PROGRESS)
+          .select('*')
+          .eq('user_id', userId)
+          .eq('presentation_id', presentationId)
+          .order('viewed_at', { ascending: true });
+
+        if (error) throw error;
+        return { data: data || [], error: null };
+      } catch (error) {
+        return { data: [], error: error.message };
+      }
+    },
+
+    // Track quiz completion within presentations
+    submitPresentationQuizAttempt: async (userId, quizId, slideId, presentationId, answers, score, maxScore = null) => {
+      try {
+        // Submit the quiz attempt using existing function
+        const quizResult = await get().actions.submitQuizAttempt(userId, quizId, answers, score, maxScore);
+
+        if (quizResult.error) throw new Error(quizResult.error);
+
+        // Update slide progress with quiz data
+        const metadata = {
+          completed: true,
+          quizScores: {
+            [quizId]: {
+              score,
+              maxScore,
+              percentage: quizResult.data.percentage,
+              passed: quizResult.data.passed,
+              completed_at: new Date().toISOString()
+            }
+          },
+          interactions: {
+            quiz_completed: true,
+            quiz_id: quizId
+          }
+        };
+
+        // Get slide info for better tracking
+        const { data: slideData } = await supabase
+          .from(TABLES.PRESENTATION_SLIDES)
+          .select('slide_number, presentation_id, lesson_id')
+          .eq('id', slideId)
+          .single();
+
+        await get().actions.updateSlideProgress(
+          userId,
+          slideId,
+          presentationId,
+          slideData?.lesson_id,
+          slideData?.course_id, // We'll need to get this from lesson or presentation
+          {
+            ...metadata,
+            slideOrder: slideData?.slide_number
+          }
+        );
+
+        return { data: quizResult.data, error: null };
+      } catch (error) {
+        console.error('Error submitting presentation quiz attempt:', error);
+        return { data: null, error: error.message };
+      }
+    },
+
+    // Get detailed progress analytics for presentations
+    getPresentationAnalytics: async (userId, courseId = null) => {
+      try {
+        let query = supabase
+          .from(TABLES.PRESENTATION_PROGRESS)
+          .select(`
+            *,
+            presentation:${TABLES.LESSON_PRESENTATIONS}(id, title, lesson_id),
+            lesson:${TABLES.LESSONS}(id, title, course_id)
+          `)
+          .eq('user_id', userId);
+
+        if (courseId) {
+          query = query.eq('course_id', courseId);
+        }
+
+        const { data, error } = await query.order('last_accessed', { ascending: false });
+
+        if (error) throw error;
+
+        // Calculate summary statistics
+        const analytics = {
+          total_presentations: data?.length || 0,
+          completed_presentations: data?.filter(p => p.completed).length || 0,
+          total_slides_viewed: data?.reduce((sum, p) => sum + (p.completed_slides || 0), 0) || 0,
+          total_time_spent: data?.reduce((sum, p) => sum + (p.total_time_spent_seconds || 0), 0) || 0,
+          average_completion_rate: data?.length > 0 ?
+            data.reduce((sum, p) => sum + (p.progress_percentage || 0), 0) / data.length : 0,
+          presentations: data || []
+        };
+
+        return { data: analytics, error: null };
+      } catch (error) {
+        console.error('Error getting presentation analytics:', error);
+        return { data: null, error: error.message };
       }
     },
 

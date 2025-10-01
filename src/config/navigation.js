@@ -41,6 +41,7 @@ export const individualNavigation = [{
             { name: 'Enrolled', href: '/app/courses' },
             { name: 'Browse Catalog', href: '/app/courses/catalog' },
             { name: 'Manage Courses', href: '/app/courses/management', permission: 'manage_courses' },
+            { name: 'Certificate Templates', href: '/app/courses/certificate-templates', permission: 'manage_courses' },
         ],
     },
 

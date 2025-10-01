@@ -63,10 +63,25 @@ export default function Certificates() {
     setFilteredCertificates(filtered);
   }, [certificates, searchTerm, filterStatus]);
 
-  const handleDownload = (certificate) => {
-    // Mock download functionality
-    console.log('Downloading certificate:', certificate.id);
-    // In a real app, this would trigger a file download
+  const handleDownload = async (certificate) => {
+    try {
+      const generateCertificatePreview = useCourseStore.getState().actions.generateCertificatePreview;
+      const { blob, filename } = await generateCertificatePreview(certificate.id);
+
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading certificate:', error);
+      // Fallback to basic download if template generation fails
+      console.log('Downloading certificate:', certificate.id);
+    }
   };
 
   const handleShare = (certificate) => {

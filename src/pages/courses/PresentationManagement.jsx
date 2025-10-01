@@ -272,6 +272,7 @@ export default function PresentationManagement() {
         </div>
         <PresentationViewer
           presentation={presentation}
+          userId={user?.id}
           isFullscreen={isFullscreen}
           onToggleFullscreen={handleToggleFullscreen}
           onPresentationComplete={() => {

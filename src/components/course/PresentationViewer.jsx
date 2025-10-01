@@ -122,10 +122,10 @@ const getExternalVideoPlatform = (url) => {
   return null;
 };
 
-export default function PresentationViewer({ 
-  presentation, 
+export default function PresentationViewer({
+  presentation,
   lesson,
-  onSlideComplete, 
+  onSlideComplete,
   onPresentationComplete,
   externalFullscreen = false,
   onToggleFullscreen,
@@ -134,7 +134,8 @@ export default function PresentationViewer({
   onPreviousLesson,
   onNextLesson,
   hasPreviousLesson = false,
-  hasNextLesson = true
+  hasNextLesson = true,
+  userId = null // Add userId prop for progress tracking
 }) {
   const { success, error: showError } = useToast();
   const actions = useCourseStore(state => state.actions);
@@ -173,13 +174,19 @@ export default function PresentationViewer({
   const [showEditForm, setShowEditForm] = useState(false);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  
+
   // Quiz-related state
   const [quizData, setQuizData] = useState({});
   const [quizQuestions, setQuizQuestions] = useState({});
   const [quizLoading, setQuizLoading] = useState({});
   const [quizResults, setQuizResults] = useState({}); // Store quiz completion results
   const [quizAttempts, setQuizAttempts] = useState({}); // Track attempts per slide
+
+  // Progress tracking state
+  const [slideStartTimes, setSlideStartTimes] = useState({});
+  const [presentationProgress, setPresentationProgress] = useState(null);
+  const [slideProgressData, setSlideProgressData] = useState({});
+  const [timeSpentOnSlides, setTimeSpentOnSlides] = useState({});
   
   const progressIntervalRef = useRef(null);
   const slideTimeoutRef = useRef(null);
@@ -187,6 +194,94 @@ export default function PresentationViewer({
   const currentSlide = presentation?.slides?.[currentSlideIndex];
   const totalSlides = presentation?.slides?.length || 0;
   const progress = totalSlides > 0 ? ((currentSlideIndex + 1) / totalSlides) * 100 : 0;
+
+  // Progress tracking helper functions
+  const trackSlideStart = useCallback((slideIndex) => {
+    if (!userId || !currentSlide) return;
+
+    const slideId = currentSlide.id;
+    const startTime = Date.now();
+
+    setSlideStartTimes(prev => ({
+      ...prev,
+      [slideId]: startTime
+    }));
+  }, [userId, currentSlide]);
+
+  const trackSlideCompletion = useCallback(async (slideIndex) => {
+    if (!userId || !presentation || !lesson || !currentSlide) return;
+
+    const slideId = currentSlide.id;
+    const startTime = slideStartTimes[slideId];
+    const timeSpent = startTime ? Math.round((Date.now() - startTime) / 1000) : 0;
+
+    // Update time spent
+    setTimeSpentOnSlides(prev => ({
+      ...prev,
+      [slideId]: (prev[slideId] || 0) + timeSpent
+    }));
+
+    try {
+      // Track slide progress in database
+      await actions.updateSlideProgress(
+        userId,
+        slideId,
+        presentation.id,
+        lesson.id,
+        lesson.course_id,
+        {
+          completed: true,
+          timeSpent: timeSpentOnSlides[slideId] || 0 + timeSpent,
+          slideOrder: slideIndex + 1,
+          quizScores: quizResults[slideId] ? {
+            [quizResults[slideId].quiz_id]: quizResults[slideId]
+          } : {}
+        }
+      );
+    } catch (error) {
+      console.error('Error tracking slide completion:', error);
+    }
+  }, [userId, presentation, lesson, currentSlide, slideStartTimes, timeSpentOnSlides, quizResults, actions]);
+
+  const loadUserProgress = useCallback(async () => {
+    if (!userId || !presentation) return;
+
+    try {
+      // Load presentation progress
+      const { data: progress } = await actions.fetchPresentationProgress(userId, presentation.id);
+      setPresentationProgress(progress);
+
+      // Load slide progress
+      const { data: slideProgressResponse } = await actions.fetchSlideProgress(userId, presentation.id);
+      const progressMap = {};
+      slideProgressResponse?.forEach(item => {
+        progressMap[item.slide_id] = item;
+      });
+      setSlideProgressData(progressMap);
+
+      // Update completed slides set based on progress
+      const completedSlideIndices = new Set();
+      presentation.slides?.forEach((slide, index) => {
+        if (progressMap[slide.id]?.completed) {
+          completedSlideIndices.add(index);
+        }
+      });
+      setCompletedSlides(completedSlideIndices);
+
+    } catch (error) {
+      console.error('Error loading user progress:', error);
+    }
+  }, [userId, presentation, actions]);
+
+  // Load progress on mount and when presentation changes
+  useEffect(() => {
+    loadUserProgress();
+  }, [loadUserProgress]);
+
+  // Track slide start time when slide changes
+  useEffect(() => {
+    trackSlideStart(currentSlideIndex);
+  }, [currentSlideIndex, trackSlideStart]);
 
   // Function to fetch quiz data for a quiz slide
   const fetchQuizData = useCallback(async (slide) => {
@@ -233,10 +328,13 @@ export default function PresentationViewer({
     }
   }, [currentSlide, fetchQuizData]);
 
-  const markSlideComplete = (slideIndex) => {
+  const markSlideComplete = async (slideIndex) => {
     if (!completedSlides.has(slideIndex)) {
       setCompletedSlides(prev => new Set([...prev, slideIndex]));
       onSlideComplete?.(slideIndex);
+
+      // Track slide completion if user is logged in
+      await trackSlideCompletion(slideIndex);
     }
   };
 
@@ -246,18 +344,18 @@ export default function PresentationViewer({
     success('Presentation completed!');
   };
 
-  const handleNextSlide = useCallback(() => {
+  const handleNextSlide = useCallback(async () => {
     if (currentSlideIndex < totalSlides - 1) {
-      markSlideComplete(currentSlideIndex);
+      await markSlideComplete(currentSlideIndex);
       setIsLoading(true); // Show loading for next slide
       setCurrentSlideIndex(prev => prev + 1);
       setSlideProgress(0);
     } else {
       // Last slide
-      markSlideComplete(currentSlideIndex);
+      await markSlideComplete(currentSlideIndex);
       handlePresentationComplete();
     }
-  }, [currentSlideIndex, totalSlides, completedSlides, onSlideComplete, onPresentationComplete, success]);
+  }, [currentSlideIndex, totalSlides, markSlideComplete, handlePresentationComplete]);
 
   const handlePrevSlide = useCallback(() => {
     if (currentSlideIndex > 0) {
@@ -267,7 +365,11 @@ export default function PresentationViewer({
     }
   }, [currentSlideIndex]);
 
-  const handleSlideClick = (index) => {
+  const handleSlideClick = async (index) => {
+    // Track current slide completion before switching
+    if (index !== currentSlideIndex) {
+      await markSlideComplete(currentSlideIndex);
+    }
     setIsLoading(true); // Show loading for clicked slide
     setCurrentSlideIndex(index);
     setSlideProgress(0);
@@ -831,24 +933,46 @@ export default function PresentationViewer({
                 maxAttempts={currentQuizData.max_attempts || 3}
                 currentAttempt={quizAttempts[slideId] || 1}
                 storedResult={quizResults[slideId]}
-                onQuizComplete={(result) => {
+                onQuizComplete={async (result) => {
                   const slideId = currentSlide.id;
-                  
-                  // Store quiz result
+                  const quizId = currentQuizData.id;
+
+                  // Store quiz result locally
                   setQuizResults(prev => ({
                     ...prev,
-                    [slideId]: result
+                    [slideId]: {
+                      ...result,
+                      quiz_id: quizId
+                    }
                   }));
-                  
+
                   // Increment attempt count
                   setQuizAttempts(prev => ({
                     ...prev,
                     [slideId]: (prev[slideId] || 0) + 1
                   }));
-                  
-                  markSlideComplete(currentSlideIndex);
+
+                  // Track quiz completion in database if user is logged in
+                  if (userId) {
+                    try {
+                      await actions.submitPresentationQuizAttempt(
+                        userId,
+                        quizId,
+                        slideId,
+                        presentation.id,
+                        result.answers || {},
+                        result.score,
+                        result.maxScore
+                      );
+                    } catch (error) {
+                      console.error('Error tracking quiz completion:', error);
+                    }
+                  }
+
+                  // Mark slide as completed
+                  await markSlideComplete(currentSlideIndex);
                   success(`Quiz completed! Score: ${result.score}/${result.maxScore} (${result.percentage}%)`);
-                  
+
                   // Auto-advance to next slide after a short delay
                   setTimeout(() => {
                     if (currentSlideIndex < totalSlides - 1) {
@@ -945,6 +1069,20 @@ export default function PresentationViewer({
                 <BookOpen className="w-4 h-4" />
                 <span>{totalSlides} slides</span>
               </div>
+              {/* Progress Summary */}
+              {userId && presentationProgress && (
+                <div className="flex items-center gap-2 bg-green-50 px-3 py-1 rounded-full">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span className="text-green-700 font-medium">
+                    {presentationProgress.completed_slides}/{presentationProgress.total_slides} completed
+                    {presentationProgress.total_time_spent_seconds > 0 && (
+                      <span className="ml-2 text-green-600">
+                        • {Math.round(presentationProgress.total_time_spent_seconds / 60)}m spent
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
           
@@ -1207,7 +1345,7 @@ export default function PresentationViewer({
 
           <Button
             onClick={onNextLesson}
-            disabled={!hasNextLesson || !onNextLesson}
+            disabled={!onNextLesson}
           >
             {hasNextLesson ? 'Next Lesson' : 'Complete Course'}
             <ChevronRight className="w-4 h-4 ml-2" />
