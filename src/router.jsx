@@ -115,7 +115,7 @@ export const router = createBrowserRouter([
                   )
                 },
                 { path: ":courseId", element: <CourseDetail /> },
-                { path: ":courseId/learning", element: <CourseLearning /> },
+                { path: ":courseId/learning", element: <Navigate to="../" replace /> },
                 { path: ":courseId/lesson/:lessonId", element: <LessonView /> },
                 { path: ":courseId/quiz/:quizId", element: <QuizView /> },
                 { path: ":courseId/lesson/:lessonId/presentation", element: <PresentationManagement /> },

@@ -1,6 +1,7 @@
 // src/store/courseStore.js
 import { create } from 'zustand';
-import { supabase, TABLES } from '@/lib/supabase';
+import { supabase, TABLES, safeQuery, getUserProfile } from '@/lib/supabase';
+import { DEFAULT_CERTIFICATE_SVG } from '@/utils/certificateUtils';
 
 const useCourseStore = create((set, get) => ({
   // State
@@ -473,6 +474,23 @@ const useCourseStore = create((set, get) => ({
           // Don't throw, just return the calculated percentage
         }
 
+        // If course is completed (100%), ensure certificate exists
+        if (progressPercentage === 100) {
+          const { data: existingCert } = await get().actions.getCertificateForCourse(userId, courseId);
+          if (!existingCert) {
+            // Get default certificate template and generate certificate
+            const { data: templates } = await get().actions.fetchCertificateTemplates();
+            const defaultTemplate = templates?.find(t => t.is_default) || templates?.[0];
+
+            if (defaultTemplate) {
+              await get().actions.generateCertificateFromTemplate(userId, courseId, defaultTemplate.id);
+            } else {
+              // Fallback to basic certificate creation if no template exists
+              await get().actions.createCertificate(userId, courseId);
+            }
+          }
+        }
+
         // Update local state
         set((state) => ({
           enrolledCourses: state.enrolledCourses.map(course =>
@@ -566,8 +584,6 @@ const useCourseStore = create((set, get) => ({
         const passThreshold = quizData.pass_threshold || 70;
         const passed = percentage >= passThreshold;
         
-        // Log for debugging (remove in production)
-        console.log(`Quiz completion check: Score ${score}/${maxScore} = ${percentage}%, Threshold: ${passThreshold}%, Passed: ${passed}`);
 
         // Insert quiz attempt with completion status
         const { data, error } = await supabase
@@ -683,12 +699,29 @@ const useCourseStore = create((set, get) => ({
     // Create a certificate record upon completion
     createCertificate: async (userId, courseId) => {
       try {
+        // Get user and course data to populate certificate_data
+        const [userProfile, courseData] = await Promise.all([
+          getUserProfile(userId),
+          supabase.from(TABLES.COURSES).select('*').eq('id', courseId).single()
+        ]);
+
+        const certificateData = {
+          user_name: userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : 'Student',
+          course_title: courseData?.data?.title || 'Course',
+          completion_date: new Date().toLocaleDateString(),
+          issue_date: new Date().toLocaleDateString(),
+          certificate_id: `CERT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+          instructor_name: courseData?.data?.instructor || 'Kyzer LMS',
+          organization_name: userProfile?.organization?.name || 'Kyzer LMS'
+        };
+
         const { data, error } = await supabase
           .from(TABLES.CERTIFICATES)
           .insert({
             user_id: userId,
             course_id: courseId,
             issued_at: new Date().toISOString(),
+            certificate_data: certificateData
           })
           .select()
           .single();
@@ -708,16 +741,22 @@ const useCourseStore = create((set, get) => ({
     // Certificate Templates Management
     fetchCertificateTemplates: async () => {
       try {
-        const { data, error } = await supabase
-          .from(TABLES.CERTIFICATE_TEMPLATES)
-          .select('*')
-          .order('created_at', { ascending: false });
+        const { data, error } = await safeQuery(
+          supabase
+            .from(TABLES.CERTIFICATE_TEMPLATES)
+            .select('*')
+            .order('created_at', { ascending: false }),
+          'fetchCertificateTemplates'
+        );
 
         if (error) throw error;
 
-        set({ certificateTemplates: data || [] });
-        return { data, error: null };
+        const templates = data || [];
+        set({ certificateTemplates: templates });
+        return { data: templates, error: null };
       } catch (error) {
+        console.error('Error fetching certificate templates:', error);
+        set({ certificateTemplates: [] });
         return { data: [], error };
       }
     },
@@ -857,8 +896,19 @@ const useCourseStore = create((set, get) => ({
 
         if (error) throw error;
 
+        // Use default template if no template is associated
         if (!certificate.template) {
-          throw new Error('Certificate template not found');
+          certificate.template = {
+            template_url: DEFAULT_CERTIFICATE_SVG,
+            placeholders: {
+              '{{user_name}}': true,
+              '{{course_title}}': true,
+              '{{completion_date}}': true,
+              '{{certificate_id}}': true,
+              '{{instructor_name}}': true,
+              '{{organization_name}}': true
+            }
+          };
         }
 
         // Create a canvas to overlay text on the template image

@@ -1,10 +1,17 @@
 // src/components/course/CertificateTemplateForm.jsx
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Upload, X, Eye, AlertCircle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { uploadFile, STORAGE_BUCKETS, supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui';
+import {
+  validateCertificateTemplate,
+  validateTemplateFile,
+  revokeObjectURL,
+  handleCertificateError,
+  sanitizeTemplateUrl
+} from '@/utils/certificateUtils';
 
 export default function CertificateTemplateForm({
   template = null,
@@ -24,11 +31,20 @@ export default function CertificateTemplateForm({
   });
 
   const [uploadedFile, setUploadedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(template?.template_url || '');
+  const [previewUrl, setPreviewUrl] = useState(
+    template?.template_url ? sanitizeTemplateUrl(template.template_url) : ''
+  );
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPlaceholders, setSelectedPlaceholders] = useState(
     template?.placeholders ? Object.keys(template.placeholders) : []
   );
+
+  // Cleanup effect for memory leak prevention
+  useEffect(() => {
+    return () => {
+      revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -38,30 +54,28 @@ export default function CertificateTemplateForm({
     }));
   };
 
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        showError('Please select an image file');
-        return;
-      }
+  const handleFileSelect = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        showError('File size must be less than 5MB');
-        return;
-      }
-
-      setUploadedFile(file);
-
-      // Create preview URL
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
+    // Validate file using utility function
+    const validation = validateTemplateFile(file);
+    if (!validation.isValid) {
+      showError(validation.errors[0]);
+      return;
     }
-  };
 
-  const handlePlaceholderToggle = (placeholder) => {
+    setUploadedFile(file);
+
+    // Clean up previous preview URL using utility function
+    revokeObjectURL(previewUrl);
+
+    // Create preview URL
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+  }, [previewUrl, showError]);
+
+  const handlePlaceholderToggle = useCallback((placeholder) => {
     setSelectedPlaceholders(prev => {
       const newSelected = prev.includes(placeholder.key)
         ? prev.filter(p => p !== placeholder.key)
@@ -83,10 +97,18 @@ export default function CertificateTemplateForm({
 
       return newSelected;
     });
-  };
+  }, [availablePlaceholders]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validate form data using utility function
+    const validation = validateCertificateTemplate(formData);
+    if (!validation.isValid) {
+      showError(validation.errors[0]);
+      return;
+    }
+
     setIsUploading(true);
 
     try {
@@ -121,20 +143,8 @@ export default function CertificateTemplateForm({
 
       await onSubmit(submissionData);
     } catch (error) {
-      console.error('Template submission error:', error);
-
-      let errorMessage = `Failed to ${template ? 'update' : 'create'} template`;
-
-      if (error.message?.includes('new row violates row-level security policy')) {
-        errorMessage = 'Permission denied. Please ensure you have course management permissions and the database is set up correctly.';
-      } else if (error.message?.includes('does not exist')) {
-        errorMessage = 'Database table not found. Please run the certificate templates setup first.';
-      } else if (error.message?.includes('Unauthorized')) {
-        errorMessage = 'Storage upload failed. Please ensure the certificates storage bucket exists and is configured properly.';
-      } else if (error.message) {
-        errorMessage += `: ${error.message}`;
-      }
-
+      const operation = template ? 'update template' : 'create template';
+      const errorMessage = handleCertificateError(error, operation);
       showError(errorMessage);
     } finally {
       setIsUploading(false);
@@ -246,6 +256,7 @@ export default function CertificateTemplateForm({
                           size="sm"
                           className="absolute top-2 right-2 bg-white shadow-sm"
                           onClick={() => {
+                            revokeObjectURL(previewUrl);
                             setPreviewUrl('');
                             setUploadedFile(null);
                             setFormData(prev => ({ ...prev, template_url: '' }));

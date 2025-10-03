@@ -21,10 +21,11 @@ import {
   RotateCcw,
   PanelLeftClose,
   PanelLeftOpen,
-  
+  Award
 } from 'lucide-react'
 import { ScormPlayer } from '@/components/course'
 import PresentationViewer from '@/components/course/PresentationViewer'
+import CertificatePreviewModal from '@/components/course/CertificatePreviewModal'
 import { useCourseStore } from '@/store/courseStore'
 import { useAuth } from '@/hooks/auth/useAuth'
 import { 
@@ -92,6 +93,7 @@ export default function LessonView() {
   const [quizCompletionStatus, setQuizCompletionStatus] = useState({})
   const [quiz, setQuiz] = useState(null)
   const [quizQuestions, setQuizQuestions] = useState([])
+  const [showCertificateModal, setShowCertificateModal] = useState(false)
   const { success, error: showError } = useToast()
 
   // Player refs
@@ -1462,6 +1464,20 @@ export default function LessonView() {
           <p className="text-sm text-text-light">
             {courseProgressData.completedCount} of {courseProgressData.totalCount} lessons completed
           </p>
+
+          {/* View Certificate button when course is 100% complete */}
+          {courseProgressData.percentage === 100 && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <Button
+                onClick={() => setShowCertificateModal(true)}
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                size="sm"
+              >
+                <Award className="w-4 h-4 mr-2" />
+                View Certificate
+              </Button>
+            </div>
+          )}
         </Card>
 
         {/* Lesson List */}
@@ -1626,6 +1642,17 @@ export default function LessonView() {
             <span className="text-sm">Show Sidebar</span>
           </Button>
         </>
+      )}
+
+      {/* Certificate Preview Modal */}
+      {showCertificateModal && (
+        <CertificatePreviewModal
+          courseId={courseId}
+          courseName={course?.title}
+          userId={user?.id}
+          isOpen={showCertificateModal}
+          onClose={() => setShowCertificateModal(false)}
+        />
       )}
     </div>
   )

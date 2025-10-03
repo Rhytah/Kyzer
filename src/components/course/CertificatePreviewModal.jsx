@@ -1,9 +1,15 @@
 // src/components/course/CertificatePreviewModal.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { X, Download, Share2, Eye, Award } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useCourseStore } from '@/store/courseStore';
+import {
+  formatCertificateData,
+  downloadBlob,
+  revokeObjectURL,
+  handleCertificateError
+} from '@/utils/certificateUtils';
 
 export default function CertificatePreviewModal({
   courseId,
@@ -20,18 +26,33 @@ export default function CertificatePreviewModal({
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (isOpen && userId && courseId) {
-      loadCertificate();
-    }
+    let mounted = true;
+
+    const loadData = async () => {
+      if (isOpen && userId && courseId && mounted) {
+        await loadCertificate();
+      }
+    };
+
+    loadData();
 
     return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
+      mounted = false;
+      revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
     };
   }, [isOpen, userId, courseId]);
 
-  const loadCertificate = async () => {
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  const loadCertificate = useCallback(async () => {
+    if (!userId || !courseId) return;
+
     try {
       setLoading(true);
       setError(null);
@@ -52,14 +73,14 @@ export default function CertificatePreviewModal({
         }
       }
     } catch (error) {
-      console.error('Error loading certificate:', error);
-      setError('Unable to load certificate. Please try again later.');
+      const errorMessage = handleCertificateError(error, 'load certificate');
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, courseId, actions]);
 
-  const handleDownload = async () => {
+  const handleDownload = useCallback(async () => {
     if (!certificateData) return;
 
     try {
@@ -67,35 +88,73 @@ export default function CertificatePreviewModal({
 
       const { blob, filename } = await actions.generateCertificatePreview(certificateData.id);
 
-      // Create download link
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      // Use utility function for download
+      downloadBlob(blob, filename);
     } catch (error) {
-      console.error('Error downloading certificate:', error);
+      const errorMessage = handleCertificateError(error, 'download certificate');
+      setError(errorMessage);
     } finally {
       setDownloading(false);
     }
-  };
+  }, [certificateData, actions]);
 
-  const handleShare = () => {
+  const handleShare = useCallback(() => {
     if (navigator.share && certificateData) {
       navigator.share({
         title: `${courseName} Certificate`,
         text: `I completed ${courseName} and earned my certificate!`,
         url: window.location.href
-      });
+      }).catch(console.error);
     } else {
       // Fallback to copying link
-      navigator.clipboard.writeText(window.location.href);
-      // Could add a toast notification here
+      navigator.clipboard.writeText(window.location.href)
+        .then(() => {
+          // Could add a toast notification here
+          console.log('Certificate link copied to clipboard');
+        })
+        .catch(console.error);
     }
-  };
+  }, [courseName, certificateData]);
+
+  // Memoized certificate details for performance using utility function
+  const certificateDetails = useMemo(() => {
+    if (!certificateData) return null;
+
+    const formattedData = formatCertificateData(certificateData);
+    if (!formattedData) return null;
+
+    return [
+      {
+        label: 'Recipient',
+        value: formattedData.recipient
+      },
+      {
+        label: 'Course',
+        value: formattedData.course
+      },
+      {
+        label: 'Completion Date',
+        value: formattedData.completionDate
+      },
+      {
+        label: 'Issue Date',
+        value: formattedData.issueDate
+      },
+      {
+        label: 'Certificate ID',
+        value: formattedData.certificateId,
+        isMonospace: true
+      },
+      {
+        label: 'Instructor',
+        value: formattedData.instructor
+      },
+      {
+        label: 'Organization',
+        value: formattedData.organization
+      }
+    ].filter(item => item.value && item.value !== 'Unknown');
+  }, [certificateData]);
 
   if (!isOpen) return null;
 
@@ -170,27 +229,21 @@ export default function CertificatePreviewModal({
               )}
 
               {/* Certificate Details */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-semibold text-text-dark mb-3">Certificate Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-text-light">Recipient:</span>
-                    <div className="font-medium">{certificateData.certificate_data?.user_name}</div>
-                  </div>
-                  <div>
-                    <span className="text-text-light">Course:</span>
-                    <div className="font-medium">{certificateData.certificate_data?.course_title}</div>
-                  </div>
-                  <div>
-                    <span className="text-text-light">Completion Date:</span>
-                    <div className="font-medium">{certificateData.certificate_data?.completion_date}</div>
-                  </div>
-                  <div>
-                    <span className="text-text-light">Certificate ID:</span>
-                    <div className="font-medium font-mono text-xs">{certificateData.certificate_data?.certificate_id}</div>
+              {certificateDetails && (
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="font-semibold text-text-dark mb-3">Certificate Details</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    {certificateDetails.map((detail, index) => (
+                      <div key={detail.label}>
+                        <span className="text-text-light">{detail.label}:</span>
+                        <div className={`font-medium ${detail.isMonospace ? 'font-mono text-xs' : ''}`}>
+                          {detail.value}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>

@@ -43,25 +43,21 @@ import AdminGuard from './components/auth/AdminGuard';
 // Legacy Redirect Components
 function LegacyCourseRedirect() {
   const { courseId } = useParams();
-  console.log('🔄 Legacy redirect: /courses/:courseId -> /app/courses/:courseId', { courseId });
   return <Navigate to={`/app/courses/${courseId}`} replace />;
 }
 
 function LegacyLearningRedirect() {
   const { courseId } = useParams();
-  console.log('🔄 Legacy redirect: /courses/:courseId/learning -> /app/courses/:courseId/learning', { courseId });
-  return <Navigate to={`/app/courses/${courseId}/learning`} replace />;
+  return <Navigate to={`/app/courses/${courseId}`} replace />;
 }
 
 function LegacyLessonRedirect() {
   const { courseId, lessonId } = useParams();
-  console.log('🔄 Legacy redirect: /courses/:courseId/lesson/:lessonId -> /app/courses/:courseId/lesson/:lessonId', { courseId, lessonId });
   return <Navigate to={`/app/courses/${courseId}/lesson/${lessonId}`} replace />;
 }
 
 function LegacyCompletionRedirect() {
   const { courseId } = useParams();
-  console.log('🔄 Legacy redirect: /courses/:courseId/completion -> /app/courses/:courseId/completion', { courseId });
   return <Navigate to={`/app/courses/${courseId}/completion`} replace />;
 }
 

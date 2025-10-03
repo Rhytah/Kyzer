@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useCourseStore } from '@/store/courseStore';
 import { useAuth } from '@/hooks/auth/useAuth';
+import { sanitizeTemplateUrl } from '@/utils/certificateUtils';
 import {
   Plus,
   Edit,
@@ -250,7 +251,7 @@ export default function CertificateTemplates() {
               {template.template_url && (
                 <div className="mb-4">
                   <img
-                    src={template.template_url}
+                    src={sanitizeTemplateUrl(template.template_url)}
                     alt={template.name}
                     className="w-full h-32 object-cover border border-gray-200 rounded"
                   />
@@ -351,7 +352,7 @@ export default function CertificateTemplates() {
               </div>
               {previewTemplate.template_url && (
                 <img
-                  src={previewTemplate.template_url}
+                  src={sanitizeTemplateUrl(previewTemplate.template_url)}
                   alt={previewTemplate.name}
                   className="w-full border border-gray-200 rounded"
                 />

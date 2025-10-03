@@ -62,9 +62,7 @@ const ScormPlayer = ({
       setLoadingStep('Testing URL accessibility...');
 
       // First test if the URL is accessible
-      console.log('Testing SCORM URL accessibility...');
       const urlTest = await testScormUrl(scormUrl);
-      console.log('URL test result:', urlTest);
       
       if (!urlTest.accessible) {
         throw new Error(`SCORM package is not accessible: ${urlTest.error || `HTTP ${urlTest.status} ${urlTest.statusText}`}`);

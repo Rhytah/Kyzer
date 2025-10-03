@@ -24,15 +24,6 @@ const QuizSlide = ({
   const [showResults, setShowResults] = useState(false);
   const [quizResult, setQuizResult] = useState(null);
 
-  // Debug logging
-  console.log('🎯 QuizSlide: Props received:', {
-    quiz,
-    questions,
-    questionsLength: questions?.length,
-    maxAttempts,
-    currentAttempt,
-    storedResult
-  });
 
   // Show stored result if available
   useEffect(() => {
@@ -158,15 +149,13 @@ const QuizSlide = ({
 
   // Handle retake
   const handleRetake = () => {
-    console.log('🎯 QuizSlide: handleRetake called - resetting quiz state');
     setCurrentQuestionIndex(0);
     setAnswers({});
     setTimeLeft(timeLimitMinutes ? timeLimitMinutes * 60 : null);
     setShowResults(false);
     setQuizResult(null);
-    
+
     if (onQuizRetake) {
-      console.log('🎯 QuizSlide: Calling onQuizRetake callback');
       onQuizRetake();
     }
   };
@@ -268,13 +257,6 @@ const QuizSlide = ({
   const displayResult = storedResult || quizResult;
   
   if (showResults && displayResult) {
-    console.log('🎯 QuizSlide: Rendering results with:', {
-      quizResult: displayResult,
-      maxAttempts,
-      currentAttempt,
-      attemptsLeft: maxAttempts - currentAttempt,
-      isStoredResult: !!storedResult
-    });
     
     return (
       <div className="space-y-6">

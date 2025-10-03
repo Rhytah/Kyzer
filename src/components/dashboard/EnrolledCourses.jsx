@@ -70,7 +70,7 @@ const EnrolledCourses = ({ courses = [], loading = false }) => {
                 <CheckCircle className="w-5 h-5 text-success" />
               ) : (
                 <Link 
-                  to={`/app/courses/${course.id}/learning`}
+                  to={`/app/courses/${course.id}`}
                   className="p-2 bg-primary text-background-white rounded-lg hover:bg-primary-dark transition-colors"
                 >
                   <Play className="w-4 h-4" />

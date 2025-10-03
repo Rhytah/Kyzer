@@ -449,19 +449,9 @@ export default function PresentationViewer({
     const isLeftSwipe = distance > 50;
     const isRightSwipe = distance < -50;
 
-    console.log('🎯 PresentationViewer: Touch end', {
-      touchStartX,
-      touchEndX,
-      distance,
-      isLeftSwipe,
-      isRightSwipe
-    });
-
     if (isLeftSwipe) {
-      console.log('🎯 PresentationViewer: Left swipe detected - going to next slide');
       handleNextSlide();
     } else if (isRightSwipe) {
-      console.log('🎯 PresentationViewer: Right swipe detected - going to previous slide');
       handlePrevSlide();
     }
 
@@ -999,8 +989,6 @@ export default function PresentationViewer({
                     newSet.delete(currentSlideIndex);
                     return newSet;
                   });
-                  
-                  console.log('🎯 PresentationViewer: Quiz retake - cleared stored result for slide:', slideId);
                 }}
               />
             </div>

@@ -6,7 +6,7 @@ const Card = ({
   className = "", 
   onClick, 
   hover = false,
-  padding = "p-6"
+  padding
 }) => {
   const baseClasses = "rounded-xl border transition-all duration-200";
   

@@ -415,12 +415,22 @@ export default function CourseDetail() {
                           </Link>
                         )
                       ) : (
-                        <Link to={`/app/courses/${courseId}/learning`}>
-                          <Button className="w-full" size="lg">
-                            <Play className="w-5 h-5 mr-2" />
-                            Start Learning
-                          </Button>
-                        </Link>
+                        (() => {
+                          const firstLessonId = getNextLessonId();
+                          return firstLessonId ? (
+                            <Link to={`/app/courses/${courseId}/lesson/${firstLessonId}`}>
+                              <Button className="w-full" size="lg">
+                                <Play className="w-5 h-5 mr-2" />
+                                Start Learning
+                              </Button>
+                            </Link>
+                          ) : (
+                            <Button className="w-full" size="lg" disabled>
+                              <Play className="w-5 h-5 mr-2" />
+                              No Lessons Available
+                            </Button>
+                          );
+                        })()
                       )}
                       <div className="text-center text-sm text-success-default">
                         ✓ You're enrolled in this course
