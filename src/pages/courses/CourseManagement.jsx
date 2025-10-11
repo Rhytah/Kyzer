@@ -3,13 +3,13 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCourseStore } from '@/store/courseStore';
 import { useAuth } from '@/hooks/auth/useAuth';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Eye, 
-  EyeOff, 
-  BookOpen, 
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
+  EyeOff,
+  BookOpen,
   Play,
   Settings,
   Users,
@@ -20,7 +20,8 @@ import {
   FolderOpen,
   FileText,
   Search,
-  Filter
+  Filter,
+  Edit3
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -632,6 +633,15 @@ export default function CourseManagement() {
                   </Button>
                   {isCreator && (
                     <>
+                      <Link to={`/app/editor/${course.id}`}>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                        >
+                          <Edit3 className="w-4 h-4 mr-1" />
+                          Open Editor
+                        </Button>
+                      </Link>
                       <Button
                         variant="secondary"
                         size="sm"

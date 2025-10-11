@@ -10,7 +10,7 @@ export default {
         // Light theme (default)
         primary: {
           DEFAULT: '#374151',
-          dark: '#1F2937',
+          dark: '#0D1821',
           light: '#F3F4F6'
         },
         text: {

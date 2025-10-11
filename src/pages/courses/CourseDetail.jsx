@@ -3,11 +3,11 @@ import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useCourseStore } from '@/store/courseStore'
 import { useAuth } from '@/hooks/auth/useAuth'
-import { 
-  Play, 
-  Clock, 
-  Users, 
-  Star, 
+import {
+  Play,
+  Clock,
+  Users,
+  Star,
   Award,
   BookOpen,
   CheckCircle,
@@ -18,7 +18,8 @@ import {
   ChevronRight,
   Globe,
   Smartphone,
-  Layers
+  Layers,
+  Edit3
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
@@ -447,6 +448,18 @@ export default function CourseDetail() {
                     <Heart className="w-4 h-4 mr-2" />
                     Add to Wishlist
                   </Button>
+                </div>
+              )}
+
+              {/* Course Editor Button - Show for course creators */}
+              {course?.created_by === user?.id && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <Link to={`/app/editor/${courseId}`}>
+                    <Button variant="outline" className="w-full">
+                      <Edit3 className="w-4 h-4 mr-2" />
+                      Edit Course Content
+                    </Button>
+                  </Link>
                 </div>
               )}
 

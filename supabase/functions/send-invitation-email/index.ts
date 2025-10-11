@@ -80,7 +80,7 @@ serve(async (req) => {
           .title {
             font-size: 28px;
             font-weight: bold;
-            color: #1f2937;
+            color: #0D1821;
             margin-bottom: 10px;
           }
           .subtitle {

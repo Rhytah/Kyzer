@@ -476,7 +476,8 @@ import {
   MoreVertical,
   Download,
   Star,
-  Eye
+  Eye,
+  Edit3
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
@@ -658,28 +659,40 @@ export default function MyCourses() {
           </p>
         )}
 
-        <div className="flex gap-2">
-          {course.status === 'completed' ? (
-            <div className="flex gap-2 w-full">
-              <Link to={`/app/courses/${course.id}`} className="flex-1">
-                <Button variant="secondary" className="w-full">
-                  Review Course
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            {course.status === 'completed' ? (
+              <div className="flex gap-2 w-full">
+                <Link to={`/app/courses/${course.id}`} className="flex-1">
+                  <Button variant="secondary" className="w-full">
+                    Review Course
+                  </Button>
+                </Link>
+                <CertificateButton course={course} />
+              </div>
+            ) : course.status === 'not-started' ? (
+              <Link to={`/app/courses/${course.id}`} className="w-full">
+                <Button className="w-full">
+                  <Play className="w-4 h-4 mr-2" />
+                  Start Course
                 </Button>
               </Link>
-              <CertificateButton course={course} />
-            </div>
-          ) : course.status === 'not-started' ? (
-            <Link to={`/app/courses/${course.id}`} className="w-full">
-              <Button className="w-full">
-                <Play className="w-4 h-4 mr-2" />
-                Start Course
-              </Button>
-            </Link>
-          ) : (
-            <Link to={`/app/courses/${course.id}`} className="w-full">
-              <Button className="w-full">
-                <Play className="w-4 h-4 mr-2" />
-                Continue Learning
+            ) : (
+              <Link to={`/app/courses/${course.id}`} className="w-full">
+                <Button className="w-full">
+                  <Play className="w-4 h-4 mr-2" />
+                  Continue Learning
+                </Button>
+              </Link>
+            )}
+          </div>
+
+          {/* Course Editor Button - Show for course creators */}
+          {course.created_by === user?.id && (
+            <Link to={`/app/editor/${course.id}`} className="w-full">
+              <Button variant="outline" className="w-full text-sm">
+                <Edit3 className="w-4 h-4 mr-2" />
+                Edit Course
               </Button>
             </Link>
           )}

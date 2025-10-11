@@ -5,6 +5,7 @@ import { useCourseStore } from '@/store/courseStore';
 import { useAuth } from '@/hooks/auth/useAuth';
 import { useToast } from '@/components/ui';
 import Button from '@/components/ui/Button';
+import BackButton from '@/components/ui/BackButton';
 import Card from '@/components/ui/Card';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import LessonCurationForm from '@/components/course/LessonCurationForm';
@@ -206,7 +207,7 @@ export default function PresentationManagement() {
           Lesson ID: {lessonId}
         </div>
         <div className="space-y-2">
-          <Button onClick={() => navigate(-1)}>Go Back</Button>
+          <BackButton text="Go Back" />
           <Button 
             variant="outline" 
             onClick={handleTestDatabase}
@@ -228,7 +229,7 @@ export default function PresentationManagement() {
       <div className="text-center text-gray-500 p-8">
         <div className="text-gray-500 text-lg mb-2">This lesson is not a presentation</div>
         <p className="text-sm mb-4">Only lessons with content type "Presentation" can be managed here.</p>
-        <Button onClick={() => navigate(-1)}>Go Back</Button>
+        <BackButton text="Go Back" />
       </div>
     );
   }
