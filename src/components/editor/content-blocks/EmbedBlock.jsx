@@ -22,15 +22,18 @@ const EmbedBlock = ({ data, isPreviewMode, block }) => {
   if (data.type === 'iframe' && data.src) {
     return (
       <div className="space-y-2">
-        <iframe
-          src={data.src}
-          style={{
-            width: data.width || '100%',
-            height: data.height || '400px',
-          }}
-          className="border border-gray-300 rounded-lg"
-          title="Embedded content"
-        />
+        <div className="relative" style={{ width: data.width || '100%', height: data.height || '400px' }}>
+          <iframe
+            src={data.src}
+            style={{
+              width: '100%',
+              height: '100%',
+            }}
+            className="border border-gray-300 rounded-lg"
+            title={data.title || 'Embedded content'}
+            allowFullScreen
+          />
+        </div>
         {!isPreviewMode && (
           <div className="space-y-2">
             <input
@@ -54,7 +57,7 @@ const EmbedBlock = ({ data, isPreviewMode, block }) => {
       <div className="space-y-2">
         <div
           dangerouslySetInnerHTML={{ __html: data.embedCode }}
-          className="border border-gray-300 rounded-lg p-4"
+          className="rounded-lg overflow-hidden"
         />
         {!isPreviewMode && (
           <textarea
@@ -64,6 +67,40 @@ const EmbedBlock = ({ data, isPreviewMode, block }) => {
             className="w-full px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             rows={4}
           />
+        )}
+      </div>
+    );
+  }
+
+  // Auto-detect and handle src without explicit type
+  if (data.src && !data.type) {
+    return (
+      <div className="space-y-2">
+        <div className="relative" style={{ width: data.width || '100%', height: data.height || '400px' }}>
+          <iframe
+            src={data.src}
+            style={{
+              width: '100%',
+              height: '100%',
+            }}
+            className="border border-gray-300 rounded-lg"
+            title={data.title || 'Embedded content'}
+            allowFullScreen
+          />
+        </div>
+        {!isPreviewMode && (
+          <div className="space-y-2">
+            <input
+              type="url"
+              value={data.src || ''}
+              onChange={handleUrlChange}
+              placeholder="https://example.com"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            <p className="text-xs text-gray-500">
+              External content embedded via iframe
+            </p>
+          </div>
         )}
       </div>
     );

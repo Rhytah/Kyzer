@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"; // Add useEffect
 import { useAuth } from "@/hooks/auth/useAuth";
 import SignupForm from "@/components/auth/SignupForm";
 import { Users, User, Building, Check } from "lucide-react";
-import kyzerLogo from "../../assets/images/Kyzerlogo.png";
+import leadwiseLogo from "../../assets/images/leadwise.png";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -38,7 +38,7 @@ export default function Signup() {
           {/* Header */}
           <div className="text-center">
             <div className="flex justify-center mb-6">
-              <img src={kyzerLogo} alt="Kyzer Logo" className="h-8 ml-2" />
+              <img src={leadwiseLogo} alt="Leadwise Logo" className="h-8 ml-2" />
             </div>
             <h2 className="text-2xl font-bold text-text-dark">
               Create your account

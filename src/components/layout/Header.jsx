@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, Bell } from 'lucide-react';
 import { useAuth } from '@/hooks/auth/useAuth';
-import kyzerLogo from "../../assets/images/Kyzerlogo.png";
+import leadwiseLogo from "../../assets/images/leadwise.png";
 import UserMenu from './UserMenu';
 import ThemeSwitcher from '@/components/ui/ThemeSwitcher';
 
@@ -28,7 +28,7 @@ const Header = ({ onMenuClick }) => {
 
             {/* Logo */}
             <Link to={homeRoute} className="flex items-center space-x-2">
-              <img src={kyzerLogo} alt="Kyzer Logo" className="h-8" />
+              <img src={leadwiseLogo} alt="Leadwise Logo" className="h-14" />
             </Link>
           </div>
 

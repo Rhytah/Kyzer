@@ -172,7 +172,7 @@
 //     <div className="container py-8">
 //       {/* Header */}
 //       <div className="mb-8">
-//         <h1 className="text-3xl font-bold text-text-dark mb-2">My Courses</h1>
+//         <h1 className="text-2xl font-bold text-text-dark mb-2">My Courses</h1>
 //         <p className="text-text-medium">
 //           Continue your learning journey and track your progress
 //         </p>
@@ -728,7 +728,7 @@ export default function MyCourses() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-text-dark">My Courses</h1>
+          <h1 className="text-2xl font-bold text-text-dark">My Courses</h1>
           <p className="text-text-light mt-1">
             Continue your learning journey
           </p>
@@ -745,28 +745,28 @@ export default function MyCourses() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="p-6 text-center">
-          <div className="text-3xl font-bold text-primary-default mb-2">
+          <div className="text-2xl font-bold text-primary-default mb-2">
             {courses.length}
           </div>
           <div className="text-text-light">Total Enrolled</div>
         </Card>
         
         <Card className="p-6 text-center">
-          <div className="text-3xl font-bold text-warning-default mb-2">
+          <div className="text-2xl font-bold text-warning-default mb-2">
             {courses.filter(c => (c.progress_percentage || 0) > 0 && (c.progress_percentage || 0) < 100).length}
           </div>
           <div className="text-text-light">In Progress</div>
         </Card>
         
         <Card className="p-6 text-center">
-          <div className="text-3xl font-bold text-success-default mb-2">
+          <div className="text-2xl font-bold text-success-default mb-2">
             {courses.filter(c => c.progress_percentage === 100).length}
           </div>
           <div className="text-text-light">Completed</div>
         </Card>
         
         <Card className="p-6 text-center">
-          <div className="text-3xl font-bold text-text-dark mb-2">
+          <div className="text-2xl font-bold text-text-dark mb-2">
             {courses.reduce((total, course) => total + (course.duration_minutes || 0), 0)}m
           </div>
           <div className="text-text-light">Total Duration</div>

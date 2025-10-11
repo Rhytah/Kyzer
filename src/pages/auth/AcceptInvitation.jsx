@@ -166,7 +166,7 @@ export default function AcceptInvitation() {
         {/* Header */}
         <div className="text-center mb-8">
           <Building2 className="w-16 h-16 text-primary-default mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-text-dark mb-2">Company Invitation</h1>
+          <h1 className="text-2xl font-bold text-text-dark mb-2">Company Invitation</h1>
           <p className="text-text-light">
             You've been invited to join a corporate learning platform
           </p>

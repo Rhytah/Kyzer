@@ -50,7 +50,7 @@ const ResetPassword = () => {
                 <Mail className="h-8 w-8 text-green-600" />
               </div>
             </div>
-            <h2 className="text-3xl font-bold text-text-dark">
+            <h2 className="text-2xl font-bold text-text-dark">
               Check your email
             </h2>
             <p className="mt-4 text-text-medium">

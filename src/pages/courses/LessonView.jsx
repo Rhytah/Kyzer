@@ -1174,6 +1174,61 @@ export default function LessonView() {
               );
             }
 
+            // Embed Block (iframe or HTML)
+            if (block.type === 'embed') {
+              // Handle iframe embeds
+              if (block.data.type === 'iframe' && block.data.src) {
+                return (
+                  <div key={block.id || index} className="my-6">
+                    <div className="relative" style={{ width: block.data.width || '100%', height: block.data.height || '400px' }}>
+                      <iframe
+                        src={block.data.src}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                        }}
+                        className="border border-gray-300 rounded-lg"
+                        title={block.data.title || 'Embedded content'}
+                        allowFullScreen
+                      />
+                    </div>
+                  </div>
+                );
+              }
+
+              // Handle HTML embeds
+              if (block.data.type === 'html' && block.data.embedCode) {
+                return (
+                  <div key={block.id || index} className="my-6">
+                    <div
+                      dangerouslySetInnerHTML={{ __html: block.data.embedCode }}
+                      className="rounded-lg overflow-hidden"
+                    />
+                  </div>
+                );
+              }
+
+              // Auto-detect and handle src without explicit type
+              if (block.data.src && !block.data.type) {
+                return (
+                  <div key={block.id || index} className="my-6">
+                    <div className="relative" style={{ width: block.data.width || '100%', height: block.data.height || '400px' }}>
+                      <iframe
+                        src={block.data.src}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                        }}
+                        className="border border-gray-300 rounded-lg"
+                        title={block.data.title || 'Embedded content'}
+                        allowFullScreen
+                      />
+                    </div>
+                  </div>
+                );
+              }
+            }
+
             // Unknown block type
             return (
               <div key={block.id || index} className="p-4 bg-gray-100 rounded border border-gray-300">

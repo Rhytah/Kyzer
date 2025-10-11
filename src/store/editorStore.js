@@ -387,18 +387,39 @@ const useEditorStore = create((set, get) => ({
 
         // Parse lesson content and convert to blocks
         // Handle various content_blocks formats:
-        // - null/undefined → empty array
-        // - valid array → use as-is
+        // - null/undefined → migrate legacy content or empty array
+        // - empty array → migrate legacy content if other content exists
+        // - valid array with content → use as-is
         // - invalid/corrupt → empty array with warning
         let blocks = [];
 
         if (data.content_blocks) {
           if (Array.isArray(data.content_blocks)) {
             blocks = data.content_blocks;
+          } else if (typeof data.content_blocks === 'string') {
+            // Try to parse if it's a JSON string
+            try {
+              const parsed = JSON.parse(data.content_blocks);
+              blocks = Array.isArray(parsed) ? parsed : [];
+            } catch {
+              blocks = [];
+            }
           } else {
             blocks = [];
           }
         }
+
+        // If blocks is empty but lesson has other content, try migration
+        if (blocks.length === 0 && (data.content_url || data.content_text)) {
+          blocks = get().actions.migrateLegacyContent(data);
+        }
+
+        // Log for debugging
+        console.info(`[Editor] Lesson ${lessonId}: Loaded ${blocks.length} blocks`, {
+          hasContentBlocks: !!data.content_blocks,
+          contentType: data.content_type,
+          lessonTitle: data.title,
+        });
 
         set((state) => ({
           canvas: {
@@ -428,6 +449,389 @@ const useEditorStore = create((set, get) => ({
           },
         }));
         return { data: null, error: error.message || 'Failed to load lesson' };
+      }
+    },
+
+    /**
+     * Migrate legacy lesson content to editor blocks
+     */
+    migrateLegacyContent: (lessonData) => {
+      console.info(`[Editor Migration] Starting migration for lesson:`, {
+        title: lessonData.title,
+        contentType: lessonData.content_type,
+        hasContentUrl: !!lessonData.content_url,
+        hasContentText: !!lessonData.content_text,
+      });
+
+      const blocks = [];
+      let blockIdCounter = 1;
+
+      const generateBlockId = () => {
+        return `block-${Date.now()}-${blockIdCounter++}`;
+      };
+
+      // Add a heading with the lesson title (first page)
+      blocks.push({
+        id: generateBlockId(),
+        type: 'heading',
+        data: {
+          text: lessonData.title || 'Lesson Content',
+          level: 2,
+          color: '#000000',
+          alignment: 'left',
+        },
+      });
+
+      // Migrate based on content_type
+      if (lessonData.content_type === 'text' && lessonData.content_text) {
+        // Convert text content to a text block
+        blocks.push({
+          id: generateBlockId(),
+          type: 'text',
+          data: {
+            content: lessonData.content_text,
+            fontSize: 16,
+            fontFamily: 'Inter',
+            color: '#000000',
+            alignment: 'left',
+          },
+        });
+      } else if (lessonData.content_type === 'video' && lessonData.content_url) {
+        // Convert video URL to a video block
+        let videoType = 'html5';
+        if (lessonData.content_url.includes('youtube.com') || lessonData.content_url.includes('youtu.be')) {
+          videoType = 'youtube';
+        } else if (lessonData.content_url.includes('vimeo.com')) {
+          videoType = 'vimeo';
+        }
+
+        blocks.push({
+          id: generateBlockId(),
+          type: 'video',
+          data: {
+            src: lessonData.content_url,
+            type: videoType,
+            width: '100%',
+            height: '400px',
+            controls: true,
+            autoplay: false,
+            loop: false,
+            muted: false,
+          },
+        });
+      } else if (lessonData.content_type === 'pdf' && lessonData.content_url) {
+        // Convert PDF to a PDF block
+        blocks.push({
+          id: generateBlockId(),
+          type: 'pdf',
+          data: {
+            src: lessonData.content_url,
+            title: lessonData.title || 'PDF Document',
+          },
+        });
+      } else if (lessonData.content_type === 'image' && lessonData.content_url) {
+        // Convert image to an image block
+        blocks.push({
+          id: generateBlockId(),
+          type: 'image',
+          data: {
+            src: lessonData.content_url,
+            alt: lessonData.title || 'Image',
+            width: '100%',
+            height: 'auto',
+            objectFit: 'contain',
+          },
+        });
+      } else if (lessonData.content_type === 'ppt' && lessonData.content_url) {
+        // Convert PPT URL to an embed block using Office Online Viewer
+        blocks.push({
+          id: generateBlockId(),
+          type: 'embed',
+          data: {
+            type: 'iframe',
+            src: `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(lessonData.content_url)}`,
+            width: '100%',
+            height: '600px',
+            title: lessonData.title || 'PowerPoint Presentation',
+          },
+        });
+        
+        // Add a helpful note about PPT content
+        blocks.push({
+          id: generateBlockId(),
+          type: 'text',
+          data: {
+            content: '<p style="color: #666; font-size: 14px; padding: 1rem; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px;">💡 <strong>PowerPoint Presentation</strong><br/>This PPT is displayed using Office Online Viewer. You can also <a href="' + lessonData.content_url + '" target="_blank" style="color: #2563eb; text-decoration: underline;">download it here</a>. Add more content blocks below to supplement the presentation.</p>',
+            fontSize: 14,
+            fontFamily: 'Inter',
+            color: '#666666',
+            alignment: 'left',
+          },
+        });
+      } else if (lessonData.content_type === 'presentation') {
+        // For presentations with slides, we need to fetch slides and convert them
+        // This is done asynchronously, so we'll mark it for async loading
+        blocks.push({
+          id: generateBlockId(),
+          type: 'text',
+          data: {
+            content: '<p><em>⏳ Loading presentation slides...</em></p>',
+            fontSize: 14,
+            fontFamily: 'Inter',
+            color: '#666666',
+            alignment: 'center',
+          },
+        });
+
+        // Trigger async presentation migration
+        get().actions.migratePresentationSlides(lessonData.id);
+        return blocks; // Return early, slides will be loaded asynchronously
+      }
+
+      // Add a note that this was migrated
+      if (blocks.length > 1) {
+        blocks.push({
+          id: generateBlockId(),
+          type: 'text',
+          data: {
+            content: '<p style="color: #666; font-size: 12px; font-style: italic; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">📝 This content was automatically converted from the legacy format. You can now edit it using the editor blocks. Save your changes to update the lesson.</p>',
+            fontSize: 12,
+            fontFamily: 'Inter',
+            color: '#666666',
+            alignment: 'left',
+          },
+        });
+      }
+
+      return blocks;
+    },
+
+    /**
+     * Migrate presentation slides to editor blocks
+     * Fetches slides from the database and converts them to pages
+     */
+    migratePresentationSlides: async (lessonId) => {
+      try {
+        // Fetch presentation and slides
+        const { data, error } = await supabase
+          .from('lesson_presentations')
+          .select(`
+            *,
+            slides:presentation_slides(*)
+          `)
+          .eq('lesson_id', lessonId)
+          .single();
+
+        if (error) throw error;
+
+        const blocks = [];
+        let blockIdCounter = 1;
+
+        const generateBlockId = () => {
+          return `block-pres-${Date.now()}-${blockIdCounter++}`;
+        };
+
+        // Sort slides by slide_number
+        const slides = (data?.slides || []).sort((a, b) => a.slide_number - b.slide_number);
+
+        if (slides.length === 0) {
+          // No slides found, show a message
+          blocks.push({
+            id: generateBlockId(),
+            type: 'heading',
+            data: {
+              text: 'Presentation (Empty)',
+              level: 2,
+              color: '#000000',
+              alignment: 'left',
+            },
+          });
+          blocks.push({
+            id: generateBlockId(),
+            type: 'text',
+            data: {
+              content: '<p>This presentation has no slides yet. Use the presentation management tools to add slides, or start adding content blocks here.</p>',
+              fontSize: 14,
+              fontFamily: 'Inter',
+              color: '#666666',
+              alignment: 'left',
+            },
+          });
+        } else {
+          // Convert each slide to editor blocks with page breaks
+          slides.forEach((slide, index) => {
+            // Add page break before each slide (except the first)
+            if (index > 0) {
+              blocks.push({
+                id: generateBlockId(),
+                type: 'page_break',
+                data: {
+                  backgroundColor: '#ffffff',
+                  showPageNumber: true,
+                },
+              });
+            }
+
+            // Add slide title as heading
+            if (slide.title) {
+              blocks.push({
+                id: generateBlockId(),
+                type: 'heading',
+                data: {
+                  text: slide.title,
+                  level: 2,
+                  color: '#000000',
+                  alignment: 'left',
+                },
+              });
+            }
+
+            // Add slide content based on content_type
+            if (slide.content_type === 'text' && slide.content_text) {
+              blocks.push({
+                id: generateBlockId(),
+                type: 'text',
+                data: {
+                  content: slide.content_text,
+                  fontSize: 16,
+                  fontFamily: 'Inter',
+                  color: '#000000',
+                  alignment: 'left',
+                },
+              });
+            } else if (slide.content_type === 'video' && slide.content_url) {
+              let videoType = 'html5';
+              if (slide.content_url.includes('youtube.com') || slide.content_url.includes('youtu.be')) {
+                videoType = 'youtube';
+              } else if (slide.content_url.includes('vimeo.com')) {
+                videoType = 'vimeo';
+              }
+
+              blocks.push({
+                id: generateBlockId(),
+                type: 'video',
+                data: {
+                  src: slide.content_url,
+                  type: videoType,
+                  width: '100%',
+                  height: '400px',
+                  controls: true,
+                  autoplay: false,
+                  loop: false,
+                  muted: false,
+                },
+              });
+            } else if (slide.content_type === 'image' && slide.content_url) {
+              blocks.push({
+                id: generateBlockId(),
+                type: 'image',
+                data: {
+                  src: slide.content_url,
+                  alt: slide.title || 'Slide image',
+                  width: '100%',
+                  height: 'auto',
+                  objectFit: 'contain',
+                },
+              });
+            } else if (slide.content_type === 'pdf' && slide.content_url) {
+              blocks.push({
+                id: generateBlockId(),
+                type: 'pdf',
+                data: {
+                  src: slide.content_url,
+                  title: slide.title || 'PDF Document',
+                },
+              });
+            } else if (slide.content_type === 'audio' && slide.content_url) {
+              // Audio as HTML5 audio player using embed block
+              blocks.push({
+                id: generateBlockId(),
+                type: 'embed',
+                data: {
+                  type: 'html',
+                  embedCode: `<audio controls style="width: 100%;"><source src="${slide.content_url}" type="audio/mpeg">Your browser does not support the audio element.</audio>`,
+                  title: slide.title || 'Audio',
+                },
+              });
+            }
+
+            // Add any additional text content
+            if (slide.content_text && slide.content_type !== 'text') {
+              blocks.push({
+                id: generateBlockId(),
+                type: 'text',
+                data: {
+                  content: slide.content_text,
+                  fontSize: 14,
+                  fontFamily: 'Inter',
+                  color: '#333333',
+                  alignment: 'left',
+                },
+              });
+            }
+          });
+
+          // Add migration note at the end
+          blocks.push({
+            id: generateBlockId(),
+            type: 'page_break',
+            data: {
+              backgroundColor: '#f9fafb',
+              showPageNumber: false,
+            },
+          });
+
+          blocks.push({
+            id: generateBlockId(),
+            type: 'text',
+            data: {
+              content: `<p style="color: #666; font-size: 12px; font-style: italic; padding: 1rem; background: #f0f9ff; border-left: 3px solid #3b82f6; border-radius: 4px;">📊 <strong>Presentation Migration Complete</strong><br/>This presentation with ${slides.length} slide${slides.length !== 1 ? 's' : ''} has been converted to editor pages. Each slide is now a separate page. You can edit the content, add new blocks, or rearrange pages. Save your changes to update the lesson.</p>`,
+              fontSize: 12,
+              fontFamily: 'Inter',
+              color: '#666666',
+              alignment: 'left',
+            },
+          });
+        }
+
+        // Update the canvas with the migrated blocks
+        set((state) => ({
+          canvas: {
+            ...state.canvas,
+            blocks,
+            selectedBlock: null,
+          },
+          ui: {
+            ...state.ui,
+            currentPage: 0,
+          },
+        }));
+
+        return { success: true, blocks };
+      } catch (error) {
+        // Show error message in the canvas
+        const errorBlocks = [
+          {
+            id: `block-error-${Date.now()}`,
+            type: 'text',
+            data: {
+              content: `<p style="color: #dc2626; padding: 1rem; background: #fef2f2; border-left: 3px solid #dc2626; border-radius: 4px;">⚠️ <strong>Failed to load presentation slides</strong><br/>${error.message || 'Unknown error'}</p>`,
+              fontSize: 14,
+              fontFamily: 'Inter',
+              color: '#dc2626',
+              alignment: 'left',
+            },
+          },
+        ];
+
+        set((state) => ({
+          canvas: {
+            ...state.canvas,
+            blocks: errorBlocks,
+          },
+        }));
+
+        return { success: false, error: error.message };
       }
     },
 

@@ -87,7 +87,7 @@ export default function About() {
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-3xl font-bold text-text-dark mb-6">Our Story</h2>
+              <h2 className="text-2xl font-bold text-text-dark mb-6">Our Story</h2>
               <div className="space-y-4 text-text-medium">
                 <p>
                   Founded in 2023, Kyzer LMS emerged from a simple observation: traditional 
@@ -111,21 +111,21 @@ export default function About() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-4">
                 <Card className="p-6 text-center">
-                  <div className="text-3xl font-bold text-primary-default">10K+</div>
+                  <div className="text-2xl font-bold text-primary-default">10K+</div>
                   <div className="text-sm text-text-light">Active Learners</div>
                 </Card>
                 <Card className="p-6 text-center">
-                  <div className="text-3xl font-bold text-success-default">500+</div>
+                  <div className="text-2xl font-bold text-success-default">500+</div>
                   <div className="text-sm text-text-light">Companies</div>
                 </Card>
               </div>
               <div className="space-y-4 mt-8">
                 <Card className="p-6 text-center">
-                  <div className="text-3xl font-bold text-warning-default">1M+</div>
+                  <div className="text-2xl font-bold text-warning-default">1M+</div>
                   <div className="text-sm text-text-light">Courses Completed</div>
                 </Card>
                 <Card className="p-6 text-center">
-                  <div className="text-3xl font-bold text-error-default">98%</div>
+                  <div className="text-2xl font-bold text-error-default">98%</div>
                   <div className="text-sm text-text-light">Satisfaction Rate</div>
                 </Card>
               </div>
@@ -138,8 +138,8 @@ export default function About() {
       <section className="py-20 bg-background-light">
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-text-dark mb-4">What Makes Us Different</h2>
-            <p className="text-xl text-text-light max-w-3xl mx-auto">
+            <h2 className="text-2xl font-bold text-text-dark mb-4">What Makes Us Different</h2>
+            <p className="text-xl text-text-light max-w-2xl mx-auto">
               We've reimagined learning management from the ground up, focusing on user experience, 
               powerful analytics, and seamless scalability.
             </p>
@@ -186,7 +186,7 @@ export default function About() {
       <section className="py-20">
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-text-dark mb-4">Leadership Team</h2>
+            <h2 className="text-2xl font-bold text-text-dark mb-4">Leadership Team</h2>
             <p className="text-xl text-text-light">
               Meet the team driving innovation in learning technology
             </p>
@@ -227,7 +227,7 @@ export default function About() {
       {/* Call to Action */}
       <section className="py-20 bg-primary-default text-white">
         <div className="max-w-8xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold mb-6">Ready to Transform Your Learning?</h2>
+          <h2 className="text-2xl font-bold mb-6">Ready to Transform Your Learning?</h2>
           <p className="text-xl text-gray-200 mb-8">
             Join thousands of organizations that trust Kyzer LMS for their learning and development needs.
           </p>

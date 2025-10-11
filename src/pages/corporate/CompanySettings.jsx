@@ -590,7 +590,7 @@ const CompanySettings = () => {
     <div className="container py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-text-dark mb-2">
+        <h1 className="text-2xl font-bold text-text-dark mb-2">
           Company Settings
         </h1>
         <p className="text-text-medium">

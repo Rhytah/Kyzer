@@ -195,7 +195,7 @@ export default function QuizForm({ quiz = null, courseId, onSuccess, onCancel })
   };
 
   return (
-    <Card className="max-w-3xl mx-auto">
+    <Card className="max-w-2xl mx-auto">
       <div className="p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">{isEditing ? 'Edit Quiz' : 'Add New Quiz'}</h2>
         <form onSubmit={handleSubmit} className="space-y-6">

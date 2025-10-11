@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/auth/useAuth";
 import LoginForm from "@/components/auth/LoginForm";
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
-import kyzerLogo from "../../assets/images/Kyzerlogo.png";
+import leadwiseLogo from "../../assets/images/leadwise.png";
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -27,7 +27,7 @@ return <Navigate to="/app/dashboard" replace />;     // Prevent rendering the lo
           {/* Header */}
           <div className="text-center">
             <div className="flex justify-center mb-6">
-              <img src={kyzerLogo} alt="Kyzer Logo" className="h-8 ml-2" />
+              <img src={leadwiseLogo} alt="Leadwise Logo" className="h-8 ml-2" />
             </div>
             <h2 className="text-2xl font-bold text-text-dark">Welcome back</h2>
             <p className="mt-2 text-sm text-text-light">

@@ -183,7 +183,7 @@ export default function Pricing() {
           
           <div className="mb-6">
             {isEnterprise ? (
-              <div className="text-3xl font-bold text-text-dark">Custom Pricing</div>
+              <div className="text-2xl font-bold text-text-dark">Custom Pricing</div>
             ) : (
               <>
                 <div className="text-4xl font-bold text-text-dark">
@@ -281,8 +281,8 @@ export default function Pricing() {
       <section className="py-20 bg-background-light">
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-text-dark mb-4">Individual Plans</h2>
-            <p className="text-xl text-text-light max-w-3xl mx-auto">
+            <h2 className="text-2xl font-bold text-text-dark mb-4">Individual Plans</h2>
+            <p className="text-xl text-text-light max-w-2xl mx-auto">
               Perfect for individual learners looking to advance their skills and career
             </p>
           </div>
@@ -299,8 +299,8 @@ export default function Pricing() {
       <section className="py-20">
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-text-dark mb-4">Corporate Plans</h2>
-            <p className="text-xl text-text-light max-w-3xl mx-auto">
+            <h2 className="text-2xl font-bold text-text-dark mb-4">Corporate Plans</h2>
+            <p className="text-xl text-text-light max-w-2xl mx-auto">
               Empower your entire organization with comprehensive learning management
             </p>
           </div>
@@ -317,7 +317,7 @@ export default function Pricing() {
       <section className="py-20 bg-background-light">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-text-dark mb-4">Feature Comparison</h2>
+            <h2 className="text-2xl font-bold text-text-dark mb-4">Feature Comparison</h2>
             <p className="text-xl text-text-light">
               See what's included in each plan
             </p>
@@ -368,7 +368,7 @@ export default function Pricing() {
       <section className="py-20">
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-text-dark mb-4">Frequently Asked Questions</h2>
+            <h2 className="text-2xl font-bold text-text-dark mb-4">Frequently Asked Questions</h2>
           </div>
 
           <div className="space-y-8">
@@ -410,7 +410,7 @@ export default function Pricing() {
       {/* CTA Section */}
       <section className="py-20 bg-primary-default text-white">
         <div className="max-w-8xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold mb-6">Ready to Get Started?</h2>
+          <h2 className="text-2xl font-bold mb-6">Ready to Get Started?</h2>
           <p className="text-xl text-gray-200 mb-8">
             Join thousands of learners and organizations who trust Kyzer LMS for their development needs.
           </p>

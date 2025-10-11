@@ -346,7 +346,7 @@ export default function CourseManagement() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Course Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Course Management</h1>
           <p className="text-gray-600 mt-1">
             Create and manage your courses
           </p>
@@ -472,7 +472,7 @@ export default function CourseManagement() {
       {/* Lesson Form Modal */}
       {showLessonForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <LessonForm
               lesson={editingLesson}
               courseId={selectedCourseId}
@@ -490,7 +490,7 @@ export default function CourseManagement() {
       {/* Module Form Modal */}
       {showModuleForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <ModuleForm
               module={editingModule}
               courseId={selectedCourseId}
@@ -508,7 +508,7 @@ export default function CourseManagement() {
       {/* Quiz Form Modal */}
       {showQuizForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <QuizForm
               quiz={editingQuiz}
               courseId={selectedCourseId}

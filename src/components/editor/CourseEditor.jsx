@@ -122,19 +122,38 @@ const CourseEditor = () => {
       />
 
       {/* Main Editor Area */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Blocks & Media */}
-        <EditorSidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Section: Sidebar + Canvas + Properties */}
+        <div className="flex-1 flex overflow-hidden justify-center">
+          {/* Left Sidebar - Blocks & Media */}
+          <EditorSidebar />
 
-        {/* Center Canvas - Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <EditorCanvas />
-          {/* Timeline at bottom */}
-          <EditorTimeline />
+          {/* Center Canvas - Content Area (Max 60% width) */}
+          <div className="flex-1 max-w-[60%] overflow-hidden">
+            <EditorCanvas />
+          </div>
+
+          {/* Right Properties Panel */}
+          <EditorProperties />
         </div>
 
-        {/* Right Properties Panel */}
-        <EditorProperties />
+        {/* Bottom Section: Timeline + Properties Bottom Half */}
+        <div className="flex h-64 border-t border-gray-200">
+          {/* Timeline - 50% width */}
+          <div className="w-1/2 border-r border-gray-200">
+            <EditorTimeline />
+          </div>
+          
+          {/* Properties Bottom Half - 50% width */}
+          <div className="w-1/2 bg-white overflow-y-auto p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Quick Actions</h3>
+            <div className="space-y-2 text-sm text-gray-600">
+              <p>• Select a block to edit its properties</p>
+              <p>• Use the timeline to navigate between lessons</p>
+              <p>• Drag blocks from the sidebar to add content</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Unsaved changes indicator */}

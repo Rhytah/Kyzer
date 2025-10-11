@@ -96,7 +96,7 @@ const EditorTimeline = () => {
   };
 
   return (
-    <div className="h-48 bg-white border-t border-gray-200 flex flex-col">
+    <div className="h-full bg-white flex flex-col">
       {/* Timeline header */}
       <div className="px-4 py-2 border-b border-gray-200 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-900">Course Structure</h3>

@@ -148,7 +148,7 @@ const EditorCanvas = () => {
       {/* Canvas area */}
       <div
         ref={canvasRef}
-        className="canvas-background h-full overflow-auto p-8"
+        className="canvas-background h-full overflow-auto p-8 flex justify-center"
         onClick={handleCanvasClick}
         onDrop={handleCanvasDrop}
         onDragOver={handleCanvasDragOver}
@@ -161,7 +161,7 @@ const EditorCanvas = () => {
       >
         {/* Main content container (Page) */}
         <div
-          className="max-w-5xl mx-auto rounded-lg shadow-lg min-h-[800px] relative"
+          className="w-full max-w-5xl rounded-lg shadow-lg min-h-[800px] relative"
           onDrop={handleCanvasDrop}
           onDragOver={handleCanvasDragOver}
           style={{

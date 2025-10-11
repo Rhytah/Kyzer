@@ -356,7 +356,7 @@ export default function CourseCompletion() {
           <div className="space-y-4">
             {Array.isArray(completionData.badges) && completionData.badges.map((badge) => (
               <div key={badge.id} className="flex items-center gap-4 p-3 bg-background-light rounded-lg">
-                <div className="text-3xl">{badge.icon}</div>
+                <div className="text-2xl">{badge.icon}</div>
                 <div>
                   <h4 className="font-semibold text-text-dark">{badge.name}</h4>
                   <p className="text-sm text-text-light">{badge.description}</p>

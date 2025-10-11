@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { Mail, RefreshCw, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
-import kyzerLogo from "../../assets/images/Kyzerlogo.png";
+import leadwiseLogo from "../../assets/images/leadwise.png";
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
@@ -93,7 +93,7 @@ export default function VerifyEmail() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
-            <img src={kyzerLogo} alt="Kyzer Logo" className="h-8" />
+            <img src={leadwiseLogo} alt="Leadwise Logo" className="h-8" />
           </div>
           
           <div className="w-16 h-16 bg-primary-light rounded-full flex items-center justify-center mx-auto mb-4">

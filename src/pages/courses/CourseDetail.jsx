@@ -330,7 +330,7 @@ export default function CourseDetail() {
               <span className="text-white/80 text-sm">{course.level || course.difficulty_level || 'Beginner'}</span>
             </div>
             
-            <h1 className="text-3xl md:text-4xl font-bold mb-4">{course.title}</h1>
+            <h1 className="text-2xl md:text-4xl font-bold mb-4">{course.title}</h1>
             <p className="text-xl text-white/90 mb-6">{course.subtitle || course.description?.substring(0, 100) + '...'}</p>
             
             <div className="flex flex-wrap items-center gap-6 text-sm">
@@ -386,7 +386,7 @@ export default function CourseDetail() {
               
                 
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <span className="text-3xl font-bold">${course.price || 'Free'}</span>
+                  <span className="text-2xl font-bold">${course.price || 'Free'}</span>
                   {course.originalPrice && (
                     <span className="text-lg text-text-muted line-through">${course.originalPrice}</span>
                   )}
@@ -722,7 +722,7 @@ export default function CourseDetail() {
                     {course.reviews.map((review) => (
                       <div key={review.id} className="border-b border-background-light pb-6 last:border-b-0">
                         <div className="flex items-start gap-4">
-                          <div className="text-3xl">{review.avatar}</div>
+                          <div className="text-2xl">{review.avatar}</div>
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
                               <h4 className="font-medium text-text-dark">{review.user}</h4>

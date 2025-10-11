@@ -185,7 +185,7 @@ const Progress = () => {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-text-dark mb-2">
+          <h1 className="text-2xl font-bold text-text-dark mb-2">
             Learning Progress
           </h1>
           <p className="text-text-medium">

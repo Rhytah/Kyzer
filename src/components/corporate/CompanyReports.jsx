@@ -366,7 +366,7 @@ function CourseAnalyticsReport({ assignments }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-text-light">Total Courses</p>
-              <p className="text-3xl font-bold text-text-dark">{assignments.length}</p>
+              <p className="text-2xl font-bold text-text-dark">{assignments.length}</p>
               <p className="text-sm text-success-default">+2 this month</p>
             </div>
             <BookOpen className="w-8 h-8 text-primary-default" />
@@ -377,7 +377,7 @@ function CourseAnalyticsReport({ assignments }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-text-light">Avg Completion Rate</p>
-              <p className="text-3xl font-bold text-text-dark">
+              <p className="text-2xl font-bold text-text-dark">
                 {Math.round(courseStats.reduce((acc, course) => acc + course.completionRate(), 0) / courseStats.length) || 0}%
               </p>
               <p className="text-sm text-success-default">+5% vs last month</p>
@@ -390,7 +390,7 @@ function CourseAnalyticsReport({ assignments }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-text-light">Avg Time to Complete</p>
-              <p className="text-3xl font-bold text-text-dark">
+              <p className="text-2xl font-bold text-text-dark">
                 {Math.round(courseStats.reduce((acc, course) => acc + course.averageTime, 0) / courseStats.length) || 0}m
               </p>
               <p className="text-sm text-warning-default">-10m vs last month</p>
@@ -479,7 +479,7 @@ function MetricCard({ title, value, subtitle, icon: Icon, color, trend }) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-text-light">{title}</p>
-          <p className="text-3xl font-bold text-text-dark mt-1">{value}</p>
+          <p className="text-2xl font-bold text-text-dark mt-1">{value}</p>
           <p className="text-sm text-text-light mt-1">{subtitle}</p>
           {trend && (
             <div className={`flex items-center gap-1 mt-2 ${

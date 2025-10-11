@@ -936,7 +936,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
   ];
 
   return (
-    <Card className="max-w-3xl mx-auto">
+    <Card className="max-w-2xl mx-auto">
       <div className="p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
           {isEditing ? 'Edit Lesson' : 'Add New Lesson'}
