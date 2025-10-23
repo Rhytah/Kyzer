@@ -32,9 +32,9 @@ const VideoBlock = ({ data, isPreviewMode, block }) => {
     }
   };
 
-  if (!data.src) {
+  if (!data.src || data.src === '') {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-gray-900 bg-opacity-5 border-2 border-dashed border-gray-300 rounded-lg">
+      <div className="flex flex-col items-center justify-center p-12 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg">
         <VideoIcon className="w-12 h-12 text-gray-400 mb-4" />
         <p className="text-gray-500 text-sm mb-4">Add a video</p>
         {!isPreviewMode && (
@@ -163,6 +163,12 @@ const VideoBlock = ({ data, isPreviewMode, block }) => {
     );
   };
 
+  const handleSizeChange = (field, value) => {
+    updateBlock(block.id, {
+      data: { ...data, [field]: value }
+    });
+  };
+
   return (
     <div>
       <div
@@ -174,7 +180,7 @@ const VideoBlock = ({ data, isPreviewMode, block }) => {
         {renderVideo()}
       </div>
       {!isPreviewMode && (
-        <div className="mt-2">
+        <div className="mt-2 space-y-2">
           <div className="flex gap-2 items-center">
             <input
               type="url"
@@ -200,6 +206,47 @@ const VideoBlock = ({ data, isPreviewMode, block }) => {
             <span className="text-xs text-gray-500 px-2 py-1 bg-gray-100 rounded">
               {data.type === 'youtube' ? 'YouTube' : data.type === 'vimeo' ? 'Vimeo' : 'Direct'}
             </span>
+            <button
+              onClick={() => {
+                updateBlock(block.id, {
+                  data: { ...data, src: '' }
+                });
+                setUrlInput('');
+              }}
+              className="px-3 py-1 text-sm text-red-600 hover:text-red-700 border border-red-300 rounded hover:bg-red-50 transition-colors"
+            >
+              Remove
+            </button>
+          </div>
+
+          {/* Video sizing controls */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Width</label>
+              <select
+                value={data.width || '100%'}
+                onChange={(e) => handleSizeChange('width', e.target.value)}
+                className="w-full px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="100%">Full Width (100%)</option>
+                <option value="75%">Large (75%)</option>
+                <option value="50%">Medium (50%)</option>
+                <option value="33%">Small (33%)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Height</label>
+              <select
+                value={data.height || '400px'}
+                onChange={(e) => handleSizeChange('height', e.target.value)}
+                className="w-full px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="200px">Small (200px)</option>
+                <option value="300px">Medium (300px)</option>
+                <option value="400px">Large (400px)</option>
+                <option value="500px">X-Large (500px)</option>
+              </select>
+            </div>
           </div>
         </div>
       )}

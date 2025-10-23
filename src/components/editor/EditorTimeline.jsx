@@ -8,7 +8,7 @@ import { ChevronRight, ChevronDown, FileText, Folder, Plus } from 'lucide-react'
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 
-const EditorTimeline = () => {
+const EditorTimeline = ({ embedded = false }) => {
   const timeline = useEditorStore((state) => state.timeline);
   const ui = useEditorStore((state) => state.ui);
   const actions = useEditorStore((state) => state.actions);
@@ -18,7 +18,7 @@ const EditorTimeline = () => {
   const user = useAuthStore((state) => state.user);
   const [creatingLesson, setCreatingLesson] = useState(null); // moduleId when creating
 
-  if (!ui.timelineOpen) {
+  if (!ui.timelineOpen && !embedded) {
     return (
       <button
         onClick={actions.toggleTimeline}
@@ -98,15 +98,17 @@ const EditorTimeline = () => {
   return (
     <div className="h-full bg-white flex flex-col">
       {/* Timeline header */}
-      <div className="px-4 py-2 border-b border-gray-200 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-900">Course Structure</h3>
-        <button
-          onClick={actions.toggleTimeline}
-          className="p-1 hover:bg-gray-100 rounded text-gray-500"
-        >
-          <ChevronDown className="w-4 h-4" />
-        </button>
-      </div>
+      {!embedded && (
+        <div className="px-4 py-2 border-b border-gray-200 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900">Course Structure</h3>
+          <button
+            onClick={actions.toggleTimeline}
+            className="p-1 hover:bg-gray-100 rounded text-gray-500"
+          >
+            <ChevronDown className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Timeline content */}
       <div className="flex-1 overflow-x-auto overflow-y-auto">

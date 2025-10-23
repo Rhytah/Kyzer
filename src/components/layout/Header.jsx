@@ -28,7 +28,7 @@ const Header = ({ onMenuClick }) => {
 
             {/* Logo */}
             <Link to={homeRoute} className="flex items-center space-x-2">
-              <img src={leadwiseLogo} alt="Leadwise Logo" className="h-14" />
+              <img src={leadwiseLogo} alt="Leadwise Logo" className="h-24" />
             </Link>
           </div>
 

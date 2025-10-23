@@ -5,7 +5,7 @@ import { useEditor } from '@/hooks/editor';
 import { getBlockDefinition, BLOCK_TYPES } from '@/lib/editor/blockRegistry';
 import { X, Settings, Trash2, Palette } from 'lucide-react';
 
-const EditorProperties = () => {
+const EditorProperties = ({ embedded = false }) => {
   const { canvas, ui, currentLesson, actions } = useEditorStore();
   const { updateBlock, deleteBlock } = useEditor();
   const [applyToAllPages, setApplyToAllPages] = useState(false);
@@ -17,7 +17,7 @@ const EditorProperties = () => {
     const pagesList = [];
     let currentPage = {
       blocks: [],
-      backgroundColor: '#ffffff',
+      backgroundColor: canvas.firstPageBackground || '#ffffff',
       showPageNumber: true,
       pageBreakBlockId: null,
     };
@@ -43,14 +43,15 @@ const EditorProperties = () => {
     }
 
     return { pages: pagesList, currentPageIndex: ui.currentPage || 0 };
-  }, [canvas.blocks, ui.currentPage]);
+  }, [canvas.blocks, canvas.firstPageBackground, ui.currentPage]);
 
   const currentPage = pages[currentPageIndex] || { blocks: [], backgroundColor: '#ffffff', showPageNumber: true };
 
   // Handle page background color change
   const handlePageBackgroundChange = (color, applyToAll = false) => {
     if (applyToAll) {
-      // Apply to all pages - update all page break blocks
+      // Apply to all pages - update first page settings and all page break blocks
+      actions.setFirstPageBackground(color);
       const pageBreaks = canvas.blocks.filter(b => b.type === BLOCK_TYPES.PAGE_BREAK);
       pageBreaks.forEach(pageBreak => {
         updateBlock(pageBreak.id, {
@@ -64,24 +65,9 @@ const EditorProperties = () => {
     }
 
     // Apply to current page only
-    if (pages.length === 1 && currentPageIndex === 0) {
-      // Single page - we need to insert a page break at the end to apply the background
-      // For simplicity, we'll create a page break that will define page 2's background
-      // But show a message that they need to add a page break
-      return; // Can't change background of first page without page breaks yet
-    }
-
-    if (currentPageIndex === 0 && pages.length > 1) {
-      // First page of multiple pages - the first page break defines what comes AFTER it
-      // So we can't directly change page 1's background this way
-      // Instead, we'd need to insert a page break at the start
-      // For now, just update the next page break
-      const firstPageBreak = canvas.blocks.find(b => b.type === BLOCK_TYPES.PAGE_BREAK);
-      if (firstPageBreak) {
-        updateBlock(firstPageBreak.id, {
-          data: { ...firstPageBreak.data, backgroundColor: color }
-        });
-      }
+    if (currentPageIndex === 0) {
+      // First page - store in editor state
+      actions.setFirstPageBackground(color);
     } else if (currentPage.pageBreakBlockId) {
       // Update the page break that defines this page
       const pageBreakBlock = canvas.blocks.find(b => b.id === currentPage.pageBreakBlockId);
@@ -97,7 +83,7 @@ const EditorProperties = () => {
     }
   };
 
-  if (!ui.propertiesOpen) {
+  if (!ui.propertiesOpen && !embedded) {
     return (
       <button
         onClick={actions.toggleProperties}
@@ -112,19 +98,21 @@ const EditorProperties = () => {
   const blockDefinition = selectedBlock ? getBlockDefinition(selectedBlock.type) : null;
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
+    <div className={embedded ? "h-full flex flex-col overflow-hidden" : "w-80 bg-white border-l border-gray-200 flex flex-col"}>
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Properties</h2>
-          <button
-            onClick={actions.toggleProperties}
-            className="p-1 hover:bg-gray-100 rounded"
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
+      {!embedded && (
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Properties</h2>
+            <button
+              onClick={actions.toggleProperties}
+              className="p-1 hover:bg-gray-100 rounded"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">

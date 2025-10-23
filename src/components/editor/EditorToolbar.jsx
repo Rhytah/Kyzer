@@ -16,6 +16,7 @@ import {
 import { useEditor } from '@/hooks/editor';
 import { useEditorStore } from '@/store/editorStore';
 import BackButton from '@/components/ui/BackButton';
+import Tooltip from '@/components/ui/Tooltip';
 
 const EditorToolbar = ({ currentCourse, isSaving, hasUnsavedChanges, onSave, editMode }) => {
   const { undo, redo, canUndo, canRedo, setEditMode } = useEditor();
@@ -61,65 +62,72 @@ const EditorToolbar = ({ currentCourse, isSaving, hasUnsavedChanges, onSave, edi
       <div className="flex items-center gap-2">
         {/* Undo/Redo */}
         <div className="flex items-center gap-1 border-r border-gray-200 pr-2 mr-2">
-          <button
-            onClick={undo}
-            disabled={!canUndo}
-            className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Undo (Cmd+Z)"
-          >
-            <Undo className="w-4 h-4" />
-          </button>
-          <button
-            onClick={redo}
-            disabled={!canRedo}
-            className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Redo (Cmd+Shift+Z)"
-          >
-            <Redo className="w-4 h-4" />
-          </button>
+          <Tooltip content="Undo (⌘Z)" position="bottom">
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Undo className="w-4 h-4" />
+            </button>
+          </Tooltip>
+          <Tooltip content="Redo (⌘⇧Z)" position="bottom">
+            <button
+              onClick={redo}
+              disabled={!canRedo}
+              className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Redo className="w-4 h-4" />
+            </button>
+          </Tooltip>
         </div>
 
         {/* Zoom controls */}
         <div className="flex items-center gap-1 border-r border-gray-200 pr-2 mr-2">
-          <button
-            onClick={handleZoomOut}
-            className="p-2 rounded hover:bg-gray-100"
-            title="Zoom Out"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-          <button
-            onClick={handleResetZoom}
-            className="px-3 py-1 text-sm font-medium hover:bg-gray-100 rounded"
-            title="Reset Zoom"
-          >
-            {canvas.zoom}%
-          </button>
-          <button
-            onClick={handleZoomIn}
-            className="p-2 rounded hover:bg-gray-100"
-            title="Zoom In"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
+          <Tooltip content="Zoom out" position="bottom">
+            <button
+              onClick={handleZoomOut}
+              className="p-2 rounded hover:bg-gray-100"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+          </Tooltip>
+          <Tooltip content="Reset zoom to 100%" position="bottom">
+            <button
+              onClick={handleResetZoom}
+              className="px-3 py-1 text-sm font-medium hover:bg-gray-100 rounded"
+            >
+              {canvas.zoom}%
+            </button>
+          </Tooltip>
+          <Tooltip content="Zoom in" position="bottom">
+            <button
+              onClick={handleZoomIn}
+              className="p-2 rounded hover:bg-gray-100"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+          </Tooltip>
         </div>
 
         {/* View options */}
         <div className="flex items-center gap-1">
-          <button
-            onClick={actions.toggleGrid}
-            className={`p-2 rounded hover:bg-gray-100 ${ui.showGrid ? 'bg-blue-50 text-blue-600' : ''}`}
-            title="Toggle Grid"
-          >
-            <Grid className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setEditMode(editMode === 'preview' ? 'edit' : 'preview')}
-            className={`p-2 rounded hover:bg-gray-100 ${editMode === 'preview' ? 'bg-blue-50 text-blue-600' : ''}`}
-            title="Preview Mode"
-          >
-            <Eye className="w-4 h-4" />
-          </button>
+          <Tooltip content={ui.showGrid ? "Hide grid" : "Show grid"} position="bottom">
+            <button
+              onClick={actions.toggleGrid}
+              className={`p-2 rounded hover:bg-gray-100 ${ui.showGrid ? 'bg-blue-50 text-blue-600' : ''}`}
+            >
+              <Grid className="w-4 h-4" />
+            </button>
+          </Tooltip>
+          <Tooltip content={editMode === 'preview' ? "Exit preview mode" : "Preview mode"} position="bottom">
+            <button
+              onClick={() => setEditMode(editMode === 'preview' ? 'edit' : 'preview')}
+              className={`p-2 rounded hover:bg-gray-100 ${editMode === 'preview' ? 'bg-blue-50 text-blue-600' : ''}`}
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+          </Tooltip>
         </div>
       </div>
 

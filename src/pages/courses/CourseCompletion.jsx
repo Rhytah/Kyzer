@@ -254,7 +254,7 @@ export default function CourseCompletion() {
     if (navigator.share) {
       navigator.share({
         title: `I completed ${course.title}!`,
-        text: `I just completed "${course.title}" on Kyzer LMS and earned my certificate!`,
+        text: `I just completed "${course.title}" on Leadwise Academy and earned my certificate!`,
         url: completionData.certificate.shareUrl
       })
     } else {

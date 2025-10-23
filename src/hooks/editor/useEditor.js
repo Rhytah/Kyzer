@@ -53,6 +53,13 @@ export const useEditor = () => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Check if user is typing in an input field
+      const isTyping = (
+        e.target.tagName === 'INPUT' ||
+        e.target.tagName === 'TEXTAREA' ||
+        e.target.isContentEditable
+      );
+
       // Cmd/Ctrl + Z - Undo
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -71,26 +78,26 @@ export const useEditor = () => {
         actions.saveLesson();
       }
 
-      // Cmd/Ctrl + C - Copy
-      if ((e.metaKey || e.ctrlKey) && e.key === 'c' && store.canvas.selectedBlock) {
+      // Cmd/Ctrl + C - Copy (only if not typing)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'c' && store.canvas.selectedBlock && !isTyping) {
         e.preventDefault();
         actions.copyBlock(store.canvas.selectedBlock);
       }
 
-      // Cmd/Ctrl + V - Paste
-      if ((e.metaKey || e.ctrlKey) && e.key === 'v' && store.canvas.clipboard) {
+      // Cmd/Ctrl + V - Paste (only if not typing)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'v' && store.canvas.clipboard && !isTyping) {
         e.preventDefault();
         actions.pasteBlock();
       }
 
-      // Cmd/Ctrl + D - Duplicate
-      if ((e.metaKey || e.ctrlKey) && e.key === 'd' && store.canvas.selectedBlock) {
+      // Cmd/Ctrl + D - Duplicate (only if not typing)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'd' && store.canvas.selectedBlock && !isTyping) {
         e.preventDefault();
         actions.duplicateBlock(store.canvas.selectedBlock);
       }
 
-      // Delete/Backspace - Delete selected block
-      if ((e.key === 'Delete' || e.key === 'Backspace') && store.canvas.selectedBlock) {
+      // Delete/Backspace - Delete selected block (only if not typing)
+      if ((e.key === 'Delete' || e.key === 'Backspace') && store.canvas.selectedBlock && !isTyping) {
         e.preventDefault();
         actions.deleteBlock(store.canvas.selectedBlock);
       }

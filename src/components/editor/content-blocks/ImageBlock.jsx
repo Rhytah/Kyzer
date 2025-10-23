@@ -28,6 +28,12 @@ const ImageBlock = ({ data, isPreviewMode, block }) => {
     });
   };
 
+  const handleSizeChange = (field, value) => {
+    updateBlock(block.id, {
+      data: { ...data, [field]: value }
+    });
+  };
+
   if (!data.src) {
     return (
       <div className="flex flex-col items-center justify-center p-12 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg">
@@ -102,6 +108,55 @@ const ImageBlock = ({ data, isPreviewMode, block }) => {
               Remove
             </button>
           </div>
+
+          {/* Image sizing controls */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Width</label>
+              <select
+                value={data.width || '100%'}
+                onChange={(e) => handleSizeChange('width', e.target.value)}
+                className="w-full px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="100%">Full Width (100%)</option>
+                <option value="75%">Large (75%)</option>
+                <option value="50%">Medium (50%)</option>
+                <option value="33%">Small (33%)</option>
+                <option value="25%">Tiny (25%)</option>
+                <option value="auto">Auto</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Height</label>
+              <select
+                value={data.height || 'auto'}
+                onChange={(e) => handleSizeChange('height', e.target.value)}
+                className="w-full px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="auto">Auto</option>
+                <option value="200px">Small (200px)</option>
+                <option value="300px">Medium (300px)</option>
+                <option value="400px">Large (400px)</option>
+                <option value="500px">X-Large (500px)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Fit</label>
+            <select
+              value={data.objectFit || 'contain'}
+              onChange={(e) => handleSizeChange('objectFit', e.target.value)}
+              className="w-full px-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="contain">Contain (fit inside)</option>
+              <option value="cover">Cover (fill area)</option>
+              <option value="fill">Fill (stretch)</option>
+              <option value="none">None (original size)</option>
+              <option value="scale-down">Scale Down</option>
+            </select>
+          </div>
+
           <input
             type="text"
             value={data.alt || ''}

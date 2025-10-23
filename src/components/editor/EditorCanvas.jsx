@@ -19,7 +19,7 @@ const EditorCanvas = () => {
     const pagesList = [];
     let currentPage = {
       blocks: [],
-      backgroundColor: '#ffffff',
+      backgroundColor: canvas.firstPageBackground || '#ffffff',
       showPageNumber: true,
     };
 
@@ -45,7 +45,7 @@ const EditorCanvas = () => {
     }
 
     return pagesList;
-  }, [canvas.blocks]);
+  }, [canvas.blocks, canvas.firstPageBackground]);
 
   // Current page state from editor store
   const currentPageIndex = ui.currentPage || 0;
@@ -100,9 +100,9 @@ const EditorCanvas = () => {
   const currentPage = pages[currentPageIndex] || { blocks: [], backgroundColor: '#ffffff', showPageNumber: true };
 
   return (
-    <div className="flex-1 overflow-hidden bg-gray-100 relative">
+    <div className="flex-1 flex flex-col bg-gray-100 relative overflow-hidden">
       {/* Canvas header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
+      <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
           <h3 className="text-sm font-medium text-gray-900">
             {currentLesson?.title || 'Select a lesson to edit'}
@@ -148,7 +148,7 @@ const EditorCanvas = () => {
       {/* Canvas area */}
       <div
         ref={canvasRef}
-        className="canvas-background h-full overflow-auto p-8 flex justify-center"
+        className="canvas-background flex-1 overflow-auto p-16"
         onClick={handleCanvasClick}
         onDrop={handleCanvasDrop}
         onDragOver={handleCanvasDragOver}
@@ -159,18 +159,46 @@ const EditorCanvas = () => {
           backgroundSize: ui.showGrid ? '20px 20px' : 'auto',
         }}
       >
-        {/* Main content container (Page) */}
-        <div
-          className="w-full max-w-5xl rounded-lg shadow-lg min-h-[800px] relative"
-          onDrop={handleCanvasDrop}
-          onDragOver={handleCanvasDragOver}
+        {/* Zoom wrapper - reserves space for scaled content */}
+        <div 
           style={{
-            backgroundColor: currentPage.backgroundColor,
-            transform: `scale(${canvas.zoom / 100})`,
-            transformOrigin: 'top center',
-            transition: 'transform 0.2s ease',
+            width: `${900 * (canvas.zoom / 100)}px`,
+            minHeight: `${600 * (canvas.zoom / 100)}px`,
+            margin: '0 auto',
+            position: 'relative',
           }}
         >
+          {/* Main content container (Page) - transformed for zoom */}
+          <div
+            className="rounded-lg shadow-lg absolute top-0 left-0"
+            onDrop={handleCanvasDrop}
+            onDragOver={handleCanvasDragOver}
+            style={{
+              backgroundColor: currentPage.backgroundColor,
+              width: '900px',
+              minHeight: '600px',
+              transform: `scale(${canvas.zoom / 100})`,
+              transformOrigin: 'top left',
+              transition: 'transform 0.2s ease',
+            }}
+          >
+            {/* Page size guide - shows recommended 600px boundary */}
+            {editMode === 'edit' && currentPage.blocks.length > 0 && (
+              <div 
+                className="absolute left-0 right-0 pointer-events-none"
+                style={{
+                  top: '600px',
+                  borderBottom: '2px dashed rgba(59, 130, 246, 0.3)',
+                  zIndex: 0,
+                }}
+              >
+                <span 
+                  className="absolute right-4 -top-6 text-xs font-medium text-blue-500 bg-white px-2 py-1 rounded shadow-sm pointer-events-none"
+                >
+                  Recommended page height (600px)
+                </span>
+              </div>
+            )}
           {/* Content blocks */}
           {canvas.blocks.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-96 text-center p-8">
@@ -251,6 +279,7 @@ const EditorCanvas = () => {
               {currentPageIndex + 1}
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>

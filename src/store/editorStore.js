@@ -1,7 +1,7 @@
 // src/store/editorStore.js
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
-import { getBlockDefinition } from '@/lib/editor/blockRegistry';
+import { getBlockDefinition, BLOCK_TYPES } from '@/lib/editor/blockRegistry';
 
 const useEditorStore = create((set, get) => ({
   // ==========================================
@@ -21,6 +21,7 @@ const useEditorStore = create((set, get) => ({
     clipboard: null,
     zoom: 100,
     gridEnabled: true,
+    firstPageBackground: '#ffffff', // Background color for page 1
   },
 
   // Timeline state
@@ -164,14 +165,45 @@ const useEditorStore = create((set, get) => ({
         updatedAt: new Date().toISOString(),
       };
 
-      set((state) => ({
-        canvas: {
-          ...state.canvas,
-          blocks: [...state.canvas.blocks, newBlock],
-          selectedBlock: newBlock.id,
-        },
-        autoSave: { ...state.autoSave, hasUnsavedChanges: true },
-      }));
+      set((state) => {
+        const currentPage = state.ui.currentPage || 0;
+        const blocks = [...state.canvas.blocks];
+        
+        // Find insertion point based on current page
+        let insertIndex = blocks.length; // Default to end
+        
+        if (currentPage === 0) {
+          // For first page, insert before the first PAGE_BREAK (or at end if no breaks)
+          const firstPageBreak = blocks.findIndex(b => b.type === BLOCK_TYPES.PAGE_BREAK);
+          insertIndex = firstPageBreak !== -1 ? firstPageBreak : blocks.length;
+        } else {
+          // For other pages, find the Nth PAGE_BREAK and insert after its content
+          let pageBreakCount = 0;
+          for (let i = 0; i < blocks.length; i++) {
+            if (blocks[i].type === BLOCK_TYPES.PAGE_BREAK) {
+              pageBreakCount++;
+              if (pageBreakCount === currentPage + 1) {
+                // Found the page break AFTER current page, insert before it
+                insertIndex = i;
+                break;
+              }
+            }
+          }
+          // If we didn't find a page break after current page, append to end
+        }
+        
+        // Insert block at the calculated position
+        blocks.splice(insertIndex, 0, newBlock);
+        
+        return {
+          canvas: {
+            ...state.canvas,
+            blocks,
+            selectedBlock: newBlock.id,
+          },
+          autoSave: { ...state.autoSave, hasUnsavedChanges: true },
+        };
+      });
 
       get().actions.saveToHistory();
     },
@@ -377,6 +409,7 @@ const useEditorStore = create((set, get) => ({
 
     loadLessonContent: async (lessonId) => {
       try {
+        // Select all columns - Supabase will only return what exists
         const { data, error } = await supabase
           .from('lessons')
           .select('*')
@@ -414,6 +447,19 @@ const useEditorStore = create((set, get) => ({
           blocks = get().actions.migrateLegacyContent(data);
         }
 
+        // Parse content metadata for first page background
+        let firstPageBackground = '#ffffff';
+        if (data.content_meta) {
+          try {
+            const meta = typeof data.content_meta === 'string' 
+              ? JSON.parse(data.content_meta) 
+              : data.content_meta;
+            firstPageBackground = meta.firstPageBackground || '#ffffff';
+          } catch {
+            firstPageBackground = '#ffffff';
+          }
+        }
+
         // Log for debugging
         console.info(`[Editor] Lesson ${lessonId}: Loaded ${blocks.length} blocks`, {
           hasContentBlocks: !!data.content_blocks,
@@ -426,6 +472,7 @@ const useEditorStore = create((set, get) => ({
             ...state.canvas,
             blocks,
             selectedBlock: null, // Clear selection when switching lessons
+            firstPageBackground, // Load first page background
           },
           currentLesson: data, // Update current lesson with full data
           ui: {
@@ -859,12 +906,32 @@ const useEditorStore = create((set, get) => ({
       try {
         const { canvas } = get();
 
+        // Prepare content metadata
+        const contentMeta = {
+          firstPageBackground: canvas.firstPageBackground || '#ffffff',
+        };
+
+        // Try to update with content_meta, fall back without it if column doesn't exist
+        let updateData = {
+          content_blocks: canvas.blocks,
+          updated_at: new Date().toISOString(),
+        };
+
+        // Check if content_meta column exists by trying to read it first
+        const { data: checkData } = await supabase
+          .from('lessons')
+          .select('id, content_meta')
+          .eq('id', targetLessonId)
+          .single();
+
+        // If content_meta exists in the schema, include it in the update
+        if (checkData && 'content_meta' in checkData) {
+          updateData.content_meta = contentMeta;
+        }
+
         const { data, error } = await supabase
           .from('lessons')
-          .update({
-            content_blocks: canvas.blocks,
-            updated_at: new Date().toISOString(),
-          })
+          .update(updateData)
           .eq('id', targetLessonId)
           .select()
           .single();
@@ -1122,6 +1189,14 @@ const useEditorStore = create((set, get) => ({
       }));
     },
 
+    setFirstPageBackground: (color) => {
+      set((state) => ({
+        canvas: { ...state.canvas, firstPageBackground: color },
+        autoSave: { ...state.autoSave, hasUnsavedChanges: true },
+      }));
+      get().actions.saveToHistory();
+    },
+
     // Reset editor
     resetEditor: () => {
       set({
@@ -1134,6 +1209,7 @@ const useEditorStore = create((set, get) => ({
           clipboard: null,
           zoom: 100,
           gridEnabled: true,
+          firstPageBackground: '#ffffff',
         },
         history: {
           past: [],

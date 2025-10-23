@@ -1,6 +1,6 @@
 // src/components/course/CertificateTemplateForm.jsx
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { Upload, X, Eye, AlertCircle } from 'lucide-react';
+import { Upload, X, Eye, AlertCircle, Palette } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { uploadFile, STORAGE_BUCKETS, supabase } from '@/lib/supabase';
@@ -10,8 +10,11 @@ import {
   validateTemplateFile,
   revokeObjectURL,
   handleCertificateError,
-  sanitizeTemplateUrl
+  sanitizeTemplateUrl,
+  CERTIFICATE_THEMES
 } from '@/utils/certificateUtils';
+import CertificateThemeSelector from './CertificateThemeSelector';
+import CertificatePreview from './CertificatePreview';
 
 export default function CertificateTemplateForm({
   template = null,
@@ -27,7 +30,10 @@ export default function CertificateTemplateForm({
     description: template?.description || '',
     template_url: template?.template_url || '',
     placeholders: template?.placeholders || {},
-    is_default: template?.is_default || false
+    is_default: template?.is_default || false,
+    theme: template?.theme || 'classic',
+    logo_url: template?.logo_url || '',
+    logo_position: template?.logo_position || 'top-left'
   });
 
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -38,6 +44,15 @@ export default function CertificateTemplateForm({
   const [selectedPlaceholders, setSelectedPlaceholders] = useState(
     template?.placeholders ? Object.keys(template.placeholders) : []
   );
+  const [showPreview, setShowPreview] = useState(false);
+  
+  // Logo upload state
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState(
+    template?.logo_url ? sanitizeTemplateUrl(template.logo_url) : ''
+  );
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const logoInputRef = useRef(null);
 
   // Cleanup effect for memory leak prevention
   useEffect(() => {
@@ -74,6 +89,34 @@ export default function CertificateTemplateForm({
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
   }, [previewUrl, showError]);
+
+  const handleLogoSelect = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate logo file
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+
+    if (!allowedTypes.includes(file.type)) {
+      showError('Please select a valid image file (JPEG, PNG, or SVG)');
+      return;
+    }
+
+    if (file.size > maxSize) {
+      showError('Logo file size must be less than 5MB');
+      return;
+    }
+
+    setLogoFile(file);
+
+    // Clean up previous logo preview URL
+    revokeObjectURL(logoPreviewUrl);
+
+    // Create logo preview URL
+    const url = URL.createObjectURL(file);
+    setLogoPreviewUrl(url);
+  }, [logoPreviewUrl, showError]);
 
   const handlePlaceholderToggle = useCallback((placeholder) => {
     setSelectedPlaceholders(prev => {
@@ -135,10 +178,33 @@ export default function CertificateTemplateForm({
         }
       }
 
+      // Upload logo if a new one was selected
+      let logoUrl = formData.logo_url;
+      if (logoFile) {
+        const logoFileName = `certificate-logo-${Date.now()}-${logoFile.name}`;
+        const logoUploadResult = await uploadFile(
+          STORAGE_BUCKETS.CERTIFICATES,
+          logoFileName,
+          logoFile
+        );
+
+        if (logoUploadResult) {
+          // Get the public URL
+          const { data } = supabase.storage
+            .from(STORAGE_BUCKETS.CERTIFICATES)
+            .getPublicUrl(logoUploadResult.path);
+
+          logoUrl = data.publicUrl;
+        } else {
+          throw new Error('Failed to upload logo file');
+        }
+      }
+
       // Prepare form data
       const submissionData = {
         ...formData,
-        template_url: templateUrl
+        template_url: templateUrl,
+        logo_url: logoUrl
       };
 
       await onSubmit(submissionData);
@@ -153,7 +219,7 @@ export default function CertificateTemplateForm({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
@@ -168,6 +234,19 @@ export default function CertificateTemplateForm({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Left Column - Form Fields */}
               <div className="space-y-6">
+                {/* Theme Selection */}
+                <Card className="p-4">
+                  <h3 className="font-semibold text-text-dark mb-4 flex items-center gap-2">
+                    <Palette className="w-5 h-5" />
+                    Certificate Theme
+                  </h3>
+                  <CertificateThemeSelector
+                    selectedTheme={formData.theme}
+                    onThemeChange={(theme) => setFormData(prev => ({ ...prev, theme }))}
+                    onPreview={(theme) => setShowPreview(true)}
+                    disabled={isUploading}
+                  />
+                </Card>
                 {/* Basic Information */}
                 <Card className="p-4">
                   <h3 className="font-semibold text-text-dark mb-4">Basic Information</h3>
@@ -268,10 +347,118 @@ export default function CertificateTemplateForm({
                     )}
                   </div>
                 </Card>
+
+                {/* Logo Upload */}
+                <Card className="p-4">
+                  <h3 className="font-semibold text-text-dark mb-4">Logo (Optional)</h3>
+
+                  <div className="space-y-4">
+                    <div
+                      className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-primary-default transition-colors"
+                      onClick={() => logoInputRef.current?.click()}
+                    >
+                      <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-text-medium mb-1">
+                        Click to upload logo
+                      </p>
+                      <p className="text-xs text-text-light">
+                        PNG, JPG, SVG up to 5MB
+                      </p>
+                    </div>
+
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoSelect}
+                      className="hidden"
+                    />
+
+                    {logoPreviewUrl && (
+                      <div className="relative">
+                        <img
+                          src={logoPreviewUrl}
+                          alt="Logo preview"
+                          className="w-32 h-16 object-contain border border-gray-200 rounded"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute top-2 right-2 bg-white shadow-sm"
+                          onClick={() => {
+                            revokeObjectURL(logoPreviewUrl);
+                            setLogoPreviewUrl('');
+                            setLogoFile(null);
+                            setFormData(prev => ({ ...prev, logo_url: '' }));
+                          }}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Logo Position */}
+                    {logoPreviewUrl && (
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-text-dark">
+                          Logo Position
+                        </label>
+                        <select
+                          name="logo_position"
+                          value={formData.logo_position}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-default"
+                        >
+                          <option value="top-left">Top Left</option>
+                          <option value="top-center">Top Center</option>
+                          <option value="top-right">Top Right</option>
+                          <option value="bottom-left">Bottom Left</option>
+                          <option value="bottom-center">Bottom Center</option>
+                          <option value="bottom-right">Bottom Right</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </Card>
               </div>
 
-              {/* Right Column - Placeholders */}
+              {/* Right Column - Placeholders and Preview */}
               <div className="space-y-6">
+                {/* Live Preview */}
+                {showPreview && (
+                  <Card className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-text-dark flex items-center gap-2">
+                        <Eye className="w-5 h-5" />
+                        Live Preview
+                      </h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowPreview(false)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <CertificatePreview
+                      certificateData={{
+                        user_name: 'John Doe',
+                        course_title: 'Advanced React Development',
+                        completion_date: new Date().toLocaleDateString(),
+                        certificate_id: 'CERT-12345-ABC',
+                        instructor_name: 'Jane Smith',
+                        organization_name: 'Leadwise Academy'
+                      }}
+                      theme={formData.theme}
+                      logoUrl={logoPreviewUrl || formData.logo_url}
+                      logoPosition={formData.logo_position}
+                      onDownload={() => {
+                        // Handle download preview if needed
+                      }}
+                    />
+                  </Card>
+                )}
                 <Card className="p-4">
                   <h3 className="font-semibold text-text-dark mb-4">Dynamic Fields</h3>
 

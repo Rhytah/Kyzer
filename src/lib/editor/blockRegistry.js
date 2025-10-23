@@ -348,43 +348,49 @@ export const BLOCK_REGISTRY = {
     ],
   },
 
-  [BLOCK_TYPES.PRESENTATION]: {
-    type: BLOCK_TYPES.PRESENTATION,
-    name: 'Presentation',
-    description: 'Slide-based presentation',
-    category: BLOCK_CATEGORIES.INTERACTIVE,
-    icon: Layout,
-    defaultData: {
-      presentationId: null,
-      autoPlay: false,
-      showControls: true,
-      allowFullscreen: true,
-    },
-    settings: [
-      { name: 'presentationId', type: 'presentation-selector', label: 'Select Presentation' },
-      { name: 'autoPlay', type: 'checkbox', label: 'Auto Play' },
-      { name: 'showControls', type: 'checkbox', label: 'Show Controls' },
-      { name: 'allowFullscreen', type: 'checkbox', label: 'Allow Fullscreen' },
-    ],
-  },
+  // PRESENTATION and SCORM blocks are excluded from the editor
+  // These complex content types should be managed through their dedicated interfaces:
+  // - Presentations: Use Presentation Management (PresentationManagement.jsx)
+  // - SCORM: Use SCORM upload tools in Course/Lesson Management
+  // The viewer/player can still render these blocks, but they won't appear in the editor sidebar.
 
-  [BLOCK_TYPES.SCORM]: {
-    type: BLOCK_TYPES.SCORM,
-    name: 'SCORM Package',
-    description: 'Interactive SCORM content',
-    category: BLOCK_CATEGORIES.ADVANCED,
-    icon: FileText,
-    defaultData: {
-      packageUrl: null,
-      height: '600px',
-      trackProgress: true,
-    },
-    settings: [
-      { name: 'packageUrl', type: 'file', label: 'SCORM Package', accept: '.zip' },
-      { name: 'height', type: 'text', label: 'Height' },
-      { name: 'trackProgress', type: 'checkbox', label: 'Track Progress' },
-    ],
-  },
+  // [BLOCK_TYPES.PRESENTATION]: {
+  //   type: BLOCK_TYPES.PRESENTATION,
+  //   name: 'Presentation',
+  //   description: 'Slide-based presentation',
+  //   category: BLOCK_CATEGORIES.INTERACTIVE,
+  //   icon: Layout,
+  //   defaultData: {
+  //     presentationId: null,
+  //     autoPlay: false,
+  //     showControls: true,
+  //     allowFullscreen: true,
+  //   },
+  //   settings: [
+  //     { name: 'presentationId', type: 'presentation-selector', label: 'Select Presentation' },
+  //     { name: 'autoPlay', type: 'checkbox', label: 'Auto Play' },
+  //     { name: 'showControls', type: 'checkbox', label: 'Show Controls' },
+  //     { name: 'allowFullscreen', type: 'checkbox', label: 'Allow Fullscreen' },
+  //   ],
+  // },
+
+  // [BLOCK_TYPES.SCORM]: {
+  //   type: BLOCK_TYPES.SCORM,
+  //   name: 'SCORM Package',
+  //   description: 'Interactive SCORM content',
+  //   category: BLOCK_CATEGORIES.ADVANCED,
+  //   icon: FileText,
+  //   defaultData: {
+  //     packageUrl: null,
+  //     height: '600px',
+  //     trackProgress: true,
+  //   },
+  //   settings: [
+  //     { name: 'packageUrl', type: 'file', label: 'SCORM Package', accept: '.zip' },
+  //     { name: 'height', type: 'text', label: 'Height' },
+  //     { name: 'trackProgress', type: 'checkbox', label: 'Track Progress' },
+  //   ],
+  // },
 };
 
 /**

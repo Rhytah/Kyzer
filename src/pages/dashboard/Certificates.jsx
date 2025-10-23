@@ -89,7 +89,7 @@ export default function Certificates() {
     if (navigator.share) {
       navigator.share({
         title: `${certificate.course_name} Certificate`,
-        text: `I completed ${certificate.course_name} on Kyzer LMS!`,
+        text: `I completed ${certificate.course_name} on Leadwise Academy!`,
         url: window.location.href
       });
     } else {
