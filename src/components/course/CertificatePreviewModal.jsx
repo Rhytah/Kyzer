@@ -68,7 +68,6 @@ export default function CertificatePreviewModal({
           const { blob, url } = await actions.generateCertificatePreview(userCertificate.id);
           setPreviewUrl(url);
         } catch (previewError) {
-          console.error('Error generating certificate preview:', previewError);
           setError('Unable to generate certificate preview. You can still download the certificate.');
         }
       }
@@ -104,15 +103,10 @@ export default function CertificatePreviewModal({
         title: `${courseName} Certificate`,
         text: `I completed ${courseName} and earned my certificate!`,
         url: window.location.href
-      }).catch(console.error);
+      }).catch(() => {});
     } else {
       // Fallback to copying link
-      navigator.clipboard.writeText(window.location.href)
-        .then(() => {
-          // Could add a toast notification here
-          console.log('Certificate link copied to clipboard');
-        })
-        .catch(console.error);
+      navigator.clipboard.writeText(window.location.href).catch(() => {});
     }
   }, [courseName, certificateData]);
 
@@ -215,7 +209,6 @@ export default function CertificatePreviewModal({
                     className="w-full h-auto"
                     style={{ maxHeight: '500px', objectFit: 'contain' }}
                     onError={() => {
-                      console.error('Certificate image failed to load');
                       setError('Certificate preview failed to load, but you can still download it.');
                     }}
                   />

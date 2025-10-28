@@ -184,10 +184,10 @@ export default function Home() {
       <section className="py-20">
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-text-dark mb-4">
+            <h2 className="text-2xl md:text-4xl font-bold text-text-dark mb-4">
               Everything You Need to Scale Learning
             </h2>
-            <p className="text-xl text-text-light max-w-3xl mx-auto">
+            <p className="text-xl text-text-light max-w-2xl mx-auto">
               From individual growth to enterprise-wide training programs, we've got every learning scenario covered.
             </p>
           </div>
@@ -213,10 +213,10 @@ export default function Home() {
       <section className="py-20 bg-background-light">
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-text-dark mb-4">
+            <h2 className="text-2xl md:text-4xl font-bold text-text-dark mb-4">
               Built for Every Learning Journey
             </h2>
-            <p className="text-xl text-text-light max-w-3xl mx-auto">
+            <p className="text-xl text-text-light max-w-2xl mx-auto">
               Whether you're an individual looking to grow or an organization scaling globally, 
               we have the perfect solution for your needs.
             </p>
@@ -251,10 +251,10 @@ export default function Home() {
       <section className="py-20">
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-text-dark mb-4">
+            <h2 className="text-2xl md:text-4xl font-bold text-text-dark mb-4">
               Loved by Learners and Leaders
             </h2>
-            <p className="text-xl text-text-light max-w-3xl mx-auto">
+            <p className="text-xl text-text-light max-w-2xl mx-auto">
               See why thousands of professionals and hundreds of organizations choose Kyzer LMS
             </p>
           </div>
@@ -285,10 +285,10 @@ export default function Home() {
       {/* Integration Section */}
       <section className="py-20 bg-background-light">
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-text-dark mb-4">
+          <h2 className="text-2xl md:text-4xl font-bold text-text-dark mb-4">
             Seamlessly Integrates With Your Workflow
           </h2>
-          <p className="text-xl text-text-light mb-12 max-w-3xl mx-auto">
+          <p className="text-xl text-text-light mb-12 max-w-2xl mx-auto">
             Connect with the tools your team already uses and loves
           </p>
 
@@ -305,7 +305,7 @@ export default function Home() {
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-primary-default to-primary-dark text-white">
         <div className="max-w-8xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
+          <h2 className="text-2xl md:text-4xl font-bold mb-6">
             Ready to Transform Your Learning?
           </h2>
           <p className="text-xl text-gray-200 mb-8">

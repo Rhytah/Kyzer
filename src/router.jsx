@@ -49,6 +49,7 @@ import NotFound from "@/components/common/NotFound";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
 import Certificates from "./pages/dashboard/Certificates";
 import Progress from "./pages/dashboard/Progress";
+import CourseEditor from "@/components/editor/CourseEditor";
 
 export const router = createBrowserRouter([
   {
@@ -92,6 +93,8 @@ export const router = createBrowserRouter([
           { path: "dashboard", element: <Dashboard /> },
           { path: "profile", element: <Profile /> },
           { path: "settings", element: <Settings /> },
+          { path: "editor/:courseId", element: <CourseEditor /> },
+
                       {
               path: "courses",
               children: [

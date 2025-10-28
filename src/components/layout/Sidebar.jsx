@@ -23,7 +23,7 @@ import { useAuth } from "@/hooks/auth/useAuth";
 import { useCorporate } from "@/hooks/corporate/useCorporate";
 import { useCoursePermissions } from "@/hooks/courses/useCoursePermissions";
 import OrganizationNav from "./OrganizationNav";
-import kyzerLogo from "../../assets/images/Kyzerlogo.png";
+import leadwiseLogo from "../../assets/images/leadwise.png";
 
 export default function Sidebar({ mobile = false, onClose, collapsed = false, onToggleCollapse }) {
   const { user } = useAuth();
@@ -174,7 +174,7 @@ export default function Sidebar({ mobile = false, onClose, collapsed = false, on
         }`}
       >
         <Icon className="w-5 h-5" />
-        <span className="font-medium">{route.label}</span>
+        <span className="text-sm font-medium">{route.label}</span>
         {isActive && (
           <div className="ml-auto w-2 h-2 bg-white rounded-full opacity-75"></div>
         )}
@@ -267,7 +267,7 @@ export default function Sidebar({ mobile = false, onClose, collapsed = false, on
           }`}
         >
           <Icon className="w-5 h-5" />
-          <span className="font-medium">{route.label}</span>
+          <span className="text-sm font-medium">{route.label}</span>
           <div className="ml-auto flex items-center gap-2">
             {isActive && (
               <div className="w-2 h-2 bg-white rounded-full opacity-75"></div>
@@ -335,7 +335,7 @@ export default function Sidebar({ mobile = false, onClose, collapsed = false, on
             className="flex items-center space-x-2"
             onClick={onClose}
           >
-            <img src={kyzerLogo} alt="Kyzer Logo" className="h-6" />
+            <img src={leadwiseLogo} alt="Leadwise Logo" className="h-6" />
           </NavLink>
           <button
             onClick={onClose}
@@ -363,7 +363,7 @@ export default function Sidebar({ mobile = false, onClose, collapsed = false, on
             ) : (
               <>
                 <PanelLeftClose className="w-5 h-5" />
-                <span className="font-medium">Hide Sidebar</span>
+                <span className="text-sm font-medium">Hide Sidebar</span>
               </>
             )}
           </button>
@@ -420,7 +420,7 @@ export default function Sidebar({ mobile = false, onClose, collapsed = false, on
                         <Building2 className="w-3 h-3 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-m font-medium text-text-dark truncate">
+                        <p className="text-sm font-medium text-text-dark truncate">
                           {displayCompanyName}
                         </p>
                         <p className="text-sky-800 text-xs truncate"> 

@@ -176,7 +176,7 @@ export default function AuthCallback() {
           </p>
           
           {status === 'error' && (
-            <div className="mt-6">
+            <div>
               <button
                 onClick={() => navigate('/signup', { replace: true })}
                 className="text-primary hover:text-primary-dark text-sm font-medium"

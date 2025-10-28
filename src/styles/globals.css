@@ -325,3 +325,24 @@ body {
   color: var(--color-text-light);
   transition: color 0.3s ease;
 }
+
+/* ContentEditable Placeholder Styles */
+[contenteditable][data-placeholder]:empty:before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  font-style: italic;
+  pointer-events: none;
+}
+
+[contenteditable]:focus {
+  outline: none;
+}
+
+/* Ensure proper text direction for contentEditable elements */
+[contenteditable] {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: plaintext;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}

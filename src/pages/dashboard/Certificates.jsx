@@ -89,7 +89,7 @@ export default function Certificates() {
     if (navigator.share) {
       navigator.share({
         title: `${certificate.course_name} Certificate`,
-        text: `I completed ${certificate.course_name} on Kyzer LMS!`,
+        text: `I completed ${certificate.course_name} on Leadwise Academy!`,
         url: window.location.href
       });
     } else {
@@ -133,7 +133,7 @@ export default function Certificates() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-text-dark mb-2">Certificates</h1>
+        <h1 className="text-2xl font-bold text-text-dark mb-2">Certificates</h1>
         <p className="text-text-light">
           Your achievements and completed courses
         </p>

@@ -242,7 +242,7 @@ export default function LessonView() {
                       });
                     }
                   } catch (error) {
-                    console.log(`Could not fetch questions for quiz ${quiz.id}:`, error);
+                    // Could not fetch questions for quiz
                     // Skip this quiz if we can't fetch its questions
                   }
                 }
@@ -951,6 +951,421 @@ export default function LessonView() {
 
   PresentationWrapper.displayName = 'PresentationWrapper';
 
+  // Editor Content Viewer - renders content blocks from the editor
+  const EditorContentViewer = memo(({ blocks }) => {
+    const [currentPageIndex, setCurrentPageIndex] = useState(0);
+
+    // Split blocks into pages based on page_break blocks
+    const pages = useMemo(() => {
+      if (!blocks || blocks.length === 0) return [];
+
+      const pagesList = [];
+      let currentPage = {
+        blocks: [],
+        backgroundColor: '#ffffff',
+        showPageNumber: true,
+      };
+
+      blocks.forEach((block) => {
+        if (block.type === 'page_break') {
+          // Save current page and start new one
+          if (currentPage.blocks.length > 0 || pagesList.length === 0) {
+            pagesList.push(currentPage);
+          }
+          currentPage = {
+            blocks: [],
+            backgroundColor: block.data?.backgroundColor || '#ffffff',
+            showPageNumber: block.data?.showPageNumber !== false,
+          };
+        } else {
+          currentPage.blocks.push(block);
+        }
+      });
+
+      // Add the last page
+      if (currentPage.blocks.length > 0 || pagesList.length === 0) {
+        pagesList.push(currentPage);
+      }
+
+      return pagesList;
+    }, [blocks]);
+
+    if (!blocks || blocks.length === 0) {
+      return (
+        <div className="bg-gray-50 rounded-lg p-8 text-center">
+          <p className="text-gray-500">No content blocks in this lesson yet.</p>
+        </div>
+      );
+    }
+
+    const currentPage = pages[currentPageIndex] || { blocks: [], backgroundColor: '#ffffff', showPageNumber: true };
+
+    const handleNextPage = () => {
+      if (currentPageIndex < pages.length - 1) {
+        setCurrentPageIndex(currentPageIndex + 1);
+      }
+    };
+
+    const handlePrevPage = () => {
+      if (currentPageIndex > 0) {
+        setCurrentPageIndex(currentPageIndex - 1);
+      }
+    };
+
+    return (
+      <div className="space-y-4">
+        {/* Page Navigation */}
+        {pages.length > 1 && (
+          <div className="flex items-center justify-between bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+            <button
+              onClick={handlePrevPage}
+              disabled={currentPageIndex === 0}
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </button>
+            <span className="text-sm font-medium text-gray-700">
+              Page {currentPageIndex + 1} of {pages.length}
+            </span>
+            <button
+              onClick={handleNextPage}
+              disabled={currentPageIndex === pages.length - 1}
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Page Content */}
+        <div 
+          className="rounded-lg p-8 shadow-lg min-h-[600px] relative"
+          style={{ backgroundColor: currentPage.backgroundColor }}
+        >
+          <div className="max-w-4xl mx-auto space-y-6">
+            {currentPage.blocks.map((block, index) => {
+            // Text Block
+            if (block.type === 'text') {
+              return (
+                <div
+                  key={block.id || index}
+                  className="prose max-w-none"
+                  style={{
+                    fontSize: `${block.data?.fontSize || 16}px`,
+                    fontFamily: block.data?.fontFamily || 'Inter',
+                    color: block.data?.color || '#000000',
+                    textAlign: block.data?.alignment || 'left',
+                  }}
+                  dangerouslySetInnerHTML={{ __html: block.data?.content || '<p>Empty text block</p>' }}
+                />
+              );
+            }
+
+            // Heading Block
+            if (block.type === 'heading') {
+              const HeadingTag = `h${block.data?.level || 2}`;
+              return (
+                <HeadingTag
+                  key={block.id || index}
+                  style={{
+                    color: block.data?.color || '#000000',
+                    textAlign: block.data?.alignment || 'left',
+                  }}
+                  className="font-bold"
+                >
+                  {block.data?.text || 'Heading'}
+                </HeadingTag>
+              );
+            }
+
+            // Image Block
+            if (block.type === 'image' && block.data?.src) {
+              return (
+                <figure key={block.id || index} className="my-6">
+                  <img
+                    src={block.data.src}
+                    alt={block.data.alt || ''}
+                    style={{
+                      width: block.data.width || '100%',
+                      height: block.data.height || 'auto',
+                      objectFit: block.data.objectFit || 'contain',
+                    }}
+                    className="rounded-lg"
+                  />
+                  {block.data.caption && (
+                    <figcaption className="text-sm text-gray-600 text-center mt-2">
+                      {block.data.caption}
+                    </figcaption>
+                  )}
+                </figure>
+              );
+            }
+
+            // Video Block
+            if (block.type === 'video' && block.data?.src) {
+              // YouTube
+              if (block.data.type === 'youtube') {
+                const videoId = block.data.src.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
+                if (videoId) {
+                  return (
+                    <div
+                      key={block.id || index}
+                      className="my-6"
+                      style={{
+                        width: block.data.width || '100%',
+                        height: block.data.height || '400px',
+                      }}
+                    >
+                      <iframe
+                        src={`https://www.youtube.com/embed/${videoId}`}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        className="w-full h-full rounded-lg"
+                      />
+                    </div>
+                  );
+                }
+              }
+
+              // Vimeo
+              if (block.data.type === 'vimeo') {
+                const videoId = block.data.src.match(/vimeo\.com\/(\d+)/)?.[1];
+                if (videoId) {
+                  return (
+                    <div
+                      key={block.id || index}
+                      className="my-6"
+                      style={{
+                        width: block.data.width || '100%',
+                        height: block.data.height || '400px',
+                      }}
+                    >
+                      <iframe
+                        src={`https://player.vimeo.com/video/${videoId}`}
+                        allow="autoplay; fullscreen; picture-in-picture"
+                        allowFullScreen
+                        className="w-full h-full rounded-lg"
+                      />
+                    </div>
+                  );
+                }
+              }
+
+              // HTML5 Video
+              return (
+                <div key={block.id || index} className="my-6">
+                  <video
+                    src={block.data.src}
+                    controls={block.data.controls !== false}
+                    autoPlay={block.data.autoplay}
+                    loop={block.data.loop}
+                    muted={block.data.muted}
+                    style={{
+                      width: block.data.width || '100%',
+                      height: block.data.height || '400px',
+                    }}
+                    className="rounded-lg"
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+              );
+            }
+
+            // Embed Block (iframe or HTML)
+            if (block.type === 'embed') {
+              // Handle iframe embeds
+              if (block.data.type === 'iframe' && block.data.src) {
+                return (
+                  <div key={block.id || index} className="my-6">
+                    <div className="relative" style={{ width: block.data.width || '100%', height: block.data.height || '400px' }}>
+                      <iframe
+                        src={block.data.src}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                        }}
+                        className="border border-gray-300 rounded-lg"
+                        title={block.data.title || 'Embedded content'}
+                        allowFullScreen
+                      />
+                    </div>
+                  </div>
+                );
+              }
+
+              // Handle HTML embeds
+              if (block.data.type === 'html' && block.data.embedCode) {
+                return (
+                  <div key={block.id || index} className="my-6">
+                    <div
+                      dangerouslySetInnerHTML={{ __html: block.data.embedCode }}
+                      className="rounded-lg overflow-hidden"
+                    />
+                  </div>
+                );
+              }
+
+              // Auto-detect and handle src without explicit type
+              if (block.data.src && !block.data.type) {
+                return (
+                  <div key={block.id || index} className="my-6">
+                    <div className="relative" style={{ width: block.data.width || '100%', height: block.data.height || '400px' }}>
+                      <iframe
+                        src={block.data.src}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                        }}
+                        className="border border-gray-300 rounded-lg"
+                        title={block.data.title || 'Embedded content'}
+                        allowFullScreen
+                      />
+                    </div>
+                  </div>
+                );
+              }
+            }
+
+            // Quiz Block
+            if (block.type === 'quiz') {
+              return (
+                <div key={block.id || index} className="my-6">
+                  <div className="border border-gray-200 rounded-lg overflow-hidden shadow-md">
+                    {/* Quiz header */}
+                    <div className="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+                          <path d="M9 11l3 3L22 4"></path>
+                          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                        </svg>
+                        <div>
+                          <h3 className="text-lg font-semibold">{block.data?.title || 'Quiz'}</h3>
+                          {block.data?.passThreshold && (
+                            <p className="text-sm text-primary-100">
+                              Pass threshold: {block.data.passThreshold}%
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quiz content */}
+                    <div className="p-6 bg-white">
+                      {block.data?.quizId ? (
+                        <div className="text-center py-8">
+                          <p className="text-gray-600 mb-4">
+                            Ready to test your knowledge?
+                          </p>
+                          <p className="text-sm text-gray-500 mb-6">
+                            Quiz ID: <span className="font-mono font-semibold">{block.data.quizId}</span>
+                          </p>
+                          <button 
+                            className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium shadow-sm hover:shadow-md"
+                            onClick={() => {
+                              // Navigate to quiz view
+                              navigate(`/app/courses/${courseId}/quiz/${block.data.quizId}`);
+                            }}
+                          >
+                            Start Quiz
+                          </button>
+                          {block.data?.allowRetakes && (
+                            <p className="text-xs text-gray-500 mt-3">
+                              You can retake this quiz multiple times
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-12 bg-blue-50 rounded-lg">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-12 h-12 text-blue-400 mb-4">
+                            <path d="M9 11l3 3L22 4"></path>
+                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                          </svg>
+                          <p className="text-blue-700 text-sm font-medium">No quiz configured</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            // Code Block
+            if (block.type === 'code') {
+              const theme = block.data?.theme || 'dark';
+              const isDark = theme === 'dark';
+              
+              return (
+                <div key={block.id || index} className="my-6">
+                  <div className={`rounded-lg overflow-hidden ${isDark ? 'bg-gray-900' : 'bg-gray-100'}`}>
+                    {/* Header with language and copy button */}
+                    <div className={`flex items-center justify-between px-4 py-2 border-b ${
+                      isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-gray-200'
+                    }`}>
+                      <span className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {block.data?.language || 'code'}
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(block.data?.code || '');
+                        }}
+                        className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+                          isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        Copy
+                      </button>
+                    </div>
+
+                    {/* Code content */}
+                    <pre className={`p-4 overflow-x-auto ${block.data?.lineNumbers ? 'pl-12' : ''} ${
+                      isDark ? 'text-gray-100' : 'text-gray-900'
+                    }`}>
+                      <code 
+                        className="text-sm font-mono"
+                        style={{
+                          fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+                          lineHeight: '1.6',
+                        }}
+                      >
+                        {block.data?.code || block.data?.content || '// Empty code block'}
+                      </code>
+                    </pre>
+                  </div>
+                </div>
+              );
+            }
+
+            // Unknown block type
+            return (
+              <div key={block.id || index} className="p-4 bg-gray-100 rounded border border-gray-300">
+                <p className="text-sm text-gray-500">
+                  Unsupported block type: {block.type}
+                </p>
+              </div>
+            );
+          })}
+          </div>
+
+          {/* Page number */}
+          {currentPage.showPageNumber && pages.length > 1 && (
+            <div className="absolute bottom-4 right-4 text-xs text-gray-400 font-medium">
+              {currentPageIndex + 1}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  });
+
+  EditorContentViewer.displayName = 'EditorContentViewer';
+
   const VideoPlayer = memo(() => {
     if (lesson.content_type !== 'video') {
       // Handle text rendering with stored format marker
@@ -975,10 +1390,16 @@ export default function LessonView() {
         return <PresentationWrapper lessonId={lesson.id} />;
       }
 
+      // Handle editor-created content with content_blocks
+      if (lesson.content_type === 'editor' && lesson.content_blocks && Array.isArray(lesson.content_blocks)) {
+        return <EditorContentViewer blocks={lesson.content_blocks} />;
+      }
+
       // Fallback placeholder for other non-video content types
       return (
         <div className="bg-gray-100 rounded-lg p-8 text-center">
           <div className="text-gray-500 text-lg mb-4">Content Placeholder</div>
+          <p className="text-sm text-gray-400">Content type: {lesson.content_type || 'unknown'}</p>
         </div>
       );
     }

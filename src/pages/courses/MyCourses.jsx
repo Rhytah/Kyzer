@@ -172,7 +172,7 @@
 //     <div className="container py-8">
 //       {/* Header */}
 //       <div className="mb-8">
-//         <h1 className="text-3xl font-bold text-text-dark mb-2">My Courses</h1>
+//         <h1 className="text-2xl font-bold text-text-dark mb-2">My Courses</h1>
 //         <p className="text-text-medium">
 //           Continue your learning journey and track your progress
 //         </p>
@@ -476,7 +476,8 @@ import {
   MoreVertical,
   Download,
   Star,
-  Eye
+  Eye,
+  Edit3
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
@@ -658,28 +659,40 @@ export default function MyCourses() {
           </p>
         )}
 
-        <div className="flex gap-2">
-          {course.status === 'completed' ? (
-            <div className="flex gap-2 w-full">
-              <Link to={`/app/courses/${course.id}`} className="flex-1">
-                <Button variant="secondary" className="w-full">
-                  Review Course
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            {course.status === 'completed' ? (
+              <div className="flex gap-2 w-full">
+                <Link to={`/app/courses/${course.id}`} className="flex-1">
+                  <Button variant="secondary" className="w-full">
+                    Review Course
+                  </Button>
+                </Link>
+                <CertificateButton course={course} />
+              </div>
+            ) : course.status === 'not-started' ? (
+              <Link to={`/app/courses/${course.id}`} className="w-full">
+                <Button className="w-full">
+                  <Play className="w-4 h-4 mr-2" />
+                  Start Course
                 </Button>
               </Link>
-              <CertificateButton course={course} />
-            </div>
-          ) : course.status === 'not-started' ? (
-            <Link to={`/app/courses/${course.id}`} className="w-full">
-              <Button className="w-full">
-                <Play className="w-4 h-4 mr-2" />
-                Start Course
-              </Button>
-            </Link>
-          ) : (
-            <Link to={`/app/courses/${course.id}`} className="w-full">
-              <Button className="w-full">
-                <Play className="w-4 h-4 mr-2" />
-                Continue Learning
+            ) : (
+              <Link to={`/app/courses/${course.id}`} className="w-full">
+                <Button className="w-full">
+                  <Play className="w-4 h-4 mr-2" />
+                  Continue Learning
+                </Button>
+              </Link>
+            )}
+          </div>
+
+          {/* Course Editor Button - Show for course creators */}
+          {course.created_by === user?.id && (
+            <Link to={`/app/editor/${course.id}`} className="w-full">
+              <Button variant="outline" className="w-full text-sm">
+                <Edit3 className="w-4 h-4 mr-2" />
+                Edit Course
               </Button>
             </Link>
           )}
@@ -715,7 +728,7 @@ export default function MyCourses() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-text-dark">My Courses</h1>
+          <h1 className="text-2xl font-bold text-text-dark">My Courses</h1>
           <p className="text-text-light mt-1">
             Continue your learning journey
           </p>
@@ -732,28 +745,28 @@ export default function MyCourses() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="p-6 text-center">
-          <div className="text-3xl font-bold text-primary-default mb-2">
+          <div className="text-2xl font-bold text-primary-default mb-2">
             {courses.length}
           </div>
           <div className="text-text-light">Total Enrolled</div>
         </Card>
         
         <Card className="p-6 text-center">
-          <div className="text-3xl font-bold text-warning-default mb-2">
+          <div className="text-2xl font-bold text-warning-default mb-2">
             {courses.filter(c => (c.progress_percentage || 0) > 0 && (c.progress_percentage || 0) < 100).length}
           </div>
           <div className="text-text-light">In Progress</div>
         </Card>
         
         <Card className="p-6 text-center">
-          <div className="text-3xl font-bold text-success-default mb-2">
+          <div className="text-2xl font-bold text-success-default mb-2">
             {courses.filter(c => c.progress_percentage === 100).length}
           </div>
           <div className="text-text-light">Completed</div>
         </Card>
         
         <Card className="p-6 text-center">
-          <div className="text-3xl font-bold text-text-dark mb-2">
+          <div className="text-2xl font-bold text-text-dark mb-2">
             {courses.reduce((total, course) => total + (course.duration_minutes || 0), 0)}m
           </div>
           <div className="text-text-light">Total Duration</div>

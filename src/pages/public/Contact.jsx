@@ -159,7 +159,7 @@ export default function Contact() {
       <section className="py-20 bg-background-light">
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-text-dark mb-4">How Can We Help?</h2>
+            <h2 className="text-2xl font-bold text-text-dark mb-4">How Can We Help?</h2>
             <p className="text-xl text-text-light">
               Choose the best way to reach us
             </p>
@@ -212,7 +212,7 @@ export default function Contact() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
             {/* Contact Form */}
             <div>
-              <h2 className="text-3xl font-bold text-text-dark mb-6">Send Us a Message</h2>
+              <h2 className="text-2xl font-bold text-text-dark mb-6">Send Us a Message</h2>
               <p className="text-text-light mb-8">
                 Fill out the form below and we'll get back to you as soon as possible.
               </p>
@@ -323,7 +323,7 @@ export default function Contact() {
 
             {/* Office Locations */}
             <div>
-              <h2 className="text-3xl font-bold text-text-dark mb-6">Our Offices</h2>
+              <h2 className="text-2xl font-bold text-text-dark mb-6">Our Offices</h2>
               <p className="text-text-light mb-8">
                 Visit us at one of our global locations or reach out to our regional teams.
               </p>
@@ -388,7 +388,7 @@ export default function Contact() {
       {/* FAQ Quick Links */}
       <section className="py-20 bg-background-light">
         <div className="max-w-8xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-text-dark mb-6">Looking for Quick Answers?</h2>
+          <h2 className="text-2xl font-bold text-text-dark mb-6">Looking for Quick Answers?</h2>
           <p className="text-xl text-text-light mb-8">
             Check out our frequently asked questions or browse our help center
           </p>

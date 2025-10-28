@@ -1,6 +1,7 @@
 // src/components/common/NotFound.jsx
 import { Link } from 'react-router-dom';
-import { Home, Search, ArrowLeft } from 'lucide-react';
+import { Home, Search } from 'lucide-react';
+import BackButton from '@/components/ui/BackButton';
 
 const NotFound = () => {
   return (
@@ -41,13 +42,10 @@ const NotFound = () => {
             Browse Courses
           </Link>
           
-          <button 
-            onClick={() => window.history.back()}
+          <BackButton 
             className="w-full inline-flex items-center justify-center px-6 py-3 text-text-light font-medium rounded-lg hover:text-text-medium transition-colors duration-200"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Go Back
-          </button>
+            fallbackPath="/"
+          />
         </div>
 
         {/* Help Text */}

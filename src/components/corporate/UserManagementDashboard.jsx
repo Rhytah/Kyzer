@@ -187,7 +187,7 @@ function OverviewTab({ stats }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-text-light">Total Employees</p>
-              <p className="text-3xl font-bold text-text-dark">{stats.totalEmployees}</p>
+              <p className="text-2xl font-bold text-text-dark">{stats.totalEmployees}</p>
               <p className="text-sm text-success-default">
                 {stats.activeEmployees} active
               </p>
@@ -202,7 +202,7 @@ function OverviewTab({ stats }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-text-light">Departments</p>
-              <p className="text-3xl font-bold text-text-dark">{stats.totalDepartments}</p>
+              <p className="text-2xl font-bold text-text-dark">{stats.totalDepartments}</p>
               <p className="text-sm text-text-light">
                 {stats.departmentsWithManagers} with managers
               </p>
@@ -217,7 +217,7 @@ function OverviewTab({ stats }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-text-light">Pending Invitations</p>
-              <p className="text-3xl font-bold text-text-dark">{stats.pendingInvitations}</p>
+              <p className="text-2xl font-bold text-text-dark">{stats.pendingInvitations}</p>
               <p className="text-sm text-warning-default">
                 Awaiting response
               </p>
@@ -232,7 +232,7 @@ function OverviewTab({ stats }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-text-light">Inactive Users</p>
-              <p className="text-3xl font-bold text-text-dark">{stats.inactiveEmployees}</p>
+              <p className="text-2xl font-bold text-text-dark">{stats.inactiveEmployees}</p>
               <p className="text-sm text-error-default">
                 Need attention
               </p>

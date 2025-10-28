@@ -138,7 +138,7 @@ export default function CertificateTemplates() {
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-text-dark mb-2">Certificate Templates</h1>
+          <h1 className="text-2xl font-bold text-text-dark mb-2">Certificate Templates</h1>
           <p className="text-text-light">
             Manage certificate templates for course completion
           </p>

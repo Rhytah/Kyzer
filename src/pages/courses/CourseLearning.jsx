@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useCourseStore } from '@/store/courseStore';
 import { useAuth } from '@/hooks/auth/useAuth';
+import BackButton from '@/components/ui/BackButton';
 // Note: CourseStructure, CourseProgress, CoursePreview, SelfPacedLearningFlow, 
 // TestOutAssessment, LearnerTypeSelector, and QuickReviewPath components 
 // have been removed as they were unused
@@ -232,9 +233,11 @@ export default function CourseLearning() {
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Course Not Found</h2>
         <p className="text-gray-600 mb-6">The course you're looking for doesn't exist or you don't have access to it.</p>
-        <Button onClick={() => navigate('/app/courses')}>
-          Back to Courses
-        </Button>
+        <BackButton 
+          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+          text="Back to Courses"
+          fallbackPath="/app/courses"
+        />
       </div>
     );
   }
@@ -245,7 +248,7 @@ export default function CourseLearning() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">{currentCourse.title}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{currentCourse.title}</h1>
             <p className="text-gray-600">{currentCourse.subtitle}</p>
           </div>
           

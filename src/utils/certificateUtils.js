@@ -53,8 +53,8 @@ export const formatCertificateData = (certificateData) => {
     completionDate: data.completion_date || new Date().toLocaleDateString(),
     issueDate: data.issue_date || new Date().toLocaleDateString(),
     certificateId: data.certificate_id || 'Unknown',
-    instructor: data.instructor_name || 'Kyzer LMS',
-    organization: data.organization_name || 'Kyzer LMS'
+    instructor: data.instructor_name || 'Leadwise Academy',
+    organization: data.organization_name || 'Leadwise Academy'
   };
 };
 
@@ -62,31 +62,303 @@ export const formatCertificateData = (certificateData) => {
  * Gets default placeholder positions for certificate generation
  * @param {number} width - Canvas width
  * @param {number} height - Canvas height
+ * @param {string} theme - Theme name for positioning adjustments
  * @returns {Object} - Placeholder positions
  */
-export const getDefaultPlaceholderPositions = (width, height) => {
+export const getDefaultPlaceholderPositions = (width, height, theme = 'classic') => {
   const centerX = width / 2;
+  const themeConfig = CERTIFICATE_THEMES[theme] || CERTIFICATE_THEMES.classic;
+
+  // Base positions that can be adjusted per theme
+  // Adjusted layout to accommodate organization header at top
+  const basePositions = {
+    '{{organization_name}}': { x: centerX, y: height * 0.12, textType: 'small' },
+    '{{user_name}}': { x: centerX, y: height * 0.48, textType: 'title' },
+    '{{course_title}}': { x: centerX, y: height * 0.58, textType: 'subtitle' },
+    '{{instructor_name}}': { x: centerX, y: height * 0.68, textType: 'body' },
+    '{{completion_date}}': { x: centerX * 1.25, y: height * 0.82, textType: 'small' },
+    '{{certificate_id}}': { x: centerX * 0.75, y: height * 0.82, textType: 'small' },
+    '{{issue_date}}': { x: centerX, y: height * 0.90, textType: 'small' }
+  };
+
+  // Theme-specific adjustments
+  if (theme === 'elegant') {
+    // More spacing for elegant theme
+    basePositions['{{user_name}}'].y = height * 0.45;
+    basePositions['{{course_title}}'].y = height * 0.55;
+    basePositions['{{instructor_name}}'].y = height * 0.65;
+  } else if (theme === 'corporate') {
+    // Compact layout for corporate theme
+    basePositions['{{user_name}}'].y = height * 0.46;
+    basePositions['{{course_title}}'].y = height * 0.56;
+    basePositions['{{instructor_name}}'].y = height * 0.66;
+  }
+
+  return basePositions;
+};
+
+/**
+ * Calculates dynamic text positioning based on content length
+ * @param {string} text - Text content
+ * @param {number} maxWidth - Maximum width for text
+ * @param {string} font - Font string
+ * @returns {Object} - Positioning and wrapping information
+ */
+export const calculateTextLayout = (text, maxWidth, font) => {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.font = font;
+  
+  const words = text.split(' ');
+  const lines = [];
+  let currentLine = words[0];
+
+  for (let i = 1; i < words.length; i++) {
+    const word = words[i];
+    const width = ctx.measureText(currentLine + ' ' + word).width;
+    if (width < maxWidth) {
+      currentLine += ' ' + word;
+    } else {
+      lines.push(currentLine);
+      currentLine = word;
+    }
+  }
+  lines.push(currentLine);
 
   return {
-    '{{user_name}}': { x: centerX, y: height * 0.45 },
-    '{{course_title}}': { x: centerX, y: height * 0.55 },
-    '{{completion_date}}': { x: centerX * 1.5, y: height * 0.75 },
-    '{{certificate_id}}': { x: centerX * 0.5, y: height * 0.75 },
-    '{{instructor_name}}': { x: centerX, y: height * 0.65 },
-    '{{organization_name}}': { x: centerX, y: height * 0.25 },
-    '{{issue_date}}': { x: centerX, y: height * 0.85 }
+    lines,
+    lineHeight: parseInt(font.match(/\d+/)[0]) * 1.2,
+    totalHeight: lines.length * parseInt(font.match(/\d+/)[0]) * 1.2
   };
 };
 
 /**
+ * Draws decorative border on certificate canvas
+ * @param {CanvasRenderingContext2D} ctx - Canvas context
+ * @param {number} width - Canvas width
+ * @param {number} height - Canvas height
+ * @param {string} theme - Theme name
+ */
+export const drawCertificateBorder = (ctx, width, height, theme = 'classic') => {
+  const themeConfig = CERTIFICATE_THEMES[theme] || CERTIFICATE_THEMES.classic;
+  const border = themeConfig.decorations.border;
+  
+  ctx.strokeStyle = border.color;
+  ctx.lineWidth = border.width;
+  ctx.setLineDash(border.style === 'dashed' ? [10, 5] : []);
+  
+  // Main border
+  ctx.strokeRect(
+    border.width / 2, 
+    border.width / 2, 
+    width - border.width, 
+    height - border.width
+  );
+  
+  // Corner decorations
+  if (themeConfig.decorations.corner) {
+    const cornerSize = themeConfig.decorations.corner.size;
+    const cornerColor = themeConfig.decorations.corner.color;
+    
+    ctx.fillStyle = cornerColor;
+    
+    // Top-left corner
+    ctx.fillRect(0, 0, cornerSize, cornerSize);
+    // Top-right corner
+    ctx.fillRect(width - cornerSize, 0, cornerSize, cornerSize);
+    // Bottom-left corner
+    ctx.fillRect(0, height - cornerSize, cornerSize, cornerSize);
+    // Bottom-right corner
+    ctx.fillRect(width - cornerSize, height - cornerSize, cornerSize, cornerSize);
+  }
+};
+
+/**
+ * Draws watermark on certificate
+ * @param {CanvasRenderingContext2D} ctx - Canvas context
+ * @param {number} width - Canvas width
+ * @param {number} height - Canvas height
+ * @param {string} text - Watermark text
+ */
+export const drawWatermark = (ctx, width, height, text = 'LEADWISE ACADEMY') => {
+  ctx.save();
+  ctx.globalAlpha = 0.05; // Much more subtle
+  ctx.fillStyle = '#cccccc'; // Lighter color
+  ctx.font = 'bold 32px Arial'; // Smaller font
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  
+  // Rotate and position watermark
+  ctx.translate(width / 2, height / 2);
+  ctx.rotate(-Math.PI / 6); // -30 degrees
+  ctx.fillText(text, 0, 0);
+  
+  ctx.restore();
+};
+
+/**
+ * Gets logo position based on position string
+ * @param {string} position - Logo position (top-left, top-center, etc.)
+ * @param {number} width - Canvas width
+ * @param {number} height - Canvas height
+ * @param {number} logoWidth - Logo width
+ * @param {number} logoHeight - Logo height
+ * @returns {Object} Position coordinates
+ */
+export const getLogoPosition = (position, width, height, logoWidth, logoHeight) => {
+  const margin = 40; // Margin from edges
+  const maxLogoWidth = width * 0.2; // Max 20% of canvas width
+  const maxLogoHeight = height * 0.15; // Max 15% of canvas height
+  
+  // Scale logo to fit within max dimensions
+  const scale = Math.min(maxLogoWidth / logoWidth, maxLogoHeight / logoHeight, 1);
+  const scaledWidth = logoWidth * scale;
+  const scaledHeight = logoHeight * scale;
+
+  switch (position) {
+    case 'top-left':
+      return { x: margin, y: margin, width: scaledWidth, height: scaledHeight };
+    case 'top-center':
+      return { x: (width - scaledWidth) / 2, y: margin, width: scaledWidth, height: scaledHeight };
+    case 'top-right':
+      return { x: width - scaledWidth - margin, y: margin, width: scaledWidth, height: scaledHeight };
+    case 'bottom-left':
+      return { x: margin, y: height - scaledHeight - margin, width: scaledWidth, height: scaledHeight };
+    case 'bottom-center':
+      return { x: (width - scaledWidth) / 2, y: height - scaledHeight - margin, width: scaledWidth, height: scaledHeight };
+    case 'bottom-right':
+      return { x: width - scaledWidth - margin, y: height - scaledHeight - margin, width: scaledWidth, height: scaledHeight };
+    default:
+      return { x: margin, y: margin, width: scaledWidth, height: scaledHeight };
+  }
+};
+
+/**
+ * Draws logo on certificate
+ * @param {CanvasRenderingContext2D} ctx - Canvas context
+ * @param {HTMLImageElement} logoImg - Logo image element
+ * @param {string} position - Logo position
+ * @param {number} width - Canvas width
+ * @param {number} height - Canvas height
+ */
+export const drawLogo = (ctx, logoImg, position, width, height) => {
+  if (!logoImg) return;
+
+  const logoPos = getLogoPosition(position, width, height, logoImg.width, logoImg.height);
+  
+  ctx.save();
+  ctx.drawImage(logoImg, logoPos.x, logoPos.y, logoPos.width, logoPos.height);
+  ctx.restore();
+};
+
+/**
+ * Certificate styling themes and configurations
+ */
+export const CERTIFICATE_THEMES = {
+  classic: {
+    name: 'Classic',
+    description: 'Traditional certificate design with serif fonts',
+    fonts: {
+      title: { family: 'Times New Roman, serif', size: 28, weight: 'bold', color: '#2c3e50' },
+      subtitle: { family: 'Times New Roman, serif', size: 18, weight: 'normal', color: '#34495e' },
+      body: { family: 'Times New Roman, serif', size: 14, weight: 'normal', color: '#2c3e50' },
+      small: { family: 'Times New Roman, serif', size: 11, weight: 'normal', color: '#7f8c8d' }
+    },
+    colors: {
+      primary: '#2c3e50',
+      secondary: '#34495e',
+      accent: '#e74c3c',
+      background: '#ffffff'
+    },
+    decorations: {
+      border: { width: 3, color: '#2c3e50', style: 'solid' },
+      corner: { size: 20, color: '#e74c3c' }
+    }
+  },
+  modern: {
+    name: 'Modern',
+    description: 'Clean, contemporary design with sans-serif fonts',
+    fonts: {
+      title: { family: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif', size: 24, weight: '600', color: '#1a202c' },
+      subtitle: { family: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif', size: 16, weight: '500', color: '#4a5568' },
+      body: { family: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif', size: 14, weight: '400', color: '#2d3748' },
+      small: { family: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif', size: 11, weight: '400', color: '#718096' }
+    },
+    colors: {
+      primary: '#1a202c',
+      secondary: '#4a5568',
+      accent: '#3182ce',
+      background: '#ffffff'
+    },
+    decorations: {
+      border: { width: 2, color: '#e2e8f0', style: 'solid' },
+      corner: { size: 16, color: '#3182ce' }
+    }
+  },
+  elegant: {
+    name: 'Elegant',
+    description: 'Sophisticated design with script and serif fonts',
+    fonts: {
+      title: { family: 'Playfair Display, serif', size: 30, weight: '600', color: '#1a365d' },
+      subtitle: { family: 'Source Sans Pro, sans-serif', size: 16, weight: '300', color: '#4a5568' },
+      body: { family: 'Source Sans Pro, sans-serif', size: 14, weight: '400', color: '#2d3748' },
+      small: { family: 'Source Sans Pro, sans-serif', size: 11, weight: '400', color: '#718096' }
+    },
+    colors: {
+      primary: '#1a365d',
+      secondary: '#4a5568',
+      accent: '#d69e2e',
+      background: '#fefefe'
+    },
+    decorations: {
+      border: { width: 4, color: '#1a365d', style: 'double' },
+      corner: { size: 24, color: '#d69e2e' }
+    }
+  },
+  corporate: {
+    name: 'Corporate',
+    description: 'Professional business design',
+    fonts: {
+      title: { family: 'Roboto, sans-serif', size: 22, weight: '500', color: '#1e3a8a' },
+      subtitle: { family: 'Roboto, sans-serif', size: 14, weight: '400', color: '#374151' },
+      body: { family: 'Roboto, sans-serif', size: 13, weight: '400', color: '#374151' },
+      small: { family: 'Roboto, sans-serif', size: 10, weight: '400', color: '#6b7280' }
+    },
+    colors: {
+      primary: '#1e3a8a',
+      secondary: '#374151',
+      accent: '#059669',
+      background: '#ffffff'
+    },
+    decorations: {
+      border: { width: 1, color: '#e5e7eb', style: 'solid' },
+      corner: { size: 12, color: '#059669' }
+    }
+  }
+};
+
+/**
  * Gets default font styles for certificate text
+ * @param {string} theme - Theme name
+ * @param {string} textType - Type of text (title, subtitle, body, small)
  * @returns {Object} - Font styles
  */
-export const getDefaultFontStyles = () => ({
-  fillStyle: '#000000',
-  textAlign: 'center',
-  font: 'bold 24px Arial'
-});
+export const getFontStyles = (theme = 'classic', textType = 'body') => {
+  const themeConfig = CERTIFICATE_THEMES[theme] || CERTIFICATE_THEMES.classic;
+  const fontConfig = themeConfig.fonts[textType] || themeConfig.fonts.body;
+  
+  return {
+    fillStyle: fontConfig.color,
+    textAlign: 'center',
+    font: `${fontConfig.weight} ${fontConfig.size}px ${fontConfig.family}`
+  };
+};
+
+/**
+ * Gets default font styles for certificate text (backward compatibility)
+ * @returns {Object} - Font styles
+ */
+export const getDefaultFontStyles = () => getFontStyles('classic', 'body');
 
 /**
  * Validates file for certificate template upload

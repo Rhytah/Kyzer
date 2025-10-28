@@ -177,7 +177,7 @@ export default function LoginForm({ onSuccess }) {
           />
           <label
             htmlFor="remember-me"
-            className="ml-2 block text-sm text-text-medium"
+            className="block text-sm text-text-medium"
           >
             Remember me
           </label>

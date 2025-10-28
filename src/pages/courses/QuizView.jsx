@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/auth/useAuth';
 import { useCourseStore } from '@/store/courseStore';
 import { useToast } from '@/components/ui';
 import { Button, Card } from '@/components/ui';
+import BackButton from '@/components/ui/BackButton';
 import { 
   CheckCircle, 
   Clock, 
@@ -310,9 +311,10 @@ const QuizView = () => {
           <AlertCircle className="w-12 h-12 text-error-default mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-text-dark mb-2">Quiz Not Found</h2>
           <p className="text-text-light mb-4">The quiz you're looking for doesn't exist.</p>
-          <Button onClick={() => navigate(-1)}>
-            Back to Course
-          </Button>
+          <BackButton 
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+            text="Back to Course"
+          />
         </div>
       </div>
     );
@@ -325,15 +327,10 @@ const QuizView = () => {
         <div className="max-w-8xl mx-auto px-4 sm:px-6 ">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate(-1)}
-                className="flex items-center gap-2"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Back to Course
-              </Button>
+              <BackButton 
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-medium hover:text-text-dark transition-colors"
+                text="Back to Course"
+              />
               <div className="h-6 w-px bg-border-default" />
               <div>
                 <h1 className="text-lg font-semibold text-text-dark">{quiz.title}</h1>

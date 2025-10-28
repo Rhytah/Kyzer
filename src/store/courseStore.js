@@ -426,7 +426,6 @@ const useCourseStore = create((set, get) => ({
       try {
         // Validate parameters
         if (!userId || !courseId) {
-          console.warn('calculateCourseProgress: Missing userId or courseId', { userId, courseId });
           return 0;
         }
 
@@ -437,7 +436,6 @@ const useCourseStore = create((set, get) => ({
           .eq('course_id', courseId);
 
         if (lessonsError) {
-          console.error('Error fetching lessons for progress calculation:', lessonsError);
           return 0;
         }
 
@@ -450,7 +448,6 @@ const useCourseStore = create((set, get) => ({
           .eq('completed', true);
 
         if (progressError) {
-          console.error('Error fetching lesson progress for calculation:', progressError);
           return 0;
         }
 
@@ -470,7 +467,6 @@ const useCourseStore = create((set, get) => ({
           .eq('course_id', courseId);
 
         if (updateError) {
-          console.error('Error updating enrollment progress:', updateError);
           // Don't throw, just return the calculated percentage
         }
 
@@ -501,8 +497,7 @@ const useCourseStore = create((set, get) => ({
         }));
 
         return progressPercentage;
-      } catch (error) {
-        console.error('Exception in calculateCourseProgress:', error);
+      } catch {
         return 0;
       }
     },
@@ -517,7 +512,6 @@ const useCourseStore = create((set, get) => ({
       try {
         // Validate parameters
         if (!userId || !courseId) {
-          console.warn('fetchCourseProgress: Missing userId or courseId', { userId, courseId });
           return { data: {}, error: null };
         }
 
@@ -528,7 +522,6 @@ const useCourseStore = create((set, get) => ({
           .eq('course_id', courseId);
 
         if (error) {
-          console.error('Error fetching lesson progress:', error);
           // Return empty progress instead of throwing
           return { data: {}, error: null };
         }
@@ -552,7 +545,6 @@ const useCourseStore = create((set, get) => ({
 
         return { data: progressMap, error: null };
       } catch (error) {
-        console.error('Exception in fetchCourseProgress:', error);
         set((state) => ({
           error: error.message,
           loading: { ...state.loading, progress: false },
@@ -711,8 +703,8 @@ const useCourseStore = create((set, get) => ({
           completion_date: new Date().toLocaleDateString(),
           issue_date: new Date().toLocaleDateString(),
           certificate_id: `CERT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-          instructor_name: courseData?.data?.instructor || 'Kyzer LMS',
-          organization_name: userProfile?.organization?.name || 'Kyzer LMS'
+          instructor_name: courseData?.data?.instructor || 'Leadwise Academy',
+          organization_name: userProfile?.organization?.name || 'Leadwise Academy'
         };
 
         const { data, error } = await supabase
@@ -755,7 +747,6 @@ const useCourseStore = create((set, get) => ({
         set({ certificateTemplates: templates });
         return { data: templates, error: null };
       } catch (error) {
-        console.error('Error fetching certificate templates:', error);
         set({ certificateTemplates: [] });
         return { data: [], error };
       }
@@ -852,10 +843,10 @@ const useCourseStore = create((set, get) => ({
               user_name: `${userProfile.first_name} ${userProfile.last_name}`,
               course_title: courseData.data.title,
               completion_date: new Date().toLocaleDateString(),
-              instructor_name: courseData.data.instructor || 'Kyzer LMS',
+              instructor_name: courseData.data.instructor || 'Leadwise Academy',
               issue_date: new Date().toLocaleDateString(),
               certificate_id: `CERT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-              organization_name: userProfile.organization?.name || 'Kyzer LMS',
+              organization_name: userProfile.organization?.name || 'Leadwise Academy',
             }
           };
 
@@ -881,119 +872,156 @@ const useCourseStore = create((set, get) => ({
     },
 
     // Generate certificate preview/download with filled placeholders
-    generateCertificatePreview: async (certificateId) => {
-      try {
-        // Get certificate with template data
-        const { data: certificate, error } = await supabase
-          .from(TABLES.CERTIFICATES)
-          .select(`
-            *,
-            template:${TABLES.CERTIFICATE_TEMPLATES}(*),
-            course:${TABLES.COURSES}(*)
-          `)
-          .eq('id', certificateId)
-          .single();
+    generateCertificatePreview: async (certificateId, theme = 'classic') => {
+      // Import certificate utilities
+      const { 
+        getDefaultPlaceholderPositions, 
+        getFontStyles, 
+        calculateTextLayout,
+        drawCertificateBorder,
+        drawWatermark,
+        drawLogo,
+        sanitizeTemplateUrl,
+        CERTIFICATE_THEMES
+      } = await import('@/utils/certificateUtils');
 
-        if (error) throw error;
+        let certificate;
 
-        // Use default template if no template is associated
-        if (!certificate.template) {
-          certificate.template = {
-            template_url: DEFAULT_CERTIFICATE_SVG,
-            placeholders: {
-              '{{user_name}}': true,
-              '{{course_title}}': true,
-              '{{completion_date}}': true,
-              '{{certificate_id}}': true,
-              '{{instructor_name}}': true,
-              '{{organization_name}}': true
+        // Handle preview mode (certificateId === 'preview')
+        if (certificateId === 'preview') {
+          certificate = {
+            id: 'preview',
+            certificate_data: {
+              user_name: 'John Doe',
+              course_title: 'Sample Course',
+              completion_date: new Date().toLocaleDateString(),
+              certificate_id: 'CERT-PREVIEW-123',
+              instructor_name: 'Jane Smith',
+              organization_name: 'Leadwise Academy'
+            },
+            template: {
+              logo_url: null,
+              logo_position: 'top-left'
             }
           };
+        } else {
+          // Get certificate with template data from database
+          const { data: certData, error } = await supabase
+            .from(TABLES.CERTIFICATES)
+            .select(`
+              *,
+              template:${TABLES.CERTIFICATE_TEMPLATES}(*),
+              course:${TABLES.COURSES}(*)
+            `)
+            .eq('id', certificateId)
+            .single();
+
+          if (error) throw error;
+          certificate = certData;
+
+          // Ensure template object exists
+          if (!certificate.template) {
+            certificate.template = {
+              logo_url: null,
+              logo_position: 'top-left'
+            };
+          }
         }
 
-        // Create a canvas to overlay text on the template image
+        // Generate certificate from scratch on a clean canvas
         return new Promise((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-
-          // Set a timeout for image loading
-          const timeout = setTimeout(() => {
-            reject(new Error('Certificate template image failed to load (timeout)'));
-          }, 10000);
-
-          img.onload = () => {
-            clearTimeout(timeout);
+          try {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
 
-            canvas.width = img.width;
-            canvas.height = img.height;
+            // Set standard certificate dimensions
+            canvas.width = 800;
+            canvas.height = 600;
 
-            // Draw the template image
-            ctx.drawImage(img, 0, 0);
+            // Create white background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Add text overlays for placeholders
+            // Add decorative border and watermark
+            drawCertificateBorder(ctx, canvas.width, canvas.height, theme);
+            drawWatermark(ctx, canvas.width, canvas.height);
+
+            // Add logo if present
+            if (certificate.template?.logo_url) {
+              const logoImg = new Image();
+              logoImg.crossOrigin = 'anonymous';
+              logoImg.onload = () => {
+                drawLogo(ctx, logoImg, certificate.template.logo_position || 'top-left', canvas.width, canvas.height);
+              };
+              logoImg.src = sanitizeTemplateUrl(certificate.template.logo_url);
+            }
+
             const placeholderData = certificate.certificate_data;
-            const placeholders = certificate.template.placeholders || {};
-
-            // Set font styles
-            ctx.fillStyle = '#000000';
+            
+            // Add organization name/header at the top
+            const orgName = placeholderData.organization_name || 'Leadwise Academy';
+            const orgStyles = getFontStyles(theme, 'small');
+            ctx.fillStyle = orgStyles.fillStyle;
             ctx.textAlign = 'center';
-            ctx.font = 'bold 24px Arial';
+            ctx.font = `bold ${orgStyles.font.split('px')[0]}px ${orgStyles.font.split('px')[1]}`;
+            ctx.fillText(orgName, canvas.width / 2, canvas.height * 0.12);
+            
+            // Add "Certificate of Completion" title
+            const titleStyles = getFontStyles(theme, 'title');
+            ctx.fillStyle = titleStyles.fillStyle;
+            ctx.textAlign = 'center';
+            ctx.font = titleStyles.font;
+            ctx.fillText('Certificate of Completion', canvas.width / 2, canvas.height * 0.3);
 
-            // Calculate positions based on image size (these would be configurable)
-            const centerX = canvas.width / 2;
-            const positions = {
-              '{{user_name}}': { x: centerX, y: canvas.height * 0.45 },
-              '{{course_title}}': { x: centerX, y: canvas.height * 0.55 },
-              '{{completion_date}}': { x: centerX * 1.5, y: canvas.height * 0.75 },
-              '{{certificate_id}}': { x: centerX * 0.5, y: canvas.height * 0.75 },
-              '{{instructor_name}}': { x: centerX, y: canvas.height * 0.65 },
-              '{{organization_name}}': { x: centerX, y: canvas.height * 0.25 },
-            };
+            // Get positioning and render all fields
+            const positions = getDefaultPlaceholderPositions(canvas.width, canvas.height, theme);
 
-            // Fill in the placeholders
-            Object.keys(placeholders).forEach(placeholder => {
+            // Render all certificate data fields
+            Object.keys(positions).forEach(placeholder => {
+              // Skip organization_name as it's already rendered at the top
+              if (placeholder === '{{organization_name}}') return;
+              
               const position = positions[placeholder];
+              const textType = position.textType || 'body';
               const value = placeholderData[placeholder.replace(/[{}]/g, '')];
 
-              if (position && value) {
-                ctx.fillText(value, position.x, position.y);
+              if (value) {
+                // Get theme-specific font styling
+                const fontStyles = getFontStyles(theme, textType);
+                
+                // Apply font styles
+                ctx.fillStyle = fontStyles.fillStyle;
+                ctx.textAlign = fontStyles.textAlign;
+                ctx.font = fontStyles.font;
+                
+                // Calculate text layout for long text
+                const maxWidth = canvas.width * 0.8;
+                const textLayout = calculateTextLayout(value, maxWidth, fontStyles.font);
+                
+                // Draw text with proper line breaks
+                textLayout.lines.forEach((line, index) => {
+                  const y = position.y + (index * textLayout.lineHeight);
+                  ctx.fillText(line, position.x, y);
+                });
               }
             });
 
             // Convert to blob for download
             canvas.toBlob((blob) => {
-              resolve({
-                blob,
-                url: URL.createObjectURL(blob),
-                filename: `certificate-${certificate.certificate_data.certificate_id}.png`
-              });
+              if (blob) {
+                resolve({
+                  blob,
+                  url: URL.createObjectURL(blob),
+                  filename: `certificate-${certificate.certificate_data.certificate_id}.png`
+                });
+              } else {
+                reject(new Error('Failed to generate certificate image'));
+              }
             }, 'image/png');
-          };
-
-          img.onerror = (error) => {
-            clearTimeout(timeout);
-            console.error('Certificate template image load error:', error);
-            reject(new Error('Failed to load certificate template image'));
-          };
-
-          // Handle different types of image URLs
-          const templateUrl = certificate.template.template_url;
-          if (templateUrl.startsWith('data:')) {
-            // Data URL - should load directly
-            img.src = templateUrl;
-          } else if (templateUrl.startsWith('http')) {
-            // External URL - might have CORS issues
-            img.src = templateUrl;
-          } else {
-            // Relative or Supabase storage URL
-            img.src = templateUrl;
+          } catch (error) {
+            reject(error);
           }
         });
-      } catch (error) {
-        throw error;
-      }
     },
 
     // Set current course
@@ -1997,6 +2025,17 @@ const useCourseStore = create((set, get) => ({
     // Track slide completion and time spent
     updateSlideProgress: async (userId, slideId, presentationId, lessonId, courseId, metadata = {}) => {
       try {
+        // Check if slide_progress table exists by trying to query it
+        const { data: testData, error: testError } = await supabase
+          .from(TABLES.SLIDE_PROGRESS)
+          .select('id')
+          .limit(1);
+
+        if (testError && testError.code === 'PGRST116') {
+          // Table doesn't exist, skip slide progress tracking
+          return { data: null, error: null };
+        }
+
         const progressData = {
           user_id: userId,
           slide_id: slideId,
@@ -2030,7 +2069,6 @@ const useCourseStore = create((set, get) => ({
 
         return { data, error: null };
       } catch (error) {
-        console.error('Error updating slide progress:', error);
         return { data: null, error: error.message };
       }
     },
@@ -2038,6 +2076,17 @@ const useCourseStore = create((set, get) => ({
     // Calculate and update presentation progress
     calculatePresentationProgress: async (userId, presentationId, lessonId, courseId) => {
       try {
+        // Check if presentation_progress table exists
+        const { data: testData, error: testError } = await supabase
+          .from(TABLES.PRESENTATION_PROGRESS)
+          .select('id')
+          .limit(1);
+
+        if (testError && testError.code === 'PGRST116') {
+          // Table doesn't exist, skip presentation progress tracking
+          return { data: null, error: null };
+        }
+
         // Get total slides in presentation
         const { data: allSlides, error: slidesError } = await supabase
           .from(TABLES.PRESENTATION_SLIDES)
@@ -2124,7 +2173,6 @@ const useCourseStore = create((set, get) => ({
 
         return { data, error: null };
       } catch (error) {
-        console.error('Error calculating presentation progress:', error);
         return { data: null, error: error.message };
       }
     },
@@ -2210,7 +2258,6 @@ const useCourseStore = create((set, get) => ({
 
         return { data: quizResult.data, error: null };
       } catch (error) {
-        console.error('Error submitting presentation quiz attempt:', error);
         return { data: null, error: error.message };
       }
     },
@@ -2248,7 +2295,6 @@ const useCourseStore = create((set, get) => ({
 
         return { data: analytics, error: null };
       } catch (error) {
-        console.error('Error getting presentation analytics:', error);
         return { data: null, error: error.message };
       }
     },

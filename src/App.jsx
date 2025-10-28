@@ -29,6 +29,8 @@ import Reports from '@/pages/corporate/Reports';
 import CompanySettings from '@/pages/corporate/CompanySettings';
 import AcceptInvitation from '@/pages/corporate/AcceptInvitation';
 import NotFound from '@/components/common/NotFound';
+import CourseEditor from '@/components/editor/CourseEditor';
+import CourseEditorTest from '@/components/editor/CourseEditor.test';
 
 // Layout Components
 import PublicLayout from '@/components/layout/PublicLayout';
@@ -212,8 +214,8 @@ function AppRoutes() {
       />
 
       {/* ===== INDIVIDUAL USER ROUTES ===== */}
-      <Route 
-        path="/app" 
+      <Route
+        path="/app"
         element={
           <ProtectedRoute>
             <DashboardLayout />
@@ -226,10 +228,13 @@ function AppRoutes() {
         <Route path="profile" element={<Profile />} />
         <Route path="settings" element={<Settings />} />
         
+        {/* Course Editor - Now integrated with main layout */}
+        <Route path="editor/:courseId" element={<CourseEditor />} />
+        
         {/* Course Routes */}
         <Route path="courses" element={<MyCourses />} />
         <Route path="courses/catalog" element={<CourseCatalog />} />
-        <Route path="courses/:courseId" element={<CourseDetail />} />
+        <Route path="courses/:courseId" element={<CourseDetail />} end />
         <Route path="courses/:courseId/learning" element={<CourseLearning />} />
         <Route path="courses/:courseId/lesson/:lessonId" element={<LessonView />} />
         <Route path="courses/:courseId/completion" element={<CourseCompletion />} />

@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/auth/useAuth";
 import LoginForm from "@/components/auth/LoginForm";
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
-import kyzerLogo from "../../assets/images/Kyzerlogo.png";
+import leadwiseLogo from "../../assets/images/leadwise.png";
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -22,12 +22,12 @@ return <Navigate to="/app/dashboard" replace />;     // Prevent rendering the lo
   return (
     <div className="min-h-screen bg-background-light flex">
       {/* Left side - Login Form */}
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8">
+      <div className="flex-1 flex items-center justify-center">
         <div className="max-w-md w-full space-y-8">
           {/* Header */}
           <div className="text-center">
-            <div className="flex justify-center mb-6">
-              <img src={kyzerLogo} alt="Kyzer Logo" className="h-8 ml-2" />
+            <div className="flex justify-center">
+              <img src={leadwiseLogo} alt="Leadwise Logo" className="h-20" />
             </div>
             <h2 className="text-2xl font-bold text-text-dark">Welcome back</h2>
             <p className="mt-2 text-sm text-text-light">
@@ -65,7 +65,9 @@ return <Navigate to="/app/dashboard" replace />;     // Prevent rendering the lo
       {/* Right side - Marketing/Branding */}
       <div className="hidden lg:flex lg:flex-1 bg-primary relative overflow-hidden">
         <div className="flex items-center justify-center w-full p-12">
+          
           <div className="text-center text-white max-w-lg">
+            
             <h1 className="text-4xl font-bold mb-6">
               Continue Your Learning Journey
             </h1>

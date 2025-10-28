@@ -3,13 +3,13 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCourseStore } from '@/store/courseStore';
 import { useAuth } from '@/hooks/auth/useAuth';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Eye, 
-  EyeOff, 
-  BookOpen, 
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
+  EyeOff,
+  BookOpen,
   Play,
   Settings,
   Users,
@@ -20,7 +20,8 @@ import {
   FolderOpen,
   FileText,
   Search,
-  Filter
+  Filter,
+  Edit3
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -341,28 +342,29 @@ export default function CourseManagement() {
     );
       }
     return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Course Management</h1>
-          <p className="text-gray-600 mt-1">
-            Create and manage your courses
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <Link to="/app/courses/categories">
-            <Button variant="secondary">
-              <Settings className="w-4 h-4 mr-2" />
-              Manage Categories
+    <div className="max-w-8xl mx-auto px-4 py-6">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Course Management</h1>
+            <p className="text-gray-600 mt-1">
+              Create and manage your courses
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Link to="/app/courses/categories">
+              <Button variant="secondary">
+                <Settings className="w-4 h-4 mr-2" />
+                Manage Categories
+              </Button>
+            </Link>
+            <Button onClick={() => setShowCourseForm(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Create Course
             </Button>
-          </Link>
-          <Button onClick={() => setShowCourseForm(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Create Course
-          </Button>
+          </div>
         </div>
-      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -471,7 +473,7 @@ export default function CourseManagement() {
       {/* Lesson Form Modal */}
       {showLessonForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <LessonForm
               lesson={editingLesson}
               courseId={selectedCourseId}
@@ -489,7 +491,7 @@ export default function CourseManagement() {
       {/* Module Form Modal */}
       {showModuleForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <ModuleForm
               module={editingModule}
               courseId={selectedCourseId}
@@ -507,7 +509,7 @@ export default function CourseManagement() {
       {/* Quiz Form Modal */}
       {showQuizForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <QuizForm
               quiz={editingQuiz}
               courseId={selectedCourseId}
@@ -632,6 +634,15 @@ export default function CourseManagement() {
                   </Button>
                   {isCreator && (
                     <>
+                      <Link to={`/app/editor/${course.id}`}>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                        >
+                          <Edit3 className="w-4 h-4 mr-1" />
+                          Open Editor
+                        </Button>
+                      </Link>
                       <Button
                         variant="secondary"
                         size="sm"
@@ -988,6 +999,7 @@ export default function CourseManagement() {
         cancelText="Cancel"
         confirmVariant="danger"
       />
+      </div>
     </div>
   );
 }
