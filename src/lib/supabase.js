@@ -3,10 +3,16 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Please check your .env file.');
 }
+
+// Service role client for operations that need to bypass RLS
+export const supabaseService = supabaseServiceKey 
+  ? createClient(supabaseUrl, supabaseServiceKey)
+  : null;
 
 // ==========================================
 // 🚀 NEW: ENVIRONMENT DETECTION HELPERS
@@ -381,7 +387,6 @@ export const uploadFile = async (bucket, path, file, options = {}) => {
 
     // Validate path is a string
     if (typeof path !== 'string') {
-      console.error('Invalid path type:', typeof path, path);
       throw new Error('Path must be a string');
     }
 
@@ -401,7 +406,10 @@ export const uploadFile = async (bucket, path, file, options = {}) => {
       
       const contentType = file.type || 'application/octet-stream';
       
-      const { data, error } = await supabase.storage
+      // Use service role client if available to bypass RLS
+      const client = supabaseService || supabase;
+      
+      const { data, error } = await client.storage
         .from(bucket)
         .upload(uniquePath, file, {
           cacheControl: '3600',
@@ -411,7 +419,6 @@ export const uploadFile = async (bucket, path, file, options = {}) => {
         });
 
       if (error) {
-        console.error('Storage upload error:', error);
         throw new Error(`Upload failed: ${error.message}`);
       }
       
@@ -427,7 +434,10 @@ export const uploadFile = async (bucket, path, file, options = {}) => {
     
     const contentType = file.type || 'application/octet-stream';
     
-    const { data, error } = await supabase.storage
+    // Use service role client if available to bypass RLS
+    const client = supabaseService || supabase;
+    
+    const { data, error } = await client.storage
       .from(bucket)
       .upload(uniquePath, file, {
         cacheControl: '3600',

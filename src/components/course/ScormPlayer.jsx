@@ -75,7 +75,6 @@ const ScormPlayer = ({
       await extractAndDisplayScorm(scormUrl);
       
     } catch (error) {
-      console.error('Error processing SCORM package:', error);
       setExtractionError('Failed to process SCORM package: ' + error.message);
       setIsLoading(false);
       setLoadingStep('');
@@ -85,7 +84,7 @@ const ScormPlayer = ({
   // Extract and display SCORM package from ZIP file
   const extractAndDisplayScorm = useCallback(async (zipUrl) => {
     try {
-      console.log('Extracting SCORM package from:', zipUrl);
+      // Extracting SCORM package from URL
       
       setLoadingStep('Downloading SCORM package...');
       
@@ -106,7 +105,7 @@ const ScormPlayer = ({
       }
       
       const zipBlob = await response.blob();
-      console.log('Downloaded ZIP file, size:', zipBlob.size);
+      // Downloaded ZIP file successfully
       
       if (zipBlob.size === 0) {
         throw new Error('Downloaded ZIP file is empty');
@@ -122,7 +121,7 @@ const ScormPlayer = ({
         throw new Error(`Invalid SCORM package: ${parseResult.error}`);
       }
       
-      console.log('SCORM package parsed successfully:', parseResult.packageData);
+      // SCORM package parsed successfully
       
       // Get the correct entry point from the manifest
       const entryPoint = parseResult.packageData.launchUrl;
@@ -130,7 +129,7 @@ const ScormPlayer = ({
         throw new Error('No launch URL found in SCORM manifest');
       }
       
-      console.log('Found launch URL from manifest:', entryPoint);
+      // Found launch URL from manifest
       
       setLoadingStep('Extracting content files...');
       
@@ -146,11 +145,11 @@ const ScormPlayer = ({
       }
       
       const content = await entryFile.async('text');
-      console.log('Extracted content length:', content.length);
+      // Extracted content successfully
       
       // Check if the content is a placeholder or not implemented
       if (content.includes('Not implemented yet') || content.includes('placeholder') || content.length < 100) {
-        console.warn('SCORM content appears to be a placeholder or not fully implemented');
+        // SCORM content appears to be a placeholder or not fully implemented
         setLoadingStep('Content appears to be a placeholder...');
       }
       
@@ -172,42 +171,44 @@ const ScormPlayer = ({
               margin: 0; 
               padding: 0; 
               font-family: Arial, sans-serif;
-              background: #f5f5f5;
+              background: white;
             }
             .scorm-container {
               width: 100%;
-              height: 100vh;
+              min-height: 100vh;
               border: none;
               background: white;
             }
             .scorm-content {
-              padding: 20px;
-              max-width: 1200px;
-              margin: 0 auto;
+              padding: 0;
+              width: 100%;
             }
             .scorm-header {
               background: #007bff;
               color: white;
-              padding: 15px 20px;
-              margin: -20px -20px 20px -20px;
-              border-radius: 8px 8px 0 0;
+              padding: 10px 20px;
+              margin-bottom: 0;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
             }
             .scorm-header h1 {
               margin: 0;
-              font-size: 1.5rem;
+              font-size: 1.2rem;
             }
             .scorm-header p {
-              margin: 5px 0 0 0;
+              margin: 0;
               opacity: 0.9;
+              font-size: 0.9rem;
             }
             .download-link {
               display: inline-block;
               background: #28a745;
               color: white;
-              padding: 8px 16px;
+              padding: 6px 12px;
               text-decoration: none;
               border-radius: 4px;
-              margin-top: 10px;
+              font-size: 0.8rem;
             }
             .download-link:hover {
               background: #218838;
@@ -216,13 +217,19 @@ const ScormPlayer = ({
               background: #fff3cd;
               border: 1px solid #ffeaa7;
               color: #856404;
-              padding: 15px;
-              border-radius: 8px;
-              margin-bottom: 20px;
+              padding: 10px 20px;
+              margin: 0;
+              font-size: 0.9rem;
             }
             .placeholder-notice h3 {
-              margin: 0 0 10px 0;
+              margin: 0 0 5px 0;
               color: #856404;
+              font-size: 1rem;
+            }
+            #scorm-main-content {
+              background: white;
+              padding: 20px;
+              min-height: 400px;
             }
           </style>
         </head>
@@ -230,8 +237,10 @@ const ScormPlayer = ({
           <div class="scorm-container">
             <div class="scorm-content">
               <div class="scorm-header">
-                <h1>SCORM Package Content</h1>
-                <p>This content has been extracted from the uploaded SCORM package</p>
+                <div>
+                  <h1>SCORM Package Content</h1>
+                  <p>Content extracted from uploaded SCORM package</p>
+                </div>
                 <a href="${zipUrl}" class="download-link" download>
                   Download Original Package
                 </a>
@@ -254,10 +263,7 @@ const ScormPlayer = ({
       const blob = new Blob([htmlContent], { type: 'text/html' });
       const contentUrl = URL.createObjectURL(blob);
       
-      console.log('Created SCORM content URL:', contentUrl);
-      console.log('HTML content length:', htmlContent.length);
-      console.log('Blob size:', blob.size);
-      console.log('Blob type:', blob.type);
+      // Created SCORM content URL
       
       setScormContentUrl(contentUrl);
       setScormHtmlContent(htmlContent); // Store HTML content for direct display fallback
@@ -265,8 +271,6 @@ const ScormPlayer = ({
       setLoadingStep('');
       
     } catch (error) {
-      console.error('Error extracting SCORM package:', error);
-      
       let errorMessage = 'Failed to extract SCORM package: ';
       
       if (error.name === 'AbortError') {
@@ -294,97 +298,6 @@ const ScormPlayer = ({
     processScormPackage();
   }, [processScormPackage]);
 
-  // SCORM API wrapper for iframe communication
-  const createScormAPI = useCallback(() => {
-    if (!iframeRef.current || !user?.id) return null;
-
-    const scormAPI = {
-      // SCORM 1.2 API
-      LMSInitialize: () => {
-        console.log('SCORM: LMSInitialize called');
-        return 'true';
-      },
-
-      LMSFinish: () => {
-        console.log('SCORM: LMSFinish called');
-        return 'true';
-      },
-
-      LMSGetValue: (element) => {
-        const value = scormData?.[element] || '';
-        console.log(`SCORM: LMSGetValue(${element}) = ${value}`);
-        return value;
-      },
-
-      LMSSetValue: (element, value) => {
-        console.log(`SCORM: LMSSetValue(${element}, ${value})`);
-        
-        // Update local SCORM data
-        setScormData(prev => ({
-          ...prev,
-          [element]: value
-        }));
-
-        // Handle specific SCORM elements
-        if (element === 'cmi.core.lesson_status') {
-          setStatus(value);
-          if (value === 'completed' || value === 'passed') {
-            handleCompletion();
-          }
-        }
-
-        if (element === 'cmi.core.score.raw') {
-          const score = parseInt(value) || 0;
-          setProgress(score);
-          onProgress?.(score);
-        }
-
-        if (element === 'cmi.core.total_time') {
-          // Track time spent
-          updateLessonProgress({ timeSpent: value });
-        }
-
-        return 'true';
-      },
-
-      LMSCommit: () => {
-        console.log('SCORM: LMSCommit called');
-        // Save progress to database
-        updateLessonProgress();
-        return 'true';
-      },
-
-      LMSGetLastError: () => {
-        return '0';
-      },
-
-      LMSGetErrorString: (errorCode) => {
-        return 'No error';
-      },
-
-      LMSGetDiagnostic: (errorCode) => {
-        return 'No diagnostic information';
-      }
-    };
-
-    // SCORM 2004 API (extends 1.2)
-    const scorm2004API = {
-      ...scormAPI,
-      
-      // Additional 2004 methods
-      Initialize: scormAPI.LMSInitialize,
-      Terminate: scormAPI.LMSFinish,
-      GetValue: scormAPI.LMSGetValue,
-      SetValue: scormAPI.LMSSetValue,
-      Commit: scormAPI.LMSCommit,
-      GetLastError: scormAPI.LMSGetLastError,
-      GetErrorString: scormAPI.LMSGetErrorString,
-      GetDiagnostic: scormAPI.LMSGetDiagnostic
-    };
-
-    return { scormAPI, scorm2004API };
-  }, [scormData, user?.id, onProgress]);
-
   // Update lesson progress in database
   const updateLessonProgress = useCallback(async (metadata = {}) => {
     if (!user?.id || !lessonId || !courseId) return;
@@ -404,7 +317,7 @@ const ScormPlayer = ({
         currentData
       );
     } catch (error) {
-      console.error('Error updating lesson progress:', error);
+      // Error updating lesson progress
     }
   }, [user?.id, lessonId, courseId, status, scormData, actions]);
 
@@ -439,12 +352,143 @@ const ScormPlayer = ({
         scormData
       });
     } catch (error) {
-      console.error('Error completing lesson:', error);
+      // Error completing lesson
       onError?.(error);
     }
   }, [user?.id, lessonId, courseId, progress, status, scormData, actions, onComplete, onError]);
 
-  // Initialize SCORM API when iframe loads
+  // SCORM API wrapper for iframe communication
+  const createScormAPI = useCallback(() => {
+    if (!iframeRef.current || !user?.id) return null;
+
+    const scormAPI = {
+      // SCORM 1.2 API
+      LMSInitialize: () => {
+      // SCORM: LMSInitialize called
+        return 'true';
+      },
+
+      LMSFinish: () => {
+        // SCORM: LMSFinish called
+        return 'true';
+      },
+
+      LMSGetValue: (element) => {
+        const value = scormData?.[element] || '';
+        // SCORM: LMSGetValue called
+        return value;
+      },
+
+      LMSSetValue: (element, value) => {
+        // SCORM: LMSSetValue called
+        
+        // Update local SCORM data
+        setScormData(prev => ({
+          ...prev,
+          [element]: value
+        }));
+
+        // Handle specific SCORM elements for progress tracking
+        if (element === 'cmi.core.lesson_status') {
+          setStatus(value);
+          if (value === 'completed' || value === 'passed') {
+            handleCompletion();
+          }
+        }
+
+        // Handle SCORM 1.2 score elements
+        if (element === 'cmi.core.score.raw') {
+          const score = parseInt(value) || 0;
+          setProgress(score);
+          onProgress?.(score);
+        }
+
+        // Handle SCORM 1.2 time tracking
+        if (element === 'cmi.core.total_time') {
+          updateLessonProgress({ timeSpent: value });
+        }
+
+        // Handle SCORM 2004 progress elements
+        if (element === 'cmi.progress_measure') {
+          const progressValue = parseFloat(value) || 0;
+          setProgress(Math.round(progressValue * 100));
+          onProgress?.(Math.round(progressValue * 100));
+        }
+
+        // Handle SCORM 2004 completion status
+        if (element === 'cmi.completion_status') {
+          setStatus(value);
+          if (value === 'completed') {
+            handleCompletion();
+          }
+        }
+
+        // Handle SCORM 2004 success status
+        if (element === 'cmi.success_status') {
+          if (value === 'passed') {
+            setStatus('passed');
+            handleCompletion();
+          }
+        }
+
+        // Handle SCORM 2004 time tracking
+        if (element === 'cmi.session_time') {
+          updateLessonProgress({ sessionTime: value });
+        }
+
+        // Handle SCORM 2004 score elements
+        if (element === 'cmi.score.raw') {
+          const score = parseInt(value) || 0;
+          setProgress(score);
+          onProgress?.(score);
+        }
+
+        return 'true';
+      },
+
+      LMSCommit: () => {
+        // SCORM: LMSCommit called
+        // Save progress to database
+        updateLessonProgress();
+        return 'true';
+      },
+
+      LMSGetLastError: () => {
+        return '0';
+      },
+
+      LMSGetErrorString: (errorCode) => {
+        return 'No error';
+      },
+
+      LMSGetDiagnostic: (errorCode) => {
+        return 'No diagnostic information';
+      }
+    };
+
+    // SCORM 2004 API (extends 1.2)
+    const scorm2004API = {
+      ...scormAPI,
+      
+      // Additional 2004 methods
+      Initialize: scormAPI.LMSInitialize,
+      Terminate: scormAPI.LMSFinish,
+      GetValue: scormAPI.LMSGetValue,
+      SetValue: scormAPI.LMSSetValue,
+      Commit: scormAPI.LMSCommit,
+      GetLastError: scormAPI.LMSGetLastError,
+      GetErrorString: scormAPI.LMSGetErrorString,
+      GetDiagnostic: scormAPI.LMSGetDiagnostic,
+      
+      // SCORM 2004 specific methods
+      GetLastErrorString: scormAPI.LMSGetErrorString,
+      GetLastErrorDiagnostic: scormAPI.LMSGetDiagnostic
+    };
+
+    return { scormAPI, scorm2004API };
+  }, [scormData, user?.id, onProgress, handleCompletion, updateLessonProgress]);
+
+  // Initialize SCORM API when iframe loads with improved error handling
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
@@ -456,34 +500,29 @@ const ScormPlayer = ({
         const { scormAPI, scorm2004API } = createScormAPI();
         
         if (scormAPI) {
-          // Inject SCORM API into iframe with proper error handling
+          // Inject SCORM API into iframe with improved error handling
           try {
             const iframeWindow = iframe.contentWindow;
             
             if (iframeWindow) {
-              // Try SCORM 2004 first, fallback to 1.2
-              if (iframeWindow.API_1484_11) {
-                iframeWindow.API_1484_11 = scorm2004API;
-              } else if (iframeWindow.API) {
-                iframeWindow.API = scormAPI;
-              } else {
-                // Create API object if it doesn't exist
-                iframeWindow.API = scormAPI;
-                iframeWindow.API_1484_11 = scorm2004API;
-              }
+              // Inject both SCORM 1.2 and 2004 APIs
+              iframeWindow.API = scormAPI;
+              iframeWindow.API_1484_11 = scorm2004API;
 
-              // Initialize SCORM
-              if (iframeWindow.API && iframeWindow.API.LMSInitialize) {
+              // Initialize SCORM - try 2004 first, then 1.2
+              if (iframeWindow.API_1484_11 && iframeWindow.API_1484_11.Initialize) {
+                iframeWindow.API_1484_11.Initialize();
+              } else if (iframeWindow.API && iframeWindow.API.LMSInitialize) {
                 iframeWindow.API.LMSInitialize();
               }
             }
           } catch (crossOriginError) {
-            console.warn('Cross-origin access blocked for SCORM API injection:', crossOriginError.message);
-            // This is expected for blob URLs, SCORM will work without API injection
+            // Cross-origin access blocked for SCORM API injection - this is expected for blob URLs
+            // SCORM will work without API injection, but progress tracking may be limited
+            // This is normal behavior and not an error
           }
         }
       } catch (error) {
-        console.error('Error initializing SCORM API:', error);
         setError('Failed to initialize SCORM player');
       }
     };
@@ -512,7 +551,7 @@ const ScormPlayer = ({
           iframeRef.current.contentWindow.API.LMSFinish();
         }
       } catch (error) {
-        console.warn('Error finalizing SCORM session (cross-origin blocked):', error.message);
+        // Error finalizing SCORM session (cross-origin blocked)
       }
       
       // Clean up blob URL
@@ -623,11 +662,10 @@ const ScormPlayer = ({
                   minHeight: '500px'
                 }}
                 onLoad={() => {
-                  console.log('SCORM iframe loaded successfully');
+                  // SCORM iframe loaded successfully
                   setIsLoading(false);
                 }}
                 onError={(e) => {
-                  console.error('SCORM iframe error:', e);
                   setError('Failed to load SCORM content in iframe');
                   setIsLoading(false);
                 }}

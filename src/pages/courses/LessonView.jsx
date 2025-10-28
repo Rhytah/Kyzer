@@ -242,7 +242,7 @@ export default function LessonView() {
                       });
                     }
                   } catch (error) {
-                    console.log(`Could not fetch questions for quiz ${quiz.id}:`, error);
+                    // Could not fetch questions for quiz
                     // Skip this quiz if we can't fetch its questions
                   }
                 }
@@ -1227,6 +1227,119 @@ export default function LessonView() {
                   </div>
                 );
               }
+            }
+
+            // Quiz Block
+            if (block.type === 'quiz') {
+              return (
+                <div key={block.id || index} className="my-6">
+                  <div className="border border-gray-200 rounded-lg overflow-hidden shadow-md">
+                    {/* Quiz header */}
+                    <div className="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+                          <path d="M9 11l3 3L22 4"></path>
+                          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                        </svg>
+                        <div>
+                          <h3 className="text-lg font-semibold">{block.data?.title || 'Quiz'}</h3>
+                          {block.data?.passThreshold && (
+                            <p className="text-sm text-primary-100">
+                              Pass threshold: {block.data.passThreshold}%
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quiz content */}
+                    <div className="p-6 bg-white">
+                      {block.data?.quizId ? (
+                        <div className="text-center py-8">
+                          <p className="text-gray-600 mb-4">
+                            Ready to test your knowledge?
+                          </p>
+                          <p className="text-sm text-gray-500 mb-6">
+                            Quiz ID: <span className="font-mono font-semibold">{block.data.quizId}</span>
+                          </p>
+                          <button 
+                            className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium shadow-sm hover:shadow-md"
+                            onClick={() => {
+                              // Navigate to quiz view
+                              navigate(`/app/courses/${courseId}/quiz/${block.data.quizId}`);
+                            }}
+                          >
+                            Start Quiz
+                          </button>
+                          {block.data?.allowRetakes && (
+                            <p className="text-xs text-gray-500 mt-3">
+                              You can retake this quiz multiple times
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-12 bg-blue-50 rounded-lg">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-12 h-12 text-blue-400 mb-4">
+                            <path d="M9 11l3 3L22 4"></path>
+                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                          </svg>
+                          <p className="text-blue-700 text-sm font-medium">No quiz configured</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            // Code Block
+            if (block.type === 'code') {
+              const theme = block.data?.theme || 'dark';
+              const isDark = theme === 'dark';
+              
+              return (
+                <div key={block.id || index} className="my-6">
+                  <div className={`rounded-lg overflow-hidden ${isDark ? 'bg-gray-900' : 'bg-gray-100'}`}>
+                    {/* Header with language and copy button */}
+                    <div className={`flex items-center justify-between px-4 py-2 border-b ${
+                      isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-gray-200'
+                    }`}>
+                      <span className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {block.data?.language || 'code'}
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(block.data?.code || '');
+                        }}
+                        className={`flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors ${
+                          isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        Copy
+                      </button>
+                    </div>
+
+                    {/* Code content */}
+                    <pre className={`p-4 overflow-x-auto ${block.data?.lineNumbers ? 'pl-12' : ''} ${
+                      isDark ? 'text-gray-100' : 'text-gray-900'
+                    }`}>
+                      <code 
+                        className="text-sm font-mono"
+                        style={{
+                          fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+                          lineHeight: '1.6',
+                        }}
+                      >
+                        {block.data?.code || block.data?.content || '// Empty code block'}
+                      </code>
+                    </pre>
+                  </div>
+                </div>
+              );
             }
 
             // Unknown block type

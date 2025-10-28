@@ -19,7 +19,7 @@ const useEditorStore = create((set, get) => ({
     blocks: [], // Array of content blocks on canvas
     selectedBlock: null,
     clipboard: null,
-    zoom: 100,
+    zoom: 70,
     gridEnabled: true,
     firstPageBackground: '#ffffff', // Background color for page 1
   },
@@ -1207,7 +1207,7 @@ const useEditorStore = create((set, get) => ({
           blocks: [],
           selectedBlock: null,
           clipboard: null,
-          zoom: 100,
+          zoom: 70,
           gridEnabled: true,
           firstPageBackground: '#ffffff',
         },

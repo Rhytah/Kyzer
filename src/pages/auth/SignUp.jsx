@@ -33,12 +33,12 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen bg-background-light flex">
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8">
+      <div className="flex-1 flex items-center justify-center">
         <div className="max-w-md w-full space-y-8">
           {/* Header */}
           <div className="text-center">
-            <div className="flex justify-center mb-6">
-              <img src={leadwiseLogo} alt="Leadwise Logo" className="h-8 ml-2" />
+            <div className="flex justify-center">
+              <img src={leadwiseLogo} alt="Leadwise Logo" className="h-20" />
             </div>
             <h2 className="text-2xl font-bold text-text-dark">
               Create your account

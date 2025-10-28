@@ -148,7 +148,7 @@ const EditorCanvas = () => {
       {/* Canvas area */}
       <div
         ref={canvasRef}
-        className="canvas-background flex-1 overflow-auto p-16"
+        className="canvas-background flex-1 flex items-center justify-center p-8"
         onClick={handleCanvasClick}
         onDrop={handleCanvasDrop}
         onDragOver={handleCanvasDragOver}
@@ -157,29 +157,29 @@ const EditorCanvas = () => {
             ? 'radial-gradient(circle, #d1d5db 1px, transparent 1px)'
             : 'none',
           backgroundSize: ui.showGrid ? '20px 20px' : 'auto',
+          overflow: 'hidden',
         }}
       >
-        {/* Zoom wrapper - reserves space for scaled content */}
+        {/* Zoom wrapper - centers and scales content to fit viewport */}
         <div 
           style={{
-            width: `${900 * (canvas.zoom / 100)}px`,
-            minHeight: `${600 * (canvas.zoom / 100)}px`,
-            margin: '0 auto',
+            width: '900px',
+            minHeight: '600px',
+            transform: `scale(${canvas.zoom / 100})`,
+            transformOrigin: 'center center',
+            transition: 'transform 0.2s ease',
             position: 'relative',
           }}
         >
-          {/* Main content container (Page) - transformed for zoom */}
+          {/* Main content container (Page) */}
           <div
-            className="rounded-lg shadow-lg absolute top-0 left-0"
+            className="rounded-lg shadow-lg"
             onDrop={handleCanvasDrop}
             onDragOver={handleCanvasDragOver}
             style={{
               backgroundColor: currentPage.backgroundColor,
               width: '900px',
               minHeight: '600px',
-              transform: `scale(${canvas.zoom / 100})`,
-              transformOrigin: 'top left',
-              transition: 'transform 0.2s ease',
             }}
           >
             {/* Page size guide - shows recommended 600px boundary */}

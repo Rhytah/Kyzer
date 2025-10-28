@@ -342,28 +342,29 @@ export default function CourseManagement() {
     );
       }
     return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Course Management</h1>
-          <p className="text-gray-600 mt-1">
-            Create and manage your courses
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <Link to="/app/courses/categories">
-            <Button variant="secondary">
-              <Settings className="w-4 h-4 mr-2" />
-              Manage Categories
+    <div className="max-w-8xl mx-auto px-4 py-6">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Course Management</h1>
+            <p className="text-gray-600 mt-1">
+              Create and manage your courses
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Link to="/app/courses/categories">
+              <Button variant="secondary">
+                <Settings className="w-4 h-4 mr-2" />
+                Manage Categories
+              </Button>
+            </Link>
+            <Button onClick={() => setShowCourseForm(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Create Course
             </Button>
-          </Link>
-          <Button onClick={() => setShowCourseForm(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Create Course
-          </Button>
+          </div>
         </div>
-      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -998,6 +999,7 @@ export default function CourseManagement() {
         cancelText="Cancel"
         confirmVariant="danger"
       />
+      </div>
     </div>
   );
 }

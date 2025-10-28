@@ -110,18 +110,41 @@ const CourseEditor = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
-      {/* Toolbar */}
-      <EditorToolbar
-        currentCourse={currentCourse}
-        isSaving={isSaving}
-        hasUnsavedChanges={hasUnsavedChanges}
-        onSave={save}
-        editMode={editMode}
-      />
+    <div className="min-h-screen bg-background-light">
+      {/* Page Header - Consistent with other pages */}
+      <div className="bg-white border-b border-background-dark">
+        <div className="max-w-8xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <BackButton 
+                fallbackPath="/app/courses"
+                className="text-text-medium hover:text-text-dark"
+              />
+              <div>
+                <h1 className="text-xl font-bold text-text-dark">
+                  {currentCourse?.title || 'Course Editor'}
+                </h1>
+                <p className="text-sm text-text-light">
+                  {hasUnsavedChanges ? 'Unsaved changes' : 'All changes saved'}
+                </p>
+              </div>
+            </div>
+
+            {/* Editor Toolbar Actions */}
+            <EditorToolbar
+              currentCourse={currentCourse}
+              isSaving={isSaving}
+              hasUnsavedChanges={hasUnsavedChanges}
+              onSave={save}
+              editMode={editMode}
+            />
+          </div>
+        </div>
+      </div>
 
       {/* Main Editor Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="max-w-8xl mx-auto">
+        <div className="flex-1 flex overflow-hidden" style={{ height: 'calc(100vh - 180px)' }}>
         {/* Left Sidebar - Blocks & Media */}
         <EditorSidebar />
 
@@ -132,6 +155,7 @@ const CourseEditor = () => {
 
         {/* Right Panel - Properties & Course Structure Tabs */}
         <RightPanel />
+        </div>
       </div>
 
       {/* Unsaved changes indicator */}

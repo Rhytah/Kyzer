@@ -109,25 +109,25 @@ const BlockWrapper = ({ block, isSelected, isPreviewMode, index }) => {
       {/* Block controls (only in edit mode) */}
       {!isPreviewMode && (
         <div
-          className={`absolute -left-12 top-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${
+          className={`absolute -left-14 top-0 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all ${
             isSelected ? 'opacity-100' : ''
           }`}
         >
           <button
-            className="p-2 bg-white border border-gray-300 rounded hover:bg-gray-50 shadow-sm"
+            className="p-2.5 bg-gradient-to-br from-gray-700 to-gray-800 border-2 border-gray-600 rounded-lg hover:from-gray-600 hover:to-gray-700 shadow-lg hover:shadow-xl transform hover:scale-110 transition-all"
             title="Drag to reorder"
           >
-            <Grip className="w-4 h-4 text-gray-600" />
+            <Grip className="w-4 h-4 text-white" />
           </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
               duplicateBlock(block.id);
             }}
-            className="p-2 bg-white border border-gray-300 rounded hover:bg-gray-50 shadow-sm"
+            className="p-2.5 bg-gradient-to-br from-blue-600 to-blue-700 border-2 border-blue-500 rounded-lg hover:from-blue-500 hover:to-blue-600 shadow-lg hover:shadow-xl transform hover:scale-110 transition-all"
             title="Duplicate"
           >
-            <Copy className="w-4 h-4 text-gray-600" />
+            <Copy className="w-4 h-4 text-white" />
           </button>
           <button
             onClick={(e) => {
@@ -136,10 +136,10 @@ const BlockWrapper = ({ block, isSelected, isPreviewMode, index }) => {
                 deleteBlock(block.id);
               }
             }}
-            className="p-2 bg-white border border-gray-300 rounded hover:bg-red-50 shadow-sm"
+            className="p-2.5 bg-gradient-to-br from-red-600 to-red-700 border-2 border-red-500 rounded-lg hover:from-red-500 hover:to-red-600 shadow-lg hover:shadow-xl transform hover:scale-110 transition-all"
             title="Delete"
           >
-            <Trash2 className="w-4 h-4 text-red-600" />
+            <Trash2 className="w-4 h-4 text-white" />
           </button>
         </div>
       )}

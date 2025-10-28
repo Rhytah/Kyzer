@@ -149,22 +149,12 @@ export default function SlideEditor({ slide, onUpdate, courseId }) {
       const fileName = file.name || `upload_${Date.now()}`;
       const fullPath = `${subdir}/${fileName}`;
       
-      console.log('Uploading file:', {
-        bucket: STORAGE_BUCKETS.COURSE_CONTENT,
-        path: fullPath,
-        fileName: fileName,
-        contentType: file.type
-      });
-      
       const uploadResult = await uploadFile(STORAGE_BUCKETS.COURSE_CONTENT, fullPath, file);
       const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, uploadResult.path);
-      
-      console.log('Upload successful:', { uploadResult, publicUrl });
       
       handleInputChange('content_url', publicUrl);
       success('File uploaded successfully!');
     } catch (error) {
-      console.error('Upload error details:', error);
       if (error.message.includes('bucket')) {
         showError('Storage bucket not found. Please run the storage setup SQL in Supabase.');
       } else if (error.message.includes('Duplicate')) {

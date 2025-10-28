@@ -183,7 +183,6 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     
     // Protect content_text when it contains split PDF data
     if (name === 'content_text' && formData.content_type === 'presentation' && pdfSplitData) {
-      console.log('Preventing content_text modification - contains split PDF data');
       return; // Don't update content_text if it contains split PDF data
     }
     
@@ -385,7 +384,6 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
   };
 
   const handlePdfSplitterSuccess = (splitData) => {
-    console.log('PDF Splitter Success - Split Data:', splitData);
     setPdfSplitData(splitData);
     setShowPdfSplitter(false);
     
@@ -398,7 +396,6 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     };
     
     setFormData(updatedFormData);
-    console.log('Updated form data:', updatedFormData);
     
     success(`PDF successfully split into ${splitData.images.length} pages! Ready to save as presentation.`);
   };
@@ -709,8 +706,6 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     e.preventDefault();
     setError('');
 
-    console.log('LessonForm handleSubmit - courseId:', courseId);
-    console.log('LessonForm handleSubmit - formData:', formData);
 
     if (!(await validateForm())) return;
 
@@ -736,8 +731,25 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
       // Remove any presentation_description field if it exists (shouldn't be there but just in case)
       delete lessonData.presentation_description;
       
-      // Debug: Log the lesson data being sent to database
-      console.log('Lesson data being sent to database:', lessonData);
+
+      // Handle SCORM upload if selected - MUST happen before lesson creation
+      if (formData.content_type === 'scorm' && scormFile) {
+        setIsUploading(true);
+        try {
+          // For SCORM packages, upload the ZIP file and get the public URL
+          const subdir = `lessons/scorm/${courseId}`;
+          const path = await uploadPreservingName(subdir, scormFile);
+          const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, path);
+          
+          // Store the public URL so it can be accessed directly
+          lessonData.content_url = publicUrl;
+          setIsUploading(false);
+        } catch (error) {
+          setError('Failed to upload SCORM package: ' + error.message);
+          setIsUploading(false);
+          return;
+        }
+      }
 
       // Handle video upload if selected
       if (formData.content_type === 'video' && videoSourceType === 'upload' && videoFile) {
@@ -867,24 +879,6 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         return;
       }
 
-      // Handle SCORM upload if selected
-      if (formData.content_type === 'scorm' && scormFile) {
-        setIsUploading(true);
-        try {
-          // For SCORM packages, upload the ZIP file and get the public URL
-          const subdir = `lessons/scorm/${courseId}`;
-          const path = await uploadPreservingName(subdir, scormFile);
-          const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, path);
-          
-          // Store the public URL so it can be accessed directly
-          lessonData.content_url = publicUrl;
-          setIsUploading(false);
-        } catch (error) {
-          setError('Failed to upload SCORM package: ' + error.message);
-          setIsUploading(false);
-          return;
-        }
-      }
 
       // Handle image upload if selected
       if (formData.content_type === 'image' && imageFile) {

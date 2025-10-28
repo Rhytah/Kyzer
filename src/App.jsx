@@ -213,16 +213,6 @@ function AppRoutes() {
         } 
       />
 
-      {/* ===== COURSE CONTENT EDITOR (Full Screen - No Layout) ===== */}
-      <Route
-        path="/app/editor/:courseId"
-        element={
-          <ProtectedRoute>
-            <CourseEditor />
-          </ProtectedRoute>
-        }
-      />
-
       {/* ===== INDIVIDUAL USER ROUTES ===== */}
       <Route
         path="/app"
@@ -237,6 +227,10 @@ function AppRoutes() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="profile" element={<Profile />} />
         <Route path="settings" element={<Settings />} />
+        
+        {/* Course Editor - Now integrated with main layout */}
+        <Route path="editor/:courseId" element={<CourseEditor />} />
+        
         {/* Course Routes */}
         <Route path="courses" element={<MyCourses />} />
         <Route path="courses/catalog" element={<CourseCatalog />} />

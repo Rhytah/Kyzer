@@ -41,25 +41,8 @@ const EditorToolbar = ({ currentCourse, isSaving, hasUnsavedChanges, onSave, edi
   };
 
   return (
-    <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm">
-      {/* Left section */}
-      <div className="flex items-center gap-4">
-        <BackButton fallbackPath="/app/courses" />
-
-        <div className="h-6 w-px bg-gray-300" />
-
-        <div className="flex flex-col">
-          <h1 className="text-lg font-semibold text-gray-900">
-            {currentCourse?.title || 'Untitled Course'}
-          </h1>
-          <p className="text-xs text-gray-500">
-            {hasUnsavedChanges ? 'Unsaved changes' : 'All changes saved'}
-          </p>
-        </div>
-      </div>
-
-      {/* Center section - Editor controls */}
-      <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2">
+      {/* Editor controls */}
         {/* Undo/Redo */}
         <div className="flex items-center gap-1 border-r border-gray-200 pr-2 mr-2">
           <Tooltip content="Undo (⌘Z)" position="bottom">
@@ -129,10 +112,8 @@ const EditorToolbar = ({ currentCourse, isSaving, hasUnsavedChanges, onSave, edi
             </button>
           </Tooltip>
         </div>
-      </div>
 
       {/* Right section - Actions */}
-      <div className="flex items-center gap-2">
         {/* Export menu */}
         <div className="relative">
           <button
@@ -193,7 +174,6 @@ const EditorToolbar = ({ currentCourse, isSaving, hasUnsavedChanges, onSave, edi
             </>
           )}
         </button>
-      </div>
     </div>
   );
 };
