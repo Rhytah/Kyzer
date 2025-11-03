@@ -224,8 +224,15 @@ export default function LessonView() {
               const { data: courseQuizzes } = await actions.fetchQuizzes(courseId)
               if (courseQuizzes && Array.isArray(courseQuizzes)) {
                 const map = {};
-                // order quizzes by created_at ascending so they appear stable
-                const sorted = [...courseQuizzes].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                // Sort quizzes by order_index first, then by created_at
+                const sorted = [...courseQuizzes].sort((a, b) => {
+                  if (a.order_index !== null && b.order_index !== null) {
+                    return a.order_index - b.order_index;
+                  }
+                  if (a.order_index !== null) return -1;
+                  if (b.order_index !== null) return 1;
+                  return new Date(a.created_at) - new Date(b.created_at);
+                });
 
                 // Filter to only include quizzes that have questions
                 const quizzesWithQuestions = [];
@@ -247,10 +254,22 @@ export default function LessonView() {
                   }
                 }
 
-                // Build the map with only quizzes that have questions
+                // Build the map with only quizzes that have questions, sorted by order_index
                 quizzesWithQuestions.forEach(q => {
                   if (!map[q.lesson_id]) map[q.lesson_id] = [];
                   map[q.lesson_id].push(q);
+                });
+
+                // Sort quizzes within each lesson by order_index
+                Object.keys(map).forEach(lessonId => {
+                  map[lessonId].sort((a, b) => {
+                    if (a.order_index !== null && b.order_index !== null) {
+                      return a.order_index - b.order_index;
+                    }
+                    if (a.order_index !== null) return -1;
+                    if (b.order_index !== null) return 1;
+                    return new Date(a.created_at) - new Date(b.created_at);
+                  });
                 });
 
                 setQuizzesByLesson(map);
@@ -688,6 +707,8 @@ export default function LessonView() {
 
   // Memoized PPT Viewer component
   const PPTViewer = memo(({ pptUrl, onLoad }) => {
+    const [error, setError] = useState(null);
+    
     const isGoogleSlides = useMemo(() => {
       return /docs\.google\.com\/presentation\/d\/[a-zA-Z0-9_-]+/i.test(pptUrl);
     }, [pptUrl]);
@@ -701,39 +722,79 @@ export default function LessonView() {
           ? `https://docs.google.com/presentation/d/${presentationId}/embed`
           : pptUrl;
       } else {
-        return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(pptUrl)}`;
+        // Ensure URL is publicly accessible - Office Online Viewer requires this
+        let publicUrl = pptUrl;
+        // If it's a Supabase storage path, ensure it's a public URL
+        if (pptUrl.includes('supabase.co/storage/v1/object/public/')) {
+          publicUrl = pptUrl;
+        } else if (pptUrl.includes('supabase.co') && !pptUrl.includes('/public/')) {
+          // Try to construct public URL
+          const pathMatch = pptUrl.match(/storage\/v1\/object\/[^\/]+\/(.+)/);
+          if (pathMatch) {
+            publicUrl = pptUrl.replace(/\/storage\/v1\/object\/[^\/]+\//, '/storage/v1/object/public/');
+          }
+        }
+        return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(publicUrl)}`;
       }
     }, [pptUrl, isGoogleSlides]);
+
+    const handleIframeLoad = () => {
+      setError(null);
+      if (onLoad) onLoad();
+    };
+
+    const handleIframeError = () => {
+      setError('Failed to load PowerPoint presentation. The file may not be publicly accessible or the URL is invalid.');
+      if (onLoad) onLoad();
+    };
 
     return (
       <div className="bg-gray-50 rounded-lg p-4">
         {pptUrl ? (
-          <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
-            <div className="relative w-full h-full">
-              <LazyIframe
-                src={embedUrl}
-                title={isGoogleSlides ? "Google Slides Presentation" : "PowerPoint Presentation"}
-                className="w-full h-full"
-                onLoad={onLoad}
-                frameBorder="0"
-                allowFullScreen={isGoogleSlides}
-              />
-              {pptLoading && (
-                <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-600"></div>
-                </div>
-              )}
+          <>
+            <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
+              <div className="relative w-full h-full">
+                {error ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-red-50 border border-red-200 rounded">
+                    <div className="text-center p-6">
+                      <div className="text-red-500 text-lg mb-2">⚠️ Loading Error</div>
+                      <p className="text-sm text-red-600 mb-4">{error}</p>
+                      <div className="text-xs text-gray-600 space-y-1">
+                        <p>• Ensure the PowerPoint file is publicly accessible</p>
+                        <p>• Check that the file URL is correct</p>
+                        <p>• Verify the file exists in Supabase storage</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <LazyIframe
+                    src={embedUrl}
+                    title={isGoogleSlides ? "Google Slides Presentation" : "PowerPoint Presentation"}
+                    className="w-full h-full"
+                    onLoad={handleIframeLoad}
+                    onError={handleIframeError}
+                    frameBorder="0"
+                    allowFullScreen={isGoogleSlides}
+                  />
+                )}
+                {pptLoading && !error && (
+                  <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-600"></div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+            <div className="mt-3 flex justify-between items-center">
+              <div className="text-xs text-gray-500">
+                {isGoogleSlides ? 'Google Slides' : 'Microsoft Office Online Viewer'}
+              </div>
+              <ActionButton action="view" variant="secondary" onClick={() => window.open(pptUrl, '_blank')}>
+                Open in new tab
+              </ActionButton>
+            </div>
+          </>
         ) : (
           <div className="text-center text-gray-500 p-8">No presentation available.</div>
-        )}
-        {pptUrl && (
-          <div className="mt-3 flex justify-end">
-            <ActionButton action="view" variant="secondary" onClick={() => window.open(pptUrl, '_blank')}>
-              Open in new tab
-            </ActionButton>
-          </div>
         )}
       </div>
     );

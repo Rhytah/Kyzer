@@ -34,16 +34,13 @@ export default function Layout() {
       <div className="flex">
         {/* Desktop Sidebar - only visible when signed in */}
         {user && (
-          <div className={`hidden lg:block transition-all duration-300 ease-in-out 
-            ${desktopSidebarCollapsed ? 'w-20' : 'w-64'}`}>
-            <Sidebar 
-              collapsed={desktopSidebarCollapsed}
-              isCorporateRoute={isCorporateUser} 
-              company={user?.user_metadata?.company_name}
-              onToggleCollapse={toggleDesktopSidebar}
-              currentUser={currentUser}
-            />
-          </div>
+          <Sidebar 
+            collapsed={desktopSidebarCollapsed}
+            isCorporateRoute={isCorporateUser} 
+            company={user?.user_metadata?.company_name}
+            onToggleCollapse={toggleDesktopSidebar}
+            currentUser={currentUser}
+          />
         )}
 
         {/* Mobile Sidebar Overlay */}
@@ -67,9 +64,9 @@ export default function Layout() {
 
         {/* Main Content */}
         <main className={`flex-1 transition-all duration-300 ease-in-out ${
-          desktopSidebarCollapsed ? 'ml-2' : 'ml-2'
+          desktopSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-60'
         }`}>
-          <div className="pb-10 lg:pb-6">
+          <div className="max-w-7xl mx-auto px-4 lg:px-6 pb-10 lg:pb-6">
             <Breadcrumbs />
             <Outlet />
           </div>
