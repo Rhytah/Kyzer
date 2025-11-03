@@ -452,7 +452,7 @@ export default function CourseDetail() {
               )}
 
               {/* Course Editor Button - Show for course creators */}
-              {course?.created_by === user?.id && (
+              {/* {course?.created_by === user?.id && (
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <Link to={`/app/editor/${courseId}`}>
                     <Button variant="outline" className="w-full">
@@ -461,7 +461,7 @@ export default function CourseDetail() {
                     </Button>
                   </Link>
                 </div>
-              )}
+              )} */}
 
               <div className="mt-6 space-y-2 text-sm text-text-medium">
                 <div className="flex items-center gap-2">

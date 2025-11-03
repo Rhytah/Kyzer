@@ -634,7 +634,7 @@ export default function CourseManagement() {
                   </Button>
                   {isCreator && (
                     <>
-                      <Link to={`/app/editor/${course.id}`}>
+                      {/* <Link to={`/app/editor/${course.id}`}>
                         <Button
                           variant="primary"
                           size="sm"
@@ -642,7 +642,7 @@ export default function CourseManagement() {
                           <Edit3 className="w-4 h-4 mr-1" />
                           Open Editor
                         </Button>
-                      </Link>
+                      </Link> */}
                       <Button
                         variant="secondary"
                         size="sm"
