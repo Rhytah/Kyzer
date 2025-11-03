@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+# Local pre-commit hook — run the repo secret scanner on staged files
+# To enable hooks locally: git config core.hooksPath .githooks
+
+# Run the node secret scanner on staged files
+node scripts/check-secrets.cjs --staged
+status=$?
+if [ $status -ne 0 ]; then
+  echo "Pre-commit secret check failed (see above)."
+  exit $status
+fi
+
+exit 0

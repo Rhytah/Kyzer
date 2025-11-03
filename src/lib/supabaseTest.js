@@ -3,9 +3,7 @@ import { supabase } from './supabase';
 
 export const testSupabaseConnection = async () => {
   try {
-    console.log('🔍 Testing Supabase connection...');
-    console.log('URL:', import.meta.env.VITE_SUPABASE_URL);
-    console.log('Key length:', import.meta.env.VITE_SUPABASE_ANON_KEY?.length || 0);
+    console.log('🔍 Testing Supabase connection... (not logging secrets)');
     
     // Test basic connection
     const { data, error } = await supabase
