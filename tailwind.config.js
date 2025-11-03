@@ -44,6 +44,9 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif']
+      },
+      maxWidth: {
+        '8xl': '1408px', // 88rem - for wide content areas like course management
       }
     },
   },

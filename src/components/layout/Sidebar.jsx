@@ -17,7 +17,8 @@ import {
   TrendingUp,
   Loader,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  FileEdit
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCorporate } from "@/hooks/corporate/useCorporate";
@@ -58,11 +59,7 @@ export default function Sidebar({ mobile = false, onClose, collapsed = false, on
       icon: BookOpen,
       children: [
         { name: "Enrolled", href: "/app/courses" },
-        { name: "Browse Catalog", href: "/app/courses/catalog" },
-        ...(canViewCourseManagement ? [
-          { name: "Manage Courses", href: "/app/courses/management" },
-          { name: "Certificate Templates", href: "/app/courses/certificate-templates" }
-        ] : [])
+        { name: "Browse Catalog", href: "/app/courses/catalog" }
       ]
     },
     { 
@@ -86,6 +83,20 @@ export default function Sidebar({ mobile = false, onClose, collapsed = false, on
       icon: Settings 
     }
   ];
+
+  // Course Management navigation - separate section (only shown if user has permission)
+  const courseManagementNavigation = canViewCourseManagement ? [
+    { 
+      path: "/app/courses/management", 
+      label: "Manage Courses", 
+      icon: FileEdit 
+    },
+    { 
+      path: "/app/courses/certificate-templates", 
+      label: "Certificate Templates", 
+      icon: Award 
+    }
+  ] : [];
 
   // Corporate navigation - only show if user has permissions
   const corporateNavigation = [
@@ -501,6 +512,27 @@ export default function Sidebar({ mobile = false, onClose, collapsed = false, on
 
         {/* Organization Navigation for Individual Users */}
         {!isCorporateUser && !collapsed && <OrganizationNav />}
+
+        {/* Course Management Navigation - Separate Section */}
+        {courseManagementNavigation.length > 0 && (
+          <div className={`${collapsed ? 'px-2' : 'p-4'} border-border p-3`}>
+            {!collapsed && (
+              <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
+                Course Management
+              </h3>
+            )}
+            <nav className={`space-y-1 ${collapsed ? 'space-y-2' : ''}`}>
+              {courseManagementNavigation.map((route) => (
+                <NavItem 
+                  key={route.path} 
+                  route={route} 
+                  onClick={mobile ? onClose : undefined}
+                  collapsed={collapsed}
+                />
+              ))}
+            </nav>
+          </div>
+        )}
 
         {/* Personal Navigation */}
         <div className={`${collapsed ? 'px-2' : 'p-4'} border-border p-3`}>

@@ -19,6 +19,8 @@ export default function QuizForm({ quiz = null, courseId, onSuccess, onCancel })
     pass_threshold: 70, // percent
     time_limit_minutes: 0, // 0 means no limit
     lesson_id: null,
+    quiz_type: 'graded', // 'graded' | 'non_graded' (knowledge check)
+    order_index: null, // Will be set based on lesson position
   });
 
   const emptyQuestion = useMemo(() => ({
@@ -43,6 +45,8 @@ export default function QuizForm({ quiz = null, courseId, onSuccess, onCancel })
           pass_threshold: quiz.pass_threshold ?? 70,
           time_limit_minutes: quiz.time_limit_minutes ?? 0,
           lesson_id: quiz.lesson_id || null,
+          quiz_type: quiz.quiz_type || 'graded',
+          order_index: quiz.order_index ?? null,
         });
         const { data } = await actions.fetchQuizQuestions(quiz.id);
         if (data && Array.isArray(data) && data.length > 0) {
@@ -233,6 +237,24 @@ export default function QuizForm({ quiz = null, courseId, onSuccess, onCancel })
               <label className="block text-sm font-medium text-gray-700 mb-2">Time Limit (minutes)</label>
               <Input name="time_limit_minutes" type="number" min="0" value={formData.time_limit_minutes} onChange={handleInputChange} />
               <p className="text-xs text-gray-500 mt-1">0 means no time limit</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Quiz Type *</label>
+              <select
+                name="quiz_type"
+                value={formData.quiz_type}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="graded">Graded (Final Assessment)</option>
+                <option value="non_graded">Non-Graded (Knowledge Check)</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.quiz_type === 'graded' 
+                  ? 'This quiz will be scored and affect course completion'
+                  : 'This quiz is for practice and won\'t affect course completion'}
+              </p>
             </div>
 
             <div className="md:col-span-2">

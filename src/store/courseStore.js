@@ -37,6 +37,7 @@ const useCourseStore = create((set, get) => ({
           .from(TABLES.QUIZZES)
           .select('*')
           .eq('course_id', courseId)
+          .order('order_index', { ascending: true })
           .order('created_at', { ascending: false });
         if (error) throw error;
         set((state) => ({ loading: { ...state.loading, quizzes: false } }));
@@ -56,6 +57,20 @@ const useCourseStore = create((set, get) => ({
           const { data: authData } = await supabase.auth.getUser();
           userId = authData?.user?.id || null;
         }
+        // Get next order_index if lesson_id is provided
+        let orderIndex = quizData.order_index ?? null;
+        if (!orderIndex && quizData.lesson_id) {
+          const { data: existingQuizzes } = await supabase
+            .from(TABLES.QUIZZES)
+            .select('order_index')
+            .eq('lesson_id', quizData.lesson_id)
+            .order('order_index', { ascending: false })
+            .limit(1);
+          orderIndex = existingQuizzes && existingQuizzes.length > 0 
+            ? (existingQuizzes[0].order_index || 0) + 1 
+            : 1;
+        }
+
         const { data, error } = await supabase
           .from(TABLES.QUIZZES)
           .insert({
@@ -64,6 +79,8 @@ const useCourseStore = create((set, get) => ({
             pass_threshold: quizData.pass_threshold ?? 70,
             time_limit_minutes: quizData.time_limit_minutes ?? null,
             lesson_id: quizData.lesson_id ?? null,
+            quiz_type: quizData.quiz_type || 'graded',
+            order_index: orderIndex,
             course_id: courseId,
             user_id: userId, // matches schema
             created_at: new Date().toISOString(),
@@ -190,6 +207,7 @@ const useCourseStore = create((set, get) => ({
           .from(TABLES.QUIZZES)
           .select('*')
           .eq('lesson_id', lessonId)
+          .order('order_index', { ascending: true })
           .order('created_at', { ascending: false });
         if (error) throw error;
         return { data: data || [], error: null };

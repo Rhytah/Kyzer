@@ -342,7 +342,7 @@ export default function CourseManagement() {
     );
       }
     return (
-    <div className="max-w-8xl mx-auto px-4 py-6">
+    <div className="py-6">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
@@ -457,7 +457,7 @@ export default function CourseManagement() {
       {/* Course Form Modal */}
       {showCourseForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-8xl max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <CourseForm
               course={editingCourse}
               onSuccess={handleCourseSuccess}
