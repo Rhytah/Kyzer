@@ -49,6 +49,19 @@ function scanContent(content, filePath) {
     }
   }
 
+  // Additional server-file validation: if server files reference the service role variable,
+  // ensure they access it via Deno.env.get(...) or process.env[...] patterns. If a server file
+  // contains the literal name but not an access call, flag it (possible hardcoded secret).
+  if (isServerFile) {
+    const serviceVarNameRegex = /SUPABASE_SERVICE_ROLE_KEY/;
+    if (serviceVarNameRegex.test(content)) {
+      const allowedAccessRegex = /(Deno\.env\.get\(['"`]SUPABASE_SERVICE_ROLE_KEY['"`]\)|process\.env\[['"`]SUPABASE_SERVICE_ROLE_KEY['"`]\]|Deno\.env\(['"`]SUPABASE_SERVICE_ROLE_KEY['"`]\))/;
+      if (!allowedAccessRegex.test(content)) {
+        findings.push({ file: filePath, reason: 'Service role variable referenced but not accessed via Deno.env.get/process.env', snippet: excerpt(content, /SUPABASE_SERVICE_ROLE_KEY/) });
+      }
+    }
+  }
+
   // 3) JWT-like strings (high-confidence token pattern) but only in code/json files
   if (/(?:\.js|\.ts|\.cjs|\.mjs|\.json|\.jsx|\.tsx)$/.test(filePath)) {
     const jwtRegex = /eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}/g;
@@ -78,6 +91,8 @@ async function main() {
 
   const allowedExt = new Set(['.js', '.jsx', '.ts', '.tsx', '.cjs', '.mjs', '.env', '.env.local', '.json']);
   const excludedPaths = ['docs/', 'public/', 'node_modules/', '.github/', 'package-lock.json'];
+  // Exclude the scanner script itself to avoid self-matching
+  excludedPaths.push('scripts/');
 
   let findings = [];
 
