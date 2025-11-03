@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+  "check:secrets": "node scripts/check-secrets.cjs",
     "lint": "eslint .",
+    "enable-git-hooks": "git config core.hooksPath .githooks",
+    "prepare": "npm run enable-git-hooks",
     "preview": "vite preview"
   },
   "dependencies": {

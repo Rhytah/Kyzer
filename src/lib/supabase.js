@@ -10,7 +10,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Service role client for operations that need to bypass RLS
-export const supabaseService = supabaseServiceKey 
+// IMPORTANT: Service Role keys must NEVER be bundled into client-side code.
+// Only create the service client when running in a server/SSR environment.
+// Vite exposes `import.meta.env.SSR` which is true for server-side execution.
+export const supabaseService = (import.meta.env.SSR && supabaseServiceKey)
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null;
 
