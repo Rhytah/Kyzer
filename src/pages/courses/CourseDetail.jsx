@@ -233,6 +233,9 @@ export default function CourseDetail() {
 
   // Handle course enrollment
   const handleEnroll = async () => {
+    if (!courseId || typeof courseId !== 'string') {
+      return;
+    }
     if (!user) {
       navigate('/auth/login')
       return

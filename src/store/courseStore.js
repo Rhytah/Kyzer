@@ -33,15 +33,39 @@ const useCourseStore = create((set, get) => ({
     fetchQuizzes: async (courseId) => {
       set((state) => ({ loading: { ...state.loading, quizzes: true }, error: null }));
       try {
-        const { data, error } = await supabase
+        // Try with order_index first
+        let { data, error } = await supabase
           .from(TABLES.QUIZZES)
           .select('*')
           .eq('course_id', courseId)
           .order('order_index', { ascending: true })
           .order('created_at', { ascending: false });
+        
+        // If order_index column doesn't exist, retry without it
+        if (error && (error.message?.includes('order_index') || error.code === '42703')) {
+          const fallbackQuery = await supabase
+            .from(TABLES.QUIZZES)
+            .select('*')
+            .eq('course_id', courseId)
+            .order('created_at', { ascending: false });
+          data = fallbackQuery.data;
+          error = fallbackQuery.error;
+        }
+        
         if (error) throw error;
+        
+        // Sort by order_index if it exists in the data
+        const sortedData = data && data.length > 0 && data[0].order_index !== undefined
+          ? [...(data || [])].sort((a, b) => {
+              const orderA = a.order_index ?? 999;
+              const orderB = b.order_index ?? 999;
+              if (orderA !== orderB) return orderA - orderB;
+              return new Date(b.created_at) - new Date(a.created_at);
+            })
+          : (data || []);
+        
         set((state) => ({ loading: { ...state.loading, quizzes: false } }));
-        return { data: data || [], error: null };
+        return { data: sortedData, error: null };
       } catch (error) {
         set((state) => ({ loading: { ...state.loading, quizzes: false }, error: error.message }));
         return { data: [], error };
@@ -60,34 +84,79 @@ const useCourseStore = create((set, get) => ({
         // Get next order_index if lesson_id is provided
         let orderIndex = quizData.order_index ?? null;
         if (!orderIndex && quizData.lesson_id) {
-          const { data: existingQuizzes } = await supabase
-            .from(TABLES.QUIZZES)
-            .select('order_index')
-            .eq('lesson_id', quizData.lesson_id)
-            .order('order_index', { ascending: false })
-            .limit(1);
-          orderIndex = existingQuizzes && existingQuizzes.length > 0 
-            ? (existingQuizzes[0].order_index || 0) + 1 
-            : 1;
+          try {
+            let { data: existingQuizzes, error: orderError } = await supabase
+              .from(TABLES.QUIZZES)
+              .select('order_index')
+              .eq('lesson_id', quizData.lesson_id)
+              .order('order_index', { ascending: false })
+              .limit(1);
+            
+            // If order_index column doesn't exist, try without it
+            if (orderError && (orderError.message?.includes('order_index') || orderError.code === '42703')) {
+              const fallback = await supabase
+                .from(TABLES.QUIZZES)
+                .select('*')
+                .eq('lesson_id', quizData.lesson_id)
+                .order('created_at', { ascending: false })
+                .limit(1);
+              existingQuizzes = fallback.data;
+              orderError = fallback.error;
+            }
+            
+            // If order_index column doesn't exist, skip it
+            if (!orderError && existingQuizzes && existingQuizzes.length > 0) {
+              orderIndex = (existingQuizzes[0].order_index || 0) + 1;
+            } else if (!orderIndex) {
+              orderIndex = 1;
+            }
+          } catch (e) {
+            // order_index column might not exist, use default
+            orderIndex = orderIndex ?? 1;
+          }
         }
 
+        // Build insert payload, conditionally include optional columns
+        const insertPayload = {
+          title: quizData.title,
+          description: quizData.description ?? null,
+          pass_threshold: quizData.pass_threshold ?? 70,
+          time_limit_minutes: quizData.time_limit_minutes ?? null,
+          lesson_id: quizData.lesson_id ?? null,
+          course_id: courseId,
+          user_id: userId, // matches schema
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        
+        // Only include order_index if it's not null
+        if (orderIndex !== null) {
+          insertPayload.order_index = orderIndex;
+        }
+        
+        // Only include quiz_type if provided (column may not exist in schema)
+        if (quizData.quiz_type) {
+          insertPayload.quiz_type = quizData.quiz_type;
+        }
+        
         const { data, error } = await supabase
           .from(TABLES.QUIZZES)
-          .insert({
-            title: quizData.title,
-            description: quizData.description ?? null,
-            pass_threshold: quizData.pass_threshold ?? 70,
-            time_limit_minutes: quizData.time_limit_minutes ?? null,
-            lesson_id: quizData.lesson_id ?? null,
-            quiz_type: quizData.quiz_type || 'graded',
-            order_index: orderIndex,
-            course_id: courseId,
-            user_id: userId, // matches schema
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
+          .insert(insertPayload)
           .select()
           .single();
+        
+        // If quiz_type column doesn't exist, retry without it
+        if (error && (error.message?.includes('quiz_type') || error.code === 'PGRST204')) {
+          delete insertPayload.quiz_type;
+          const { data: retryData, error: retryError } = await supabase
+            .from(TABLES.QUIZZES)
+            .insert(insertPayload)
+            .select()
+            .single();
+          if (retryError) throw retryError;
+          return { data: retryData, error: null };
+        }
+        
         if (error) throw error;
         return { data, error: null };
       } catch (error) {
@@ -98,12 +167,32 @@ const useCourseStore = create((set, get) => ({
     // Quiz Management: Update quiz
     updateQuiz: async (quizId, updates) => {
       try {
-        const { data, error } = await supabase
+        const updatePayload = { ...updates, updated_at: new Date().toISOString() };
+        
+        // Try update with all fields first
+        let { data, error } = await supabase
           .from(TABLES.QUIZZES)
-          .update({ ...updates, updated_at: new Date().toISOString() })
+          .update(updatePayload)
           .eq('id', quizId)
           .select()
           .single();
+        
+        // If quiz_type or order_index column doesn't exist, remove them and retry
+        if (error && (error.message?.includes('quiz_type') || error.message?.includes('order_index') || error.code === 'PGRST204')) {
+          const { quiz_type, order_index, ...restUpdates } = updates;
+          const fallbackPayload = { ...restUpdates, updated_at: new Date().toISOString() };
+          
+          const { data: retryData, error: retryError } = await supabase
+            .from(TABLES.QUIZZES)
+            .update(fallbackPayload)
+            .eq('id', quizId)
+            .select()
+            .single();
+          
+          if (retryError) throw retryError;
+          return { data: retryData, error: null };
+        }
+        
         if (error) throw error;
         return { data, error: null };
       } catch (error) {
@@ -203,14 +292,38 @@ const useCourseStore = create((set, get) => ({
     // Fetch quizzes linked to a lesson
     fetchQuizzesByLesson: async (lessonId) => {
       try {
-        const { data, error } = await supabase
+        // Try with order_index first
+        let { data, error } = await supabase
           .from(TABLES.QUIZZES)
           .select('*')
           .eq('lesson_id', lessonId)
           .order('order_index', { ascending: true })
           .order('created_at', { ascending: false });
+        
+        // If order_index column doesn't exist, retry without it
+        if (error && (error.message?.includes('order_index') || error.code === '42703')) {
+          const fallbackQuery = await supabase
+            .from(TABLES.QUIZZES)
+            .select('*')
+            .eq('lesson_id', lessonId)
+            .order('created_at', { ascending: false });
+          data = fallbackQuery.data;
+          error = fallbackQuery.error;
+        }
+        
         if (error) throw error;
-        return { data: data || [], error: null };
+        
+        // Sort by order_index if it exists in the data
+        const sortedData = data && data.length > 0 && data[0].order_index !== undefined
+          ? [...(data || [])].sort((a, b) => {
+              const orderA = a.order_index ?? 999;
+              const orderB = b.order_index ?? 999;
+              if (orderA !== orderB) return orderA - orderB;
+              return new Date(b.created_at) - new Date(a.created_at);
+            })
+          : (data || []);
+        
+        return { data: sortedData, error: null };
       } catch (error) {
         return { data: [], error: error.message };
       }
@@ -362,14 +475,22 @@ const useCourseStore = create((set, get) => ({
 
     // Enroll in a course
     enrollInCourse: async (userId, courseId) => {
+      if (!userId || !courseId || typeof courseId !== 'string' || courseId.trim() === '') {
+        return { data: null, error: 'Invalid user or course identifier' };
+      }
       try {
         // Check if already enrolled
-        const { data: existingEnrollment } = await supabase
+        const { data: existingEnrollment, error: existingError } = await supabase
           .from(TABLES.COURSE_ENROLLMENTS)
-          .select('id')
+          .select('id, status, progress_percentage, last_accessed')
           .eq('course_id', courseId)
           .eq('user_id', userId)
-          .single();
+          .eq('status', 'active')
+          .maybeSingle();
+
+        if (existingError && existingError.code !== 'PGRST116') {
+          throw existingError;
+        }
 
         if (existingEnrollment) {
           return { data: existingEnrollment, error: null };
@@ -382,7 +503,7 @@ const useCourseStore = create((set, get) => ({
             course_id: courseId,
             user_id: userId,
             enrolled_at: new Date().toISOString(),
-            status: 'pending',
+            status: 'active',
             progress_percentage: 0,
             last_accessed: new Date().toISOString(),
           })
@@ -390,6 +511,23 @@ const useCourseStore = create((set, get) => ({
           .single();
 
         if (error) throw error;
+
+        // Optimistically update local state
+        set((state) => {
+          const updatedCourses = state.courses.map((course) =>
+            course.id === courseId
+              ? { ...course, isEnrolled: true, canContinue: true }
+              : course
+          );
+
+          return {
+            courses: updatedCourses,
+            enrolledCourses: [
+              ...state.enrolledCourses,
+              data,
+            ],
+          };
+        });
 
         return { data, error: null };
       } catch (error) {
@@ -1250,29 +1388,65 @@ const useCourseStore = create((set, get) => ({
         }
 
         // Get current lesson count for order_index
-        const { data: existingLessons } = await supabase
+        let existingLessons = [];
+        let orderError = null;
+        let orderQuery = await supabase
           .from(TABLES.LESSONS)
           .select('order_index')
           .eq('course_id', courseId)
           .order('order_index', { ascending: false })
           .limit(1);
 
-        const nextOrderIndex = existingLessons && existingLessons.length > 0 
-          ? existingLessons[0].order_index + 1 
+        if (orderQuery.error && (orderQuery.error.message?.includes('order_index') || orderQuery.error.code === '42703')) {
+          const fallback = await supabase
+            .from(TABLES.LESSONS)
+            .select('created_at')
+            .eq('course_id', courseId)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          existingLessons = fallback.data || [];
+          orderError = fallback.error;
+        } else {
+          existingLessons = orderQuery.data || [];
+          orderError = orderQuery.error;
+        }
+
+        if (orderError) throw orderError;
+
+        const originalOrderSupported = !(orderQuery.error && (orderQuery.error.message?.includes('order_index') || orderQuery.error.code === '42703'));
+        const hasOrderIndex = existingLessons.length > 0 && existingLessons[0].order_index !== undefined;
+        const nextOrderIndex = hasOrderIndex
+          ? (existingLessons[0].order_index || 0) + 1
           : 1;
 
-        const { data, error } = await supabase
+        const insertPayload = {
+          ...lessonData,
+          course_id: courseId,
+          created_by: createdBy,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        if (originalOrderSupported) {
+          insertPayload.order_index = nextOrderIndex;
+        }
+
+        let { data, error } = await supabase
           .from(TABLES.LESSONS)
-          .insert({
-            ...lessonData,
-            course_id: courseId,
-            created_by: createdBy,
-            order_index: nextOrderIndex,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
+          .insert(insertPayload)
           .select()
           .single();
+
+        if (error && (error.message?.includes('order_index') || error.code === '42703')) {
+          delete insertPayload.order_index;
+          const retry = await supabase
+            .from(TABLES.LESSONS)
+            .insert(insertPayload)
+            .select()
+            .single();
+          data = retry.data;
+          error = retry.error;
+        }
 
         if (error) throw error;
 

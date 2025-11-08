@@ -433,8 +433,8 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     const { base, ext } = splitBaseExt(safeName);
     let candidatePath = `${subdir}/${safeName}`;
     try {
-      await uploadFile(STORAGE_BUCKETS.COURSE_CONTENT, candidatePath, file);
-      return candidatePath;
+      const uploadResult = await uploadFile(STORAGE_BUCKETS.COURSE_CONTENT, candidatePath, file);
+      return uploadResult?.path || candidatePath;
     } catch (err) {
       if (!isConflictError(err)) throw err;
     }
@@ -442,16 +442,16 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     for (let index = 1; index <= 50; index++) {
       candidatePath = `${subdir}/${base}-${index}${ext}`;
       try {
-        await uploadFile(STORAGE_BUCKETS.COURSE_CONTENT, candidatePath, file);
-        return candidatePath;
+        const uploadResult = await uploadFile(STORAGE_BUCKETS.COURSE_CONTENT, candidatePath, file);
+        return uploadResult?.path || candidatePath;
       } catch (err) {
         if (!isConflictError(err)) throw err;
       }
     }
     // If all candidates conflicted, fallback to timestamp once
     candidatePath = `${subdir}/${base}-${Date.now()}${ext}`;
-    await uploadFile(STORAGE_BUCKETS.COURSE_CONTENT, candidatePath, file);
-    return candidatePath;
+    const uploadResult = await uploadFile(STORAGE_BUCKETS.COURSE_CONTENT, candidatePath, file);
+    return uploadResult?.path || candidatePath;
   };
 
   const handleVideoFileChange = (e) => {
@@ -714,10 +714,11 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     try {
       const lessonData = {
         ...formData,
-        duration_minutes: formData.duration_minutes ? parseInt(formData.duration_minutes) : null,
-        order_index: formData.order_index ? parseInt(formData.order_index) : 1,
-        // content_text is already set from formData (used for description)
-        // course_id and module_id are passed as separate parameters to createLesson
+        module_id: formData.module_id ? formData.module_id : null,
+        duration_minutes: formData.duration_minutes ? parseInt(formData.duration_minutes, 10) : null,
+        order_index: formData.order_index ? parseInt(formData.order_index, 10) : 1,
+        content_url: formData.content_url?.trim() || '',
+        content_text: formData.content_text || '',
       };
 
       // For text lessons, use textContent with format marker
@@ -790,7 +791,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
             // Create the lesson first
             const lessonResult = isEditing 
               ? await updateLesson(lesson.id, lessonData)
-              : await createLesson(lessonData, courseId, formData.module_id || null, user.id);
+              : await createLesson(lessonData, courseId, lessonData.module_id, user.id);
 
             if (lessonResult.error) {
               setError(lessonResult.error);
@@ -862,7 +863,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
       if (formData.content_type !== 'presentation') {
         const lessonResult = isEditing 
           ? await updateLesson(lesson.id, lessonData)
-          : await createLesson(lessonData, courseId, formData.module_id || null, user.id);
+          : await createLesson(lessonData, courseId, lessonData.module_id, user.id);
 
         if (lessonResult.error) {
           setError(lessonResult.error);

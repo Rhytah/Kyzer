@@ -132,6 +132,9 @@ const CourseCatalog = () => {
 
   // Handle course enrollment
   const handleEnroll = async (courseId) => {
+    if (!courseId || typeof courseId !== "string") {
+      return;
+    }
     if (!user) {
       navigate('/login');
       return;
