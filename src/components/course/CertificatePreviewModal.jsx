@@ -1,8 +1,7 @@
 // src/components/course/CertificatePreviewModal.jsx
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, Download, Share2, Eye, Award } from 'lucide-react';
-import Button from '@/components/ui/Button';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { Download, Share2, Eye, Award, Copy } from 'lucide-react';
+import { Button, LoadingSpinner, Modal } from '@/components/ui';
 import { useCourseStore } from '@/store/courseStore';
 import {
   formatCertificateData,
@@ -24,6 +23,15 @@ export default function CertificatePreviewModal({
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState(null);
+  const [shareStatus, setShareStatus] = useState(null);
+  const [copyingLink, setCopyingLink] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setShareStatus(null);
+      setCopyingLink(false);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     let mounted = true;
@@ -41,7 +49,7 @@ export default function CertificatePreviewModal({
       revokeObjectURL(previewUrl);
       setPreviewUrl(null);
     };
-  }, [isOpen, userId, courseId]);
+  }, [isOpen, userId, courseId, previewUrl, loadCertificate]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -89,24 +97,58 @@ export default function CertificatePreviewModal({
 
       // Use utility function for download
       downloadBlob(blob, filename);
+      setShareStatus('downloaded');
     } catch (error) {
       const errorMessage = handleCertificateError(error, 'download certificate');
       setError(errorMessage);
+      setShareStatus('error');
     } finally {
       setDownloading(false);
     }
   }, [certificateData, actions]);
 
   const handleShare = useCallback(() => {
-    if (navigator.share && certificateData) {
-      navigator.share({
-        title: `${courseName} Certificate`,
-        text: `I completed ${courseName} and earned my certificate!`,
-        url: window.location.href
+    if (!certificateData) return;
+
+    const shareUrl = certificateData.share_url || certificateData.public_url || window.location.href;
+    const sharePayload = {
+      title: `${courseName} Certificate`,
+      text: `I completed ${courseName} and earned my certificate!`,
+      url: shareUrl
+    };
+
+    if (navigator.share && navigator.canShare?.(sharePayload)) {
+      navigator.share(sharePayload).then(() => {
+        setShareStatus('shared');
       }).catch(() => {});
+    } else if (navigator.clipboard) {
+      setCopyingLink(true);
+      navigator.clipboard
+        .writeText(shareUrl)
+        .then(() => {
+          setShareStatus('copied');
+        })
+        .catch(() => {
+          setShareStatus('error');
+        })
+        .finally(() => setCopyingLink(false));
     } else {
-      // Fallback to copying link
-      navigator.clipboard.writeText(window.location.href).catch(() => {});
+      // Fallback: open in new tab
+      window.open(shareUrl, '_blank', 'noopener');
+      setShareStatus('opened');
+    }
+  }, [courseName, certificateData]);
+
+  const handleViewInNewTab = useCallback(() => {
+    if (!previewUrl && !certificateData) return;
+    const targetUrl = certificateData?.share_url || certificateData?.public_url || previewUrl;
+    window.open(targetUrl, '_blank', 'noopener');
+    setShareStatus('opened');
+  }, [previewUrl, certificateData]);
+
+  const resetShareStatus = useCallback(() => {
+    if (shareStatus && shareStatus !== 'error') {
+      setShareStatus(null);
     }
   }, [courseName, certificateData]);
 
@@ -153,21 +195,18 @@ export default function CertificatePreviewModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-text-dark">Course Certificate</h2>
-            <p className="text-text-light">{courseName}</p>
-          </div>
-          <Button variant="ghost" onClick={onClose}>
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 p-6 overflow-y-auto">
+    <Modal
+      isOpen={isOpen}
+      onClose={() => {
+        setShareStatus(null);
+        onClose();
+      }}
+      title={courseName ? `${courseName} Certificate` : 'Course Certificate'}
+      size="xl"
+      showCloseButton
+    >
+      <div className="space-y-6">
+        <div className="overflow-y-auto max-h-[60vh] pr-1 custom-scrollbar">
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
@@ -240,31 +279,51 @@ export default function CertificatePreviewModal({
             </div>
           )}
         </div>
-
         {/* Footer Actions */}
         {certificateData && (
-          <div className="p-6 border-t border-gray-200 flex gap-3 justify-end">
-            <Button
-              variant="secondary"
-              onClick={handleShare}
-            >
-              <Share2 className="w-4 h-4 mr-2" />
-              Share
-            </Button>
-            <Button
-              onClick={handleDownload}
-              disabled={downloading}
-            >
-              {downloading ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-              ) : (
-                <Download className="w-4 h-4 mr-2" />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-border">
+            <div className="text-xs text-text-light flex items-center gap-2 min-h-[1.5rem]">
+              {shareStatus === 'shared' && <span className="text-success-default">Thanks for sharing your achievement! 🎉</span>}
+              {shareStatus === 'copied' && <span className="text-success-default flex items-center gap-1"><Copy className="w-3 h-3" /> Link copied to clipboard</span>}
+              {shareStatus === 'opened' && <span className="text-primary-default">Opened certificate preview in a new tab</span>}
+              {shareStatus === 'downloaded' && <span className="text-primary-default">Certificate downloaded successfully</span>}
+              {shareStatus === 'error' && <span className="text-error-default">Something went wrong. Please try again.</span>}
+            </div>
+            <div className="flex flex-wrap gap-2 justify-end">
+              {previewUrl && (
+                <Button variant="ghost" size="sm" onClick={handleViewInNewTab}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  Open Preview
+                </Button>
               )}
-              Download
-            </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  resetShareStatus();
+                  handleShare();
+                }}
+                disabled={copyingLink}
+              >
+                {copyingLink ? (
+                  <div className="w-4 h-4 border-2 border-[#FF8F3F] border-t-transparent rounded-full animate-spin mr-2" />
+                ) : (
+                  <Share2 className="w-4 h-4 mr-2" />
+                )}
+                Share
+              </Button>
+              <Button onClick={handleDownload} size="sm" disabled={downloading}>
+                {downloading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                Download
+              </Button>
+            </div>
           </div>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }

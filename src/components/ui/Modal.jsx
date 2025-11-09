@@ -39,25 +39,45 @@ const Modal = ({
     full: "max-w-full mx-4"
   };
 
+  const overlayStyles = {
+    background: 'linear-gradient(160deg, rgba(8, 20, 47, 0.92) 0%, rgba(4, 11, 30, 0.96) 100%)'
+  };
+
+  const containerStyles = {
+    boxShadow: '0 32px 64px rgba(4, 11, 30, 0.35)'
+  };
+
+  const headerStyles = {
+    background: 'linear-gradient(120deg, #0A1D3C 0%, #0F2C5C 100%)',
+    borderBottom: '1px solid rgba(255, 143, 63, 0.35)'
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-80 transition-opacity"
+        className="fixed inset-0 transition-opacity"
+        style={overlayStyles}
         onClick={onClose}
       />
       
       {/* Modal */}
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className={`relative w-full ${sizeClasses[size]} bg-background-white rounded-xl shadow-xl`}>
+        <div
+          className={`relative w-full ${sizeClasses[size]} bg-background-white rounded-xl`}
+          style={containerStyles}
+        >
           {/* Header */}
           {title && (
-            <div className="flex items-center justify-between p-6 border-b border-border">
-              <h2 className="text-xl font-semibold text-text-dark">{title}</h2>
+            <div
+              className="flex items-center justify-between p-6 text-white"
+              style={headerStyles}
+            >
+              <h2 className="text-xl font-semibold tracking-wide">{title}</h2>
               {showCloseButton && (
                 <button
                   onClick={onClose}
-                  className="p-2 rounded-lg text-text-light hover:text-text-dark hover:bg-background-light transition-colors"
+                  className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-[rgba(255,143,63,0.18)] focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#FF8F3F] focus:ring-offset-transparent transition-colors"
                   aria-label="Close modal"
                 >
                   <X size={20} />

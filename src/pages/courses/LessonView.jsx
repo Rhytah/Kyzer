@@ -805,10 +805,10 @@ export default function LessonView() {
                 frameBorder="0"
               />
               {!isLoaded && (
-                <div className="absolute inset-0 bg-white flex items-center justify-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-600"></div>
-                    <p className="text-sm text-text-light">Loading document…</p>
+                <div className="absolute inset-0 flex items-center justify-center bg-[rgba(6,17,48,0.96)]">
+                  <div className="flex flex-col items-center gap-3 text-white">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#FF8F3F]"></div>
+                    <p className="text-xs font-medium tracking-wide text-[#FFCB9E] uppercase">Loading document…</p>
                   </div>
                 </div>
               )}
@@ -898,10 +898,10 @@ export default function LessonView() {
                 </div>
               )}
               {(!isLoaded || !embedUrl) && !error && (
-                <div className="absolute inset-0 bg-white flex items-center justify-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-600"></div>
-                    <p className="text-sm text-text-light">Loading presentation…</p>
+                <div className="absolute inset-0 flex items-center justify-center bg-[rgba(6,17,48,0.96)]">
+                  <div className="flex flex-col items-center gap-3 text-white">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#FF8F3F]"></div>
+                    <p className="text-xs font-medium tracking-wide text-[#FFCB9E] uppercase">Loading presentation…</p>
                   </div>
                 </div>
               )}
@@ -2134,10 +2134,10 @@ export default function LessonView() {
           }}
         />
         {videoLoading && (
-          <div className="absolute inset-0 bg-black bg-opacity-80 flex items-center justify-center rounded-lg">
-            <div className="text-white text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-              <div>Loading video...</div>
+          <div className="absolute inset-0 rounded-lg flex items-center justify-center bg-[rgba(6,17,48,0.94)]">
+            <div className="text-center text-white">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF8F3F] mx-auto mb-4"></div>
+              <div className="tracking-wide text-sm uppercase text-[#FFCB9E]">Loading video…</div>
             </div>
           </div>
         )}

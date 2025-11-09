@@ -849,7 +849,7 @@ export default function MyCourses() {
       )}
 
       {/* Quick Actions */}
-      <Card className="p-6">
+      {/* <Card className="p-6">
         <h2 className="text-xl font-semibold text-text-dark mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Button variant="secondary" className="h-auto p-4 flex-col">
@@ -867,7 +867,7 @@ export default function MyCourses() {
             <span>Set Learning Goals</span>
           </Button>
         </div>
-      </Card>
+      </Card> */}
       </div>
     </div>
   )
