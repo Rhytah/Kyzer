@@ -129,6 +129,16 @@ const QuizView = () => {
     }
   }, [courseId, quizId, courses, user?.id, actions, showError]);
 
+  useEffect(() => {
+    if (quiz && quiz.quiz_type === 'non_graded' && !quizStarted && !quizCompleted) {
+      setQuizStarted(true);
+      setQuizStartTime(Date.now());
+      if (quiz?.time_limit_minutes) {
+        setQuizTimeLeftSec(quiz.time_limit_minutes * 60);
+      }
+    }
+  }, [quiz, quizStarted, quizCompleted]);
+
   // Timer effect
   useEffect(() => {
     if (quizTimeLeftSec === null || !quizStarted) return;

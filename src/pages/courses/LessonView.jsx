@@ -1,7 +1,7 @@
 // src/pages/courses/LessonView.jsx
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react'
 import ReactPlayer from 'react-player'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { 
   Play, 
   Pause,
@@ -67,6 +67,7 @@ export default function LessonView() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   
   // Store selectors - individual to prevent infinite loops
   const courses = useCourseStore(state => state.courses)
@@ -91,15 +92,68 @@ export default function LessonView() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [quizzesByLesson, setQuizzesByLesson] = useState({})
   const [quizCompletionStatus, setQuizCompletionStatus] = useState({})
-  const [quiz, setQuiz] = useState(null)
-  const [quizQuestions, setQuizQuestions] = useState([])
+  const [quizQuestionsById, setQuizQuestionsById] = useState({})
+  const [knowledgeCheckResults, setKnowledgeCheckResults] = useState({})
+  const [activeKnowledgeCheckId, setActiveKnowledgeCheckId] = useState(() => searchParams.get('knowledgeCheck'))
   const [showCertificateModal, setShowCertificateModal] = useState(false)
   const { success, error: showError } = useToast()
+  const knowledgeChecks = useMemo(() => {
+    if (!lesson?.id) return [];
+    const lessonQuizzes = quizzesByLesson[lesson.id] || [];
+    return lessonQuizzes.filter(quizEntry => quizEntry.quiz_type === 'non_graded');
+  }, [lesson?.id, quizzesByLesson]);
+  const activateKnowledgeCheck = useCallback(
+    (quizId) => {
+      setActiveKnowledgeCheckId(quizId);
+      const nextParams = new URLSearchParams(searchParams);
+      if (quizId) {
+        nextParams.set('knowledgeCheck', quizId);
+      } else {
+        nextParams.delete('knowledgeCheck');
+      }
+      setSearchParams(nextParams, { replace: true });
+    },
+    [searchParams, setSearchParams]
+  );
+
+  const activeKnowledgeCheck = useMemo(
+    () => knowledgeChecks.find(quiz => quiz.id === activeKnowledgeCheckId) || null,
+    [knowledgeChecks, activeKnowledgeCheckId]
+  );
+
+  const handleKnowledgeCheckContinue = useCallback(
+    (quizId) => {
+      const currentIndex = knowledgeChecks.findIndex(quiz => quiz.id === quizId);
+      if (currentIndex === -1) {
+        activateKnowledgeCheck(null);
+        return;
+      }
+
+      const nextPending = knowledgeChecks
+        .slice(currentIndex + 1)
+        .find(quiz => !quizCompletionStatus[quiz.id]);
+
+      if (nextPending) {
+        activateKnowledgeCheck(nextPending.id);
+      } else {
+        activateKnowledgeCheck(null);
+      }
+    },
+    [knowledgeChecks, quizCompletionStatus, activateKnowledgeCheck]
+  );
+
 
   // Player refs
   const playerRef = useRef(null)
   const videoReadyRef = useRef(false)
   const videoTimeoutRef = useRef(null)
+
+  useEffect(() => {
+    const paramId = searchParams.get('knowledgeCheck')
+    if (paramId !== activeKnowledgeCheckId) {
+      setActiveKnowledgeCheckId(paramId)
+    }
+  }, [searchParams, activeKnowledgeCheckId])
 
   // Effect to sync playback position when using ReactPlayer
   useEffect(() => {
@@ -142,6 +196,22 @@ export default function LessonView() {
       };
     }
   }, [lesson?.content_type, lesson?.content_url]);
+
+  useEffect(() => {
+    if (!activeKnowledgeCheckId) return
+
+    if (typeof document === 'undefined') return
+
+    const scrollToKnowledgeCheck = () => {
+      const element = document.getElementById(`knowledge-check-${activeKnowledgeCheckId}`)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }
+
+    const timeoutId = setTimeout(scrollToKnowledgeCheck, 150)
+    return () => clearTimeout(timeoutId)
+  }, [activeKnowledgeCheckId])
 
   // Effect to track PDF loading state when URL changes
   useEffect(() => {
@@ -224,6 +294,7 @@ export default function LessonView() {
               const { data: courseQuizzes } = await actions.fetchQuizzes(courseId)
               if (courseQuizzes && Array.isArray(courseQuizzes)) {
                 const map = {};
+                const questionMap = {};
                 // Sort quizzes by order_index first, then by created_at
                 const sorted = [...courseQuizzes].sort((a, b) => {
                   if (a.order_index !== null && b.order_index !== null) {
@@ -247,9 +318,9 @@ export default function LessonView() {
                         ...quiz,
                         question_count: questions.length
                       });
+                      questionMap[quiz.id] = questions;
                     }
                   } catch (error) {
-                    // Could not fetch questions for quiz
                     // Skip this quiz if we can't fetch its questions
                   }
                 }
@@ -273,11 +344,14 @@ export default function LessonView() {
                 });
 
                 setQuizzesByLesson(map);
+                setQuizQuestionsById(questionMap);
               } else {
                 setQuizzesByLesson({})
+                setQuizQuestionsById({})
               }
             } catch (_) {
               setQuizzesByLesson({})
+              setQuizQuestionsById({})
             }
             // Find the current lesson
             const foundLesson = flatLessons.find(l => l.id === lessonId)
@@ -290,21 +364,6 @@ export default function LessonView() {
                 const { data: progress } = await actions.fetchCourseProgress(user.id, courseId)
                 const lessonProgress = progress?.[lessonId]
                 setIsCompleted(lessonProgress?.completed || false)
-              }
-              // Load quiz linked to this lesson
-              try {
-                const { data: quizzes } = await actions.fetchQuizzesByLesson(foundLesson.id)
-                if (quizzes && quizzes.length > 0) {
-                  setQuiz(quizzes[0])
-                  const { data: qs } = await actions.fetchQuizQuestions(quizzes[0].id)
-                  setQuizQuestions(qs || [])
-                } else {
-                  setQuiz(null)
-                  setQuizQuestions([])
-                }
-              } catch (_) {
-                setQuiz(null)
-                setQuizQuestions([])
               }
             }
           }
@@ -379,35 +438,64 @@ export default function LessonView() {
 
   
 
-  const goToNextLesson = async () => {
+  const goToNextLesson = useCallback(async () => {
+    if (knowledgeChecks.length > 0) {
+      const nextPending = knowledgeChecks.find(quiz => !quizCompletionStatus[quiz.id]);
+
+      if (nextPending) {
+        if (nextPending.id === activeKnowledgeCheckId) {
+          showError('Complete the knowledge check to continue.');
+        } else {
+          activateKnowledgeCheck(nextPending.id);
+        }
+        return;
+      }
+
+      if (activeKnowledgeCheckId) {
+        activateKnowledgeCheck(null);
+        return;
+      }
+    }
+
     if (course && lesson) {
       try {
-        const { data: lessonsData } = await actions.fetchCourseLessons(course.id)
+        const { data: lessonsData } = await actions.fetchCourseLessons(course.id);
         if (lessonsData && Object.keys(lessonsData).length > 0) {
-          // Convert grouped lessons to flat array
           const flatLessons = [];
           Object.values(lessonsData).forEach(moduleData => {
             if (moduleData.lessons && Array.isArray(moduleData.lessons)) {
               flatLessons.push(...moduleData.lessons);
             }
           });
-          
-          // Sort lessons by their order_index
+
           flatLessons.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-          
-          const currentIndex = flatLessons.findIndex(l => l.id === lessonId)
-          const nextLesson = flatLessons[currentIndex + 1]
+
+          const currentIndex = flatLessons.findIndex(l => l.id === lessonId);
+          const nextLesson = flatLessons[currentIndex + 1];
+          activateKnowledgeCheck(null);
           if (nextLesson) {
-            navigate(`/app/courses/${courseId}/lesson/${nextLesson.id}`)
+            navigate(`/app/courses/${courseId}/lesson/${nextLesson.id}`);
           } else {
-            navigate(`/app/courses/${courseId}/completion`)
+            navigate(`/app/courses/${courseId}/completion`);
           }
         }
-      } catch (error) {
-        // Handle error silently or set error state if needed
+      } catch (_) {
+        // Ignore navigation errors
       }
     }
-  }
+  }, [
+    knowledgeChecks,
+    quizCompletionStatus,
+    activeKnowledgeCheckId,
+    showError,
+    course,
+    lesson,
+    actions,
+    lessonId,
+    courseId,
+    navigate,
+    activateKnowledgeCheck
+  ]);
 
   const goToPreviousLesson = async () => {
     if (course && lesson) {
@@ -479,9 +567,8 @@ export default function LessonView() {
     if (!user?.id || !quizId) return false;
     try {
       const { data } = await actions.fetchQuizAttempts(user.id, quizId);
-      return data && data.length > 0 && data.some(attempt => attempt.completed);
+      return data && data.length > 0 && data.some(attempt => attempt.completed || attempt.completed_at);
     } catch (error) {
-      console.error('Error checking quiz completion:', error);
       return false;
     }
   }, [user?.id, actions]);
@@ -1011,6 +1098,428 @@ export default function LessonView() {
   });
 
   PresentationWrapper.displayName = 'PresentationWrapper';
+
+  const KnowledgeCheckCard = memo(({
+    quiz,
+    questions,
+    onSubmit,
+    onRetake,
+    isCompleted,
+    initialResult,
+    isActive,
+    variant = 'default',
+    onContinue
+  }) => {
+    const { success, error: showError } = useToast();
+    const [answers, setAnswers] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showFeedback, setShowFeedback] = useState(Boolean(initialResult));
+    const [result, setResult] = useState(initialResult || null);
+
+    useEffect(() => {
+      if (initialResult) {
+        setResult(initialResult);
+        setShowFeedback(true);
+        if (initialResult.answers) {
+          setAnswers(initialResult.answers);
+        }
+      }
+    }, [initialResult]);
+
+    const evaluateAnswer = useCallback((question, answer) => {
+      if (answer === undefined || answer === null) return false;
+
+      switch (question.question_type) {
+        case 'multiple_choice':
+          return answer === question.correct_answer;
+        case 'multiple_select': {
+          const userSet = new Set(Array.isArray(answer) ? answer : []);
+          const correctSet = new Set(Array.isArray(question.correct_answer) ? question.correct_answer : []);
+          if (userSet.size !== correctSet.size) return false;
+          for (const value of userSet) {
+            if (!correctSet.has(value)) return false;
+          }
+          return true;
+        }
+        case 'true_false':
+          return answer === question.correct_answer;
+        case 'short_answer': {
+          const userText = (answer || '').toString().trim().toLowerCase();
+          const correctText = (question.correct_answer || '').toString().trim().toLowerCase();
+          return userText.length > 0 && userText === correctText;
+        }
+        default:
+          return false;
+      }
+    }, []);
+
+    const computeResult = useCallback(() => {
+      if (!questions || questions.length === 0) {
+        return {
+          score: 0,
+          maxScore: 0,
+          percentage: 0,
+          breakdown: [],
+        };
+      }
+
+      let score = 0;
+      const breakdown = questions.map((question, idx) => {
+        const answer = answers[question.id];
+        const correct = evaluateAnswer(question, answer);
+        if (correct) score += 1;
+        return {
+          questionId: question.id,
+          questionIndex: idx,
+          isCorrect: correct,
+          userAnswer: answer,
+          correctAnswer: question.correct_answer,
+        };
+      });
+
+      const maxScore = questions.length;
+      const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+
+      return {
+        score,
+        maxScore,
+        percentage,
+        breakdown,
+        answers,
+      };
+    }, [answers, evaluateAnswer, questions]);
+
+    const handleAnswerChange = useCallback((questionId, value) => {
+      setAnswers(prev => ({
+        ...prev,
+        [questionId]: value,
+      }));
+    }, []);
+
+    const handleSubmit = async () => {
+      if (!questions || questions.length === 0) {
+        showError('This knowledge check does not have any questions yet.');
+        return;
+      }
+
+      const unanswered = questions.filter(question => {
+        const value = answers[question.id];
+        if (Array.isArray(value)) return value.length === 0;
+        if (typeof value === 'string') return value.trim().length === 0;
+        return value === undefined || value === null;
+      });
+
+      if (unanswered.length > 0) {
+        showError('Please answer all knowledge check questions before submitting.');
+        return;
+      }
+
+      setIsSubmitting(true);
+      const summary = computeResult();
+      try {
+        await onSubmit(quiz, answers, summary);
+        setResult(summary);
+        setShowFeedback(true);
+        success('Knowledge check submitted');
+      } catch (error) {
+        showError('Unable to submit knowledge check right now.');
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    const handleRetake = () => {
+      setAnswers({});
+      setResult(null);
+      setShowFeedback(false);
+      if (onRetake) {
+        onRetake(quiz.id);
+      }
+    };
+
+    const renderAnswerContent = (question) => {
+      const currentAnswer = answers[question.id];
+      const feedback = showFeedback ? evaluateAnswer(question, currentAnswer) : null;
+
+      const baseOptionClass = 'flex items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors';
+      const neutralClasses = 'border-background-dark hover:border-primary-default';
+      const correctClasses = 'border-success-default bg-success-superlight text-success-darker';
+      const incorrectClasses = 'border-error-default bg-error-superlight text-error-darker';
+
+      const getOptionClass = (isSelected, optionIndex, optionValue) => {
+        if (!showFeedback) {
+          return `${baseOptionClass} ${isSelected ? 'border-primary-default bg-primary-superlight text-primary-darker' : neutralClasses}`;
+        }
+        let optionCorrect = false;
+        if (question.question_type === 'multiple_select') {
+          optionCorrect = Array.isArray(question.correct_answer) && question.correct_answer.includes(optionIndex);
+        } else if (question.question_type === 'true_false') {
+          optionCorrect = optionValue === question.correct_answer;
+        } else {
+          optionCorrect = optionIndex === question.correct_answer;
+        }
+        if (optionCorrect) {
+          return `${baseOptionClass} ${correctClasses}`;
+        }
+        if (isSelected && !optionCorrect) {
+          return `${baseOptionClass} ${incorrectClasses}`;
+        }
+        return `${baseOptionClass} ${neutralClasses}`;
+      };
+
+      switch (question.question_type) {
+        case 'multiple_choice':
+          return (
+            <div className="space-y-3">
+              {question.options?.map((option, optionIndex) => {
+                const isSelected = currentAnswer === optionIndex;
+                return (
+                  <button
+                    key={optionIndex}
+                    type="button"
+                    className={getOptionClass(isSelected, optionIndex, optionIndex)}
+                    onClick={() => !showFeedback && handleAnswerChange(question.id, optionIndex)}
+                    aria-pressed={isSelected}
+                  >
+                    <span className="font-medium">{String.fromCharCode(65 + optionIndex)}.</span>
+                    <span>{option}</span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        case 'multiple_select': {
+          const selectedAnswers = Array.isArray(currentAnswer) ? currentAnswer : [];
+          return (
+            <div className="space-y-3">
+              {question.options?.map((option, optionIndex) => {
+                const isSelected = selectedAnswers.includes(optionIndex);
+                return (
+                  <button
+                    key={optionIndex}
+                    type="button"
+                    className={getOptionClass(isSelected, optionIndex, optionIndex)}
+                    onClick={() => {
+                      if (showFeedback) return;
+                      const updated = new Set(selectedAnswers);
+                      if (updated.has(optionIndex)) {
+                        updated.delete(optionIndex);
+                      } else {
+                        updated.add(optionIndex);
+                      }
+                      handleAnswerChange(question.id, Array.from(updated));
+                    }}
+                    aria-pressed={isSelected}
+                  >
+                    <span className="font-medium">{String.fromCharCode(65 + optionIndex)}.</span>
+                    <span>{option}</span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        }
+        case 'true_false':
+          return (
+            <div className="space-y-3">
+              {[true, false].map(value => {
+                const label = value ? 'True' : 'False';
+                const isSelected = currentAnswer === value;
+                const optionIndex = value ? 1 : 0;
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    className={getOptionClass(isSelected, optionIndex, value)}
+                    onClick={() => !showFeedback && handleAnswerChange(question.id, value)}
+                    aria-pressed={isSelected}
+                  >
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        case 'short_answer':
+          return (
+            <div className="space-y-2">
+              <textarea
+                value={currentAnswer || ''}
+                onChange={event => handleAnswerChange(question.id, event.target.value)}
+                disabled={showFeedback}
+                placeholder="Type your response..."
+                className="w-full rounded-lg border border-background-dark px-3 py-2 text-sm focus:border-primary-default focus:outline-none focus:ring-2 focus:ring-primary-muted disabled:bg-background-light"
+                rows={3}
+              />
+              {showFeedback && (
+                <p className={`text-sm font-medium ${feedback ? 'text-success-darker' : 'text-error-darker'}`}>
+                  {feedback ? 'Great job! You matched the expected answer.' : `Expected answer: ${question.correct_answer}`}
+                </p>
+              )}
+            </div>
+          );
+        default:
+          return <p className="text-sm text-text-light">Unsupported question type.</p>;
+      }
+    };
+
+    const containerClassName = [
+      'bg-white',
+      'p-6',
+      'transition-shadow',
+      variant === 'primary' ? 'rounded-none border-none shadow-none sm:p-10 min-h-[420px]' : 'rounded-2xl border border-background-dark shadow-sm',
+      isActive ? 'ring-2 ring-primary-default shadow-lg' : ''
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    return (
+      <div
+        id={`knowledge-check-${quiz.id}`}
+        className={containerClassName}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-primary-default">
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary-superlight px-2 py-1 font-semibold text-primary-darker">
+                <CheckCircle className="h-3 w-3" />
+                Knowledge Check hjvh
+              </span>
+              {questions?.length ? (
+                <span className="text-text-light">{questions.length} question{questions.length > 1 ? 's' : ''}</span>
+              ) : null}
+            </div>
+            <h3 className="mt-3 text-lg font-semibold text-text-dark">{quiz.title}</h3>
+            {quiz.description && <p className="mt-2 text-sm text-text-light">{quiz.description}</p>}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isCompleted ? (
+              <StatusBadge status="success" label="Completed" />
+            ) : (
+              <StatusBadge status="warning" label="In Progress" />
+            )}
+          </div>
+        </div>
+
+        <div className="mt-6 space-y-6">
+          {questions && questions.length > 0 ? (
+            questions.map((question, index) => {
+              const breakdownEntry = result?.breakdown?.find(entry => entry.questionId === question.id);
+              const questionFeedback = breakdownEntry ? breakdownEntry.isCorrect : null;
+              return (
+                <div key={question.id} className="space-y-4 rounded-lg border border-background-dark p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-text-dark">
+                        {index + 1}. {question.question_text}
+                      </p>
+                      {showFeedback && questionFeedback !== null && (
+                        <p className={`mt-2 text-xs font-medium ${questionFeedback ? 'text-success-darker' : 'text-error-darker'}`}>
+                          {questionFeedback ? 'Nice work! That is correct.' : "Let's review this concept again."}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {renderAnswerContent(question)}
+                </div>
+              );
+            })
+          ) : (
+            <div className="rounded-lg border border-dashed border-background-dark p-6 text-center text-sm text-text-light">
+              Questions for this knowledge check are not available yet.
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {result && showFeedback ? (
+            <div className="flex items-center gap-3 text-sm text-text-light">
+              <div className="flex items-center gap-1 rounded-full bg-primary-superlight px-3 py-1 font-medium text-primary-darker">
+                Score: {result.score}/{result.maxScore}
+              </div>
+              <span>Accuracy: {result.percentage}%</span>
+            </div>
+          ) : (
+            <p className="text-sm text-text-light">
+              Answer the questions below to check your understanding before moving on.
+            </p>
+          )}
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {showFeedback && (
+              <>
+                <Button variant="ghost" onClick={handleRetake} size="sm">
+                  Try Again
+                </Button>
+                {onContinue && (
+                  <Button onClick={onContinue} size="sm">
+                    Continue
+                  </Button>
+                )}
+              </>
+            )}
+            {!showFeedback && (
+              <Button onClick={handleSubmit} disabled={isSubmitting} size="sm">
+                {isSubmitting ? 'Submitting...' : 'Check Answers'}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  });
+
+  KnowledgeCheckCard.displayName = 'KnowledgeCheckCard';
+
+  const handleKnowledgeCheckSubmit = useCallback(
+    async (quizData, submittedAnswers, summary) => {
+      if (!quizData?.id) return;
+      const normalizedSummary = (() => {
+        const maxScore =
+          summary?.maxScore && summary.maxScore > 0
+            ? summary.maxScore
+            : Math.max(summary?.breakdown?.length || 0, 1);
+        return { ...summary, maxScore };
+      })();
+
+      if (user?.id) {
+        try {
+          await actions.submitQuizAttempt(
+            user.id,
+            quizData.id,
+            submittedAnswers,
+            normalizedSummary.score,
+            normalizedSummary.maxScore
+          );
+        } catch (_) {
+          // Ignore errors for inline checks; user-facing feedback handled in component
+        }
+      }
+
+      setKnowledgeCheckResults(prev => ({
+        ...prev,
+        [quizData.id]: { ...normalizedSummary, answers: submittedAnswers },
+      }));
+
+      setQuizCompletionStatus(prev => ({
+        ...prev,
+        [quizData.id]: true,
+      }));
+    },
+    [actions, user?.id]
+  );
+
+  const handleKnowledgeCheckReset = useCallback((quizId) => {
+    setKnowledgeCheckResults(prev => {
+      const { [quizId]: _removed, ...rest } = prev;
+      return rest;
+    });
+    setQuizCompletionStatus(prev => ({
+      ...prev,
+      [quizId]: false,
+    }));
+  }, []);
 
   // Editor Content Viewer - renders content blocks from the editor
   const EditorContentViewer = memo(({ blocks }) => {
@@ -1744,28 +2253,79 @@ export default function LessonView() {
         </div>
 
         {/* Content Player */}
-        <Card className="p-0 overflow-hidden">
-          {lesson.content_type === 'scorm' ? (
-            <ScormPlayer
-              scormUrl={lesson.content_url}
-              lessonId={lesson.id}
-              courseId={courseId}
-              onProgress={() => {}}
-              onComplete={(completionData) => {
-                // Handle SCORM completion
-                setIsCompleted(true);
-              }}
-              onError={() => {
-                showError('Failed to load SCORM content');
-              }}
-            />
+        <Card className={`p-0 ${activeKnowledgeCheck ? '' : 'overflow-hidden'}`}>
+          {activeKnowledgeCheck ? (
+            <div className="bg-background-light">
+              <div className="border-b border-background-dark bg-white px-6 py-4 sm:px-10">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle className="h-4 w-4 text-primary-default" />
+                    <span className="text-sm font-semibold text-text-dark">
+                      Knowledge Check
+                    </span>
+                  </div>
+                  <div className="text-xs text-text-light">
+                    Complete the check to unlock the lesson content.
+                  </div>
+                </div>
+              </div>
+              <div className="px-6 py-8 sm:px-10">
+                <KnowledgeCheckCard
+                  quiz={activeKnowledgeCheck}
+                  questions={quizQuestionsById[activeKnowledgeCheck.id] || []}
+                  initialResult={knowledgeCheckResults[activeKnowledgeCheck.id]}
+                  isCompleted={!!quizCompletionStatus[activeKnowledgeCheck.id]}
+                  onSubmit={handleKnowledgeCheckSubmit}
+                  onRetake={handleKnowledgeCheckReset}
+                  isActive
+                  variant="primary"
+                  onContinue={() => handleKnowledgeCheckContinue(activeKnowledgeCheck.id)}
+                />
+              </div>
+            </div>
           ) : (
-            <VideoPlayer />
+            <>
+              {lesson.content_type === 'scorm' ? (
+                <ScormPlayer
+                  scormUrl={lesson.content_url}
+                  lessonId={lesson.id}
+                  courseId={courseId}
+                  onProgress={() => {}}
+                  onComplete={() => {
+                    setIsCompleted(true);
+                  }}
+                  onError={() => {
+                    showError('Failed to load SCORM content');
+                  }}
+                />
+              ) : (
+                <VideoPlayer />
+              )}
+              {/* {knowledgeChecks.length > 0 && (
+                <div className="border-t border-background-dark bg-background-light">
+                  <div className="space-y-6 px-6 py-6">
+                    {knowledgeChecks.map(knowledgeCheck => (
+                      <KnowledgeCheckCard
+                        key={knowledgeCheck.id}
+                        quiz={knowledgeCheck}
+                        questions={quizQuestionsById[knowledgeCheck.id] || []}
+                        initialResult={knowledgeCheckResults[knowledgeCheck.id]}
+                        isCompleted={!!quizCompletionStatus[knowledgeCheck.id]}
+                        onSubmit={handleKnowledgeCheckSubmit}
+                        onRetake={handleKnowledgeCheckReset}
+                        isActive={activeKnowledgeCheckId === knowledgeCheck.id}
+                        variant="embedded"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )} */}
+            </>
           )}
         </Card>
 
         {/* Audio Attachment Display */}
-        {lesson.audio_attachment_url && (
+        {lesson.audio_attachment_url && !activeKnowledgeCheck && (
           <Card className="p-6">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -1779,47 +2339,63 @@ export default function LessonView() {
             <AudioPlayer audioUrl={lesson.audio_attachment_url} />
           </Card>
         )}
-
+{/* Navigation */}
+<div className="flex justify-between">
+            <ActionButton
+              action="previous"
+              onClick={goToPreviousLesson}
+              disabled={lessons.findIndex(l => l.id === lessonId) === 0}
+              variant="secondary"
+            >
+              Previous Lesson
+            </ActionButton>
+            
+            <ActionButton action="next" onClick={goToNextLesson}>
+              Next Lesson
+            </ActionButton>
+          </div>
         {/* Video Error Display */}
-        <VideoErrorDisplay />
+        {!activeKnowledgeCheck && <VideoErrorDisplay />}
    
 
         {/* Lesson Info */}
-        <Card className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-text-dark mb-2">{lesson.title}</h1>
-              {/* Render formatted content preview (respect stored format marker) */}
-              {lessonDescriptionHtml}
-            </div>
-            
-            <div className="flex items-center gap-2">
-              {!isCompleted ? (
-                <Button onClick={markAsCompleted} disabled={isCompleting}>
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  {isCompleting ? 'Completing...' : 'Mark Complete'}
-                </Button>
-              ) : (
-                <div className="flex items-center gap-2 text-success-default">
-                  <CheckCircle className="w-5 h-5" />
-                  <span className="font-medium">Completed</span>
-                </div>
-              )}
+        {!activeKnowledgeCheck && (
+          <Card className="p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h1 className="text-2xl font-bold text-text-dark mb-2">{lesson.title}</h1>
+                {/* Render formatted content preview (respect stored format marker) */}
+                {lessonDescriptionHtml}
+              </div>
               
+              <div className="flex items-center gap-2">
+                {!isCompleted ? (
+                  <Button onClick={markAsCompleted} disabled={isCompleting}>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    {isCompleting ? 'Completing...' : 'Mark Complete'}
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2 text-success-default">
+                    <CheckCircle className="w-5 h-5" />
+                    <span className="font-medium">Completed</span>
+                  </div>
+                )}
+                
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-6 text-sm text-text-muted">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              <span>{formatTime(lesson.duration_minutes * 60 || 0)}</span>
+            <div className="flex items-center gap-6 text-sm text-text-muted">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                <span>{formatTime(lesson.duration_minutes * 60 || 0)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                <span>Lesson {lesson.order_index || 1} of {lessons.length}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4" />
-              <span>Lesson {lesson.order_index || 1} of {lessons.length}</span>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        )}
 
         {/* Lesson Content Tabs */}
         {/* <Card className="p-6">
@@ -1872,7 +2448,7 @@ export default function LessonView() {
 
 
         {/* Resources */}
-        {lesson.content_url && (
+        {!activeKnowledgeCheck && lesson.content_url && (
           <Card className="p-6">
             <h3 className="text-lg font-semibold text-text-dark mb-4">Lesson Resources</h3>
             <div className="space-y-3">
@@ -1896,21 +2472,7 @@ export default function LessonView() {
           </Card>
         )}
 
-        {/* Navigation */}
-        <div className="flex justify-between">
-          <ActionButton
-            action="previous"
-            onClick={goToPreviousLesson}
-            disabled={lessons.findIndex(l => l.id === lessonId) === 0}
-            variant="secondary"
-          >
-            Previous Lesson
-          </ActionButton>
-          
-          <ActionButton action="next" onClick={goToNextLesson}>
-            Next Lesson
-          </ActionButton>
-        </div>
+        
       </div>
 
       {/* Sidebar */}
@@ -2040,26 +2602,54 @@ export default function LessonView() {
                 } else {
                   // Quiz item
                   const qz = item.data;
+                  const isKnowledgeCheck = qz.quiz_type === 'non_graded';
                   const isCompleted = quizCompletionStatus[qz.id] || false;
-                  const isCurrentQuiz = lessonId === item.lessonId && quiz?.id === qz.id;
-                  
+                  const isCurrentQuiz =
+                    !isKnowledgeCheck && location.pathname.includes(`/quiz/${qz.id}`);
+                  const isActiveKnowledgeCheck =
+                    isKnowledgeCheck && lessonId === item.lessonId && activeKnowledgeCheckId === qz.id;
+
+                  const handleQuizClick = () => {
+                    if (isKnowledgeCheck) {
+                      if (item.lessonId !== lessonId) {
+                        navigate(`/app/courses/${courseId}/lesson/${item.lessonId}?knowledgeCheck=${qz.id}`);
+                        return;
+                      }
+                      const nextParams = new URLSearchParams(searchParams);
+                      nextParams.set('knowledgeCheck', qz.id);
+                      setSearchParams(nextParams, { replace: true });
+                      setActiveKnowledgeCheckId(qz.id);
+                      if (typeof document !== 'undefined') {
+                        const element = document.getElementById(`knowledge-check-${qz.id}`);
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }
+                      return;
+                    }
+
+                    navigate(`/app/courses/${courseId}/quiz/${qz.id}`);
+                  };
+
                   return (
                     <button
                       key={`quiz-${qz.id}`}
-                      onClick={() => {
-                        navigate(`/app/courses/${courseId}/quiz/${qz.id}`);
-                      }}
+                      onClick={handleQuizClick}
                       className={`w-full text-left p-3 rounded-lg transition-colors ${
-                        isCurrentQuiz
-                          ? 'bg-primary-light text-primary-default'
-                          : 'hover:bg-background-light'
+                        isKnowledgeCheck
+                          ? isActiveKnowledgeCheck
+                            ? 'bg-primary-light text-primary-default'
+                            : 'hover:bg-background-light'
+                          : isCurrentQuiz
+                            ? 'bg-primary-light text-primary-default'
+                            : 'hover:bg-background-light'
                       }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="flex-shrink-0">
                           {isCompleted ? (
                             <CheckCircle className="w-5 h-5 text-success-default" />
-                          ) : isCurrentQuiz ? (
+                          ) : (isKnowledgeCheck && isActiveKnowledgeCheck) || (!isKnowledgeCheck && isCurrentQuiz) ? (
                             <Play className="w-5 h-5 text-primary-default" />
                           ) : (
                             <div className="w-5 h-5 rounded-full border border-background-dark flex items-center justify-center">
@@ -2069,10 +2659,15 @@ export default function LessonView() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium text-sm truncate">
-                            <span className="text-primary-default">Quiz:</span> {qz.title}
+                            <span className="text-primary-default">
+                              {isKnowledgeCheck ? 'Knowledge Check:' : 'Quiz:'}
+                            </span>{' '}
+                            {qz.title}
                           </h4>
                           <p className="text-xs text-text-light">
-                            {qz.time_limit_minutes ? `${qz.time_limit_minutes} min` : 'No time limit'} • {qz.question_count || 0} questions
+                            {isKnowledgeCheck
+                              ? `${qz.question_count || 0} question${(qz.question_count || 0) !== 1 ? 's' : ''}`
+                              : `${qz.time_limit_minutes ? `${qz.time_limit_minutes} min` : 'No time limit'} • ${qz.question_count || 0} questions`}
                           </p>
                         </div>
                       </div>

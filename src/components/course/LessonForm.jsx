@@ -9,6 +9,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui';
 import PDFSplitter from './PDFSplitter';
 import {
+  supabase,
   uploadFile,
   getFileUrl,
   STORAGE_BUCKETS,
@@ -67,6 +68,15 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
   const [imagePreviewUrl, setImagePreviewUrl] = useState('');
   const [audioFile, setAudioFile] = useState(null);
   const [audioPreviewUrl, setAudioPreviewUrl] = useState('');
+  const [narrationScript, setNarrationScript] = useState('');
+  const [generatingNarration, setGeneratingNarration] = useState(false);
+  const [narrationVoice, setNarrationVoice] = useState('alloy');
+  const [narrationError, setNarrationError] = useState('');
+  const narrationVoices = [
+    { value: 'alloy', label: 'Alloy (Neutral)' },
+    { value: 'verse', label: 'Verse (Warm)' },
+    { value: 'lily', label: 'Lily (Bright)' },
+  ];
   
   // Existing content state for editing
   const [existingContent, setExistingContent] = useState({
@@ -454,6 +464,160 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     return uploadResult?.path || candidatePath;
   };
 
+  const getNarrationContent = () => {
+    const sections = [];
+    if (formData.title?.trim()) {
+      sections.push(`Lesson Title: ${formData.title.trim()}`);
+    }
+    if (textContent?.trim()) {
+      sections.push(textContent.trim());
+    }
+    if (formData.content_text?.trim()) {
+      sections.push(formData.content_text.trim());
+    }
+    return sections.join('\n\n').trim();
+  };
+
+  const deriveNarrationErrorMessage = (error) => {
+    if (!error) {
+      return 'Failed to generate narration. Please try again.';
+    }
+
+    const candidates = [];
+
+    const pushCandidate = (candidate) => {
+      if (!candidate) return;
+      if (typeof candidate === 'string') {
+        candidates.push(candidate);
+        const trimmed = candidate.trim();
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (parsed && typeof parsed === 'object') {
+              if (parsed.error) candidates.push(parsed.error);
+              if (parsed.message) candidates.push(parsed.message);
+            }
+          } catch (_) {
+            // ignore parse errors
+          }
+        }
+      } else if (typeof candidate === 'object') {
+        if (candidate.error) candidates.push(candidate.error);
+        if (candidate.message) candidates.push(candidate.message);
+        if (candidate.body) pushCandidate(candidate.body);
+      }
+    };
+
+    pushCandidate(error);
+
+    const primaryMessage =
+      candidates.find((msg) => typeof msg === 'string' && msg.trim().length > 0)?.trim() ?? '';
+
+    const normalized = primaryMessage.toLowerCase();
+    const status = error?.status ?? error?.statusCode ?? error?.code ?? null;
+
+    if (normalized.includes('too short')) {
+      return 'Add more lesson content (at least 40 characters) before generating narration.';
+    }
+    if (normalized.includes('missing openai')) {
+      return 'The OpenAI API key is missing. Set the OPENAI_API_KEY secret in Supabase and redeploy the function.';
+    }
+    if (
+      normalized.includes('invalid api key') ||
+      normalized.includes('incorrect api key') ||
+      status === 401 ||
+      status === '401'
+    ) {
+      return 'The OpenAI API key is invalid or has expired. Update the OPENAI_API_KEY secret and redeploy.';
+    }
+    if (
+      normalized.includes('failed to fetch') ||
+      normalized.includes('failed to send') ||
+      normalized.includes('network') ||
+      normalized.includes('timeout')
+    ) {
+      return 'We could not reach the narration service. Check your network and try again.';
+    }
+    if (normalized.includes('rate limit')) {
+      return 'The narration service is rate limiting requests. Please wait a moment and try again.';
+    }
+
+    return primaryMessage || 'Failed to generate narration. Please try again.';
+  };
+
+  const handleGenerateNarration = async () => {
+    setNarrationError('');
+
+    const content = getNarrationContent();
+    if (!content) {
+      setNarrationError('Add lesson content or summary before generating narration.');
+      showError('Please provide lesson content before generating narration.');
+      return;
+    }
+    if (!formData.title.trim()) {
+      setNarrationError('Please enter a lesson title before generating narration.');
+      showError('Add a lesson title before generating narration.');
+      return;
+    }
+
+    setGeneratingNarration(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-narration', {
+        body: {
+          title: formData.title,
+          content,
+          voice: narrationVoice,
+        },
+      });
+
+      if (error) {
+        throw new Error(deriveNarrationErrorMessage(error));
+      }
+
+      if (data?.error) {
+        throw new Error(deriveNarrationErrorMessage(data.error));
+      }
+
+      if (!data?.audioBase64) {
+        throw new Error('The narration service returned an empty audio file. Please try again.');
+      }
+
+      const mimeType = data.mimeType || 'audio/mpeg';
+      const base64String = data.audioBase64.replace(/\s/g, '');
+      const binaryString = atob(base64String);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i += 1) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      const audioBlob = new Blob([bytes], { type: mimeType });
+      const fileExtension = mimeType === 'audio/mpeg' ? 'mp3' : 'wav';
+      const fileName = `${sanitizeFileName(formData.title || 'lesson')}-narration.${fileExtension}`;
+      const generatedFile = new File([audioBlob], fileName, { type: mimeType });
+
+      if (audioPreviewUrl) {
+        URL.revokeObjectURL(audioPreviewUrl);
+      }
+
+      const previewUrl = URL.createObjectURL(generatedFile);
+      setAudioFile(generatedFile);
+      setAudioPreviewUrl(previewUrl);
+      setNarrationScript(data.script || '');
+      setExistingContent(prev => ({ ...prev, audioUrl: '' }));
+      success('AI narration generated. Review the script and save the lesson to attach it.');
+    } catch (err) {
+      console.error('Narration generation error:', err);
+      const message =
+        err instanceof Error ? err.message : deriveNarrationErrorMessage(err);
+      setNarrationError(message);
+      showError(message);
+    } finally {
+      setGeneratingNarration(false);
+    }
+  };
+
   const handleVideoFileChange = (e) => {
     const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
     setVideoFile(file);
@@ -482,14 +646,21 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
 
   const handleAudioFileChange = (e) => {
     const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    if (audioPreviewUrl) {
+      URL.revokeObjectURL(audioPreviewUrl);
+    }
     setAudioFile(file);
     if (file) {
       const objectUrl = URL.createObjectURL(file);
       setAudioPreviewUrl(objectUrl);
       // Clear existing content when new file is selected
       setExistingContent(prev => ({ ...prev, audioUrl: '' }));
+      setNarrationScript('');
+      setNarrationError('');
     } else {
       setAudioPreviewUrl('');
+      setNarrationScript('');
+      setNarrationError('');
     }
   };
 
@@ -691,7 +862,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     const excludeId = lesson?.id || null;
     const unique = await isLessonTitleUnique(
       courseId,
-      formData.module_id || null,
+      formData.module_id ? formData.module_id : null,
       formData.title,
       excludeId
     );
@@ -1905,6 +2076,61 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
             <div className="border-t border-gray-200 pt-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Audio Attachment (Optional)</h3>
               <div className="space-y-4">
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-medium text-blue-900">Generate AI Narration</h4>
+                      <p className="text-xs text-blue-700 mt-1">
+                        Automatically create spoken narration based on your lesson content. Review the script and save the lesson to attach it.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col md:flex-row md:items-end gap-3">
+                    <div className="md:w-64">
+                      <label className="block text-xs font-medium text-blue-900 mb-1">
+                        Voice Style
+                      </label>
+                      <select
+                        value={narrationVoice}
+                        onChange={(e) => setNarrationVoice(e.target.value)}
+                        className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      >
+                        {narrationVoices.map((voice) => (
+                          <option key={voice.value} value={voice.value}>
+                            {voice.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <Button
+                      onClick={handleGenerateNarration}
+                      loading={generatingNarration}
+                      className="md:w-auto"
+                    >
+                      Generate Narration
+                    </Button>
+                  </div>
+                  {narrationError && (
+                    <p className="text-xs text-red-600">{narrationError}</p>
+                  )}
+                  {narrationScript && (
+                    <div>
+                      <label className="block text-xs font-medium text-blue-900 mb-1">
+                        Generated Narration Script
+                      </label>
+                      <textarea
+                        value={narrationScript}
+                        readOnly
+                        rows={4}
+                        className="w-full text-sm border border-blue-200 rounded-lg p-3 bg-white text-blue-900"
+                      />
+                      <p className="text-xs text-blue-600 mt-1">
+                        Copy or adjust this script if you plan to customize the narration before saving the lesson.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Attach Audio File
