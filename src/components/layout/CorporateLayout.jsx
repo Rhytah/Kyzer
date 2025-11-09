@@ -50,7 +50,7 @@ const CorporateLayout = () => {
         {sidebarOpen && (
           <>
             <div 
-              className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+              className="lg:hidden fixed inset-0 bg-black bg-opacity-80 z-40"
               onClick={() => setSidebarOpen(false)}
             />
             <div className="lg:hidden fixed left-0 top-0 h-full w-64 bg-background-white z-50 transform transition-transform duration-300">

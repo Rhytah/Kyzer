@@ -88,7 +88,7 @@ export function AvatarUpload({
           <button
             onClick={triggerFileSelect}
             disabled={isUploading}
-            className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200 group"
+            className="absolute inset-0 bg-black bg-opacity-80 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200 group"
           >
             <Camera 
               size={size === 'small' ? 14 : 16} 

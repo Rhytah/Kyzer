@@ -456,7 +456,7 @@ export default function CourseManagement() {
 
       {/* Course Form Modal */}
       {showCourseForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50">
           <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <CourseForm
               course={editingCourse}
@@ -472,7 +472,7 @@ export default function CourseManagement() {
 
       {/* Lesson Form Modal */}
       {showLessonForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50">
           <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <LessonForm
               lesson={editingLesson}
@@ -490,7 +490,7 @@ export default function CourseManagement() {
 
       {/* Module Form Modal */}
       {showModuleForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50">
           <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <ModuleForm
               module={editingModule}
@@ -508,7 +508,7 @@ export default function CourseManagement() {
 
       {/* Quiz Form Modal */}
       {showQuizForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50">
           <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <QuizForm
               quiz={editingQuiz}

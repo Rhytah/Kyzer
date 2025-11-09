@@ -275,7 +275,7 @@ export default function CourseLearning() {
 
       {/* Modals */}
       {showPreview && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg max-w-md">
             <h3 className="text-lg font-semibold mb-4">Course Preview</h3>
             <p className="text-gray-600 mb-4">Course preview component has been removed.</p>
@@ -285,7 +285,7 @@ export default function CourseLearning() {
       )}
 
       {showTestOut && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-8xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
@@ -308,7 +308,7 @@ export default function CourseLearning() {
       )}
 
       {showQuickReview && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">

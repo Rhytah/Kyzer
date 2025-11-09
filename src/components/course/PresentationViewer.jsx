@@ -593,7 +593,7 @@ export default function PresentationViewer({
               <Image className="w-4 h-4 text-gray-400" style={{ overflowY: 'hidden'}}/>
             </div>
             {/* {title && (
-              <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 truncate">
+              <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-80 text-white text-xs px-1 py-0.5 truncate">
                 {title}
               </div>
             )} */}
@@ -1343,7 +1343,7 @@ export default function PresentationViewer({
 
       {/* Edit Presentation Modal */}
       {showEditForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <LessonCurationForm
               presentation={presentation}

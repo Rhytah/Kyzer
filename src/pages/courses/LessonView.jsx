@@ -86,8 +86,6 @@ export default function LessonView() {
   const [videoLoading, setVideoLoading] = useState(false)
   const [videoError, setVideoError] = useState(null)
   const [isCompleting, setIsCompleting] = useState(false)
-  const [pdfLoading, setPdfLoading] = useState(false)
-  const [pptLoading, setPptLoading] = useState(false)
   const [haltVideo, setHaltVideo] = useState(false)
   const [playerKey, setPlayerKey] = useState(0)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -231,17 +229,27 @@ export default function LessonView() {
     [quizCompletionStatus, advanceAfterKnowledgeCheck]
   );
 
+  const knowledgeCheckParam = useMemo(() => searchParams.get('knowledgeCheck'), [searchParams]);
+
   // Player refs
   const playerRef = useRef(null)
   const videoReadyRef = useRef(false)
   const videoTimeoutRef = useRef(null)
 
   useEffect(() => {
-    const paramId = searchParams.get('knowledgeCheck')
-    if (paramId !== activeKnowledgeCheckId) {
-      setActiveKnowledgeCheckId(paramId)
+    if (knowledgeCheckParam === activeKnowledgeCheckId) {
+      return;
     }
-  }, [searchParams, activeKnowledgeCheckId])
+
+    if (knowledgeCheckParam) {
+      setActiveKnowledgeCheckId(knowledgeCheckParam);
+      return;
+    }
+
+    if (!knowledgeCheckParam && activeKnowledgeCheckId) {
+      setActiveKnowledgeCheckId(null);
+    }
+  }, [knowledgeCheckParam, activeKnowledgeCheckId])
 
   // Effect to sync playback position when using ReactPlayer
   useEffect(() => {
@@ -300,47 +308,6 @@ export default function LessonView() {
     const timeoutId = setTimeout(scrollToKnowledgeCheck, 150)
     return () => clearTimeout(timeoutId)
   }, [activeKnowledgeCheckId])
-
-  // Effect to track PDF loading state when URL changes
-  useEffect(() => {
-    if (lesson?.content_type === 'pdf' && lesson?.content_url) {
-      setPdfLoading(true)
-    } else {
-      setPdfLoading(false)
-    }
-  }, [lesson?.content_type, lesson?.content_url])
-
-  // Effect to track PPT loading state when URL changes
-  useEffect(() => {
-    if (lesson?.content_type === 'ppt' && lesson?.content_url) {
-      setPptLoading(true)
-    } else {
-      setPptLoading(false)
-    }
-  }, [lesson?.content_type, lesson?.content_url])
-
-  // Function to save progress (supports completion override to avoid downgrades)
-  const saveProgress = useCallback(async (time = currentTime, completedOverride = null) => {
-    if (user?.id && lesson && course) {
-      try {
-        const completedFlag = completedOverride !== null ? completedOverride : isCompleted;
-        await actions.updateLessonProgress(
-          user.id,
-          lesson.id,
-          course.id,
-          completedFlag,
-          { 
-            timeSpent: time,
-            lastAccessed: new Date().toISOString()
-          }
-        )
-      } catch (_) {
-        // Handle error silently or set error state if needed
-      }
-    }
-  }, [user?.id, lesson, course, isCompleted, currentTime, actions])
-
-  // ReactPlayer onProgress will update time; no separate handler needed
 
   // Load course and lesson data from store
   useEffect(() => {
@@ -472,7 +439,25 @@ export default function LessonView() {
     }
   }, [courseId, lessonId, courses, actions, user?.id])
 
-
+  const saveProgress = useCallback(async (time = currentTime, completedOverride = null) => {
+    if (user?.id && lesson && course) {
+      try {
+        const completedFlag = completedOverride !== null ? completedOverride : isCompleted;
+        await actions.updateLessonProgress(
+          user.id,
+          lesson.id,
+          course.id,
+          completedFlag,
+          { 
+            timeSpent: time,
+            lastAccessed: new Date().toISOString()
+          }
+        )
+      } catch (_) {
+        // Handle error silently or set error state if needed
+      }
+    }
+  }, [user?.id, lesson, course, isCompleted, currentTime, actions])
 
   useEffect(() => {
     // Auto-save progress every 30 seconds
@@ -795,22 +780,36 @@ export default function LessonView() {
   LazyIframe.displayName = 'LazyIframe';
 
   // Memoized PDF Viewer component
-  const PDFViewer = memo(({ pdfUrl, onLoad }) => {
+  const PDFViewer = memo(({ pdfUrl }) => {
+    const [isLoaded, setIsLoaded] = useState(false);
+
+    useEffect(() => {
+      setIsLoaded(false);
+    }, [pdfUrl]);
+
+    const handleLoad = useCallback(() => {
+      setIsLoaded(true);
+    }, []);
+
     return (
       <div className="bg-gray-50 rounded-lg p-4">
         {pdfUrl ? (
           <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
             <div className="relative w-full h-full">
               <LazyIframe
+                key={pdfUrl}
                 src={`${pdfUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
                 title="PDF Document"
-                className="w-full h-full"
-                onLoad={onLoad}
+                className={`w-full h-full transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                onLoad={handleLoad}
                 frameBorder="0"
               />
-              {pdfLoading && (
-                <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-600"></div>
+              {!isLoaded && (
+                <div className="absolute inset-0 bg-white flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-600"></div>
+                    <p className="text-sm text-text-light">Loading document…</p>
+                  </div>
                 </div>
               )}
             </div>
@@ -834,7 +833,13 @@ export default function LessonView() {
   // Memoized PPT Viewer component
   const PPTViewer = memo(({ pptUrl, onLoad }) => {
     const [error, setError] = useState(null);
+    const [isLoaded, setIsLoaded] = useState(false);
     
+    useEffect(() => {
+      setIsLoaded(false);
+      setError(null);
+    }, [pptUrl]);
+
     const isGoogleSlides = useMemo(() => {
       return /docs\.google\.com\/presentation\/d\/[a-zA-Z0-9_-]+/i.test(pptUrl);
     }, [pptUrl]);
@@ -864,63 +869,56 @@ export default function LessonView() {
       }
     }, [pptUrl, isGoogleSlides]);
 
-    const handleIframeLoad = () => {
-      setError(null);
-      if (onLoad) onLoad();
-    };
-
-    const handleIframeError = () => {
-      setError('Failed to load PowerPoint presentation. The file may not be publicly accessible or the URL is invalid.');
-      if (onLoad) onLoad();
-    };
+    const handleLoad = useCallback(() => {
+      setIsLoaded(true);
+      if (typeof onLoad === 'function') {
+        onLoad();
+      }
+    }, [onLoad]);
 
     return (
       <div className="bg-gray-50 rounded-lg p-4">
         {pptUrl ? (
-          <>
-            <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
-              <div className="relative w-full h-full">
-                {error ? (
-                  <div className="absolute inset-0 flex items-center justify-center bg-red-50 border border-red-200 rounded">
-                    <div className="text-center p-6">
-                      <div className="text-red-500 text-lg mb-2">⚠️ Loading Error</div>
-                      <p className="text-sm text-red-600 mb-4">{error}</p>
-                      <div className="text-xs text-gray-600 space-y-1">
-                        <p>• Ensure the PowerPoint file is publicly accessible</p>
-                        <p>• Check that the file URL is correct</p>
-                        <p>• Verify the file exists in Supabase storage</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <LazyIframe
-                    src={embedUrl}
-                    title={isGoogleSlides ? "Google Slides Presentation" : "PowerPoint Presentation"}
-                    className="w-full h-full"
-                    onLoad={handleIframeLoad}
-                    onError={handleIframeError}
-                    frameBorder="0"
-                    allowFullScreen={isGoogleSlides}
-                  />
-                )}
-                {pptLoading && !error && (
-                  <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+          <div className="w-full aspect-video bg-gray-100 rounded-lg overflow-hidden">
+            <div className="relative w-full h-full">
+              {embedUrl ? (
+                <iframe
+                  key={embedUrl}
+                  src={embedUrl}
+                  title="Presentation"
+                  className={`w-full h-full transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                  frameBorder="0"
+                  allowFullScreen
+                  onLoad={handleLoad}
+                  onError={() => setError('Unable to load presentation. Please try again later.')}
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-gray-500 text-sm">Preparing preview…</div>
+                </div>
+              )}
+              {(!isLoaded || !embedUrl) && !error && (
+                <div className="absolute inset-0 bg-white flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-3">
                     <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-600"></div>
+                    <p className="text-sm text-text-light">Loading presentation…</p>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
-            <div className="mt-3 flex justify-between items-center">
-              <div className="text-xs text-gray-500">
-                {isGoogleSlides ? 'Google Slides' : 'Microsoft Office Online Viewer'}
-              </div>
-              <ActionButton action="view" variant="secondary" onClick={() => window.open(pptUrl, '_blank')}>
-                Open in new tab
-              </ActionButton>
-            </div>
-          </>
+          </div>
         ) : (
           <div className="text-center text-gray-500 p-8">No presentation available.</div>
+        )}
+        {pptUrl && (
+          <div className="mt-3 flex justify-end">
+            <ActionButton action="view" variant="secondary" onClick={() => window.open(pptUrl, '_blank')}>
+              Open in new tab
+            </ActionButton>
+          </div>
+        )}
+        {error && (
+          <div className="mt-4 text-sm text-error-default">{error}</div>
         )}
       </div>
     );
@@ -1987,11 +1985,11 @@ export default function LessonView() {
       }
       // Handle PDF rendering
       if (lesson.content_type === 'pdf') {
-        return <PDFViewer pdfUrl={lesson.content_url} onLoad={() => setPdfLoading(false)} />;
+        return <PDFViewer pdfUrl={lesson.content_url} />;
       }
       // Handle PPT rendering
       if (lesson.content_type === 'ppt') {
-        return <PPTViewer pptUrl={lesson.content_url} onLoad={() => setPptLoading(false)} />;
+        return <PPTViewer pptUrl={lesson.content_url} />;
       }
       // Handle image rendering
       if (lesson.content_type === 'image') {
@@ -2136,7 +2134,7 @@ export default function LessonView() {
           }}
         />
         {videoLoading && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
+          <div className="absolute inset-0 bg-black bg-opacity-80 flex items-center justify-center rounded-lg">
             <div className="text-white text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
               <div>Loading video...</div>
@@ -2725,7 +2723,7 @@ export default function LessonView() {
          isOpen={Boolean(activeKnowledgeCheck)}
          onClose={handleKnowledgeCheckModalClose}
          title={activeKnowledgeCheck ? activeKnowledgeCheck.title || 'Knowledge Check' : 'Knowledge Check'}
-         size="lg"
+         size="default"
          showCloseButton
        >
         {activeKnowledgeCheck && (
