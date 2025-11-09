@@ -35,7 +35,8 @@ import {
   useToast,
   ActionButton,
   StatusBadge,
-  ContentTypeIcon
+  ContentTypeIcon,
+  Modal
 } from '@/components/ui'
 
 // Custom hook for intersection observer (lazy loading)
@@ -121,27 +122,114 @@ export default function LessonView() {
     [knowledgeChecks, activeKnowledgeCheckId]
   );
 
+  const firstIncompleteKnowledgeCheck = useMemo(
+    () => knowledgeChecks.find(quiz => !quizCompletionStatus[quiz.id]) || null,
+    [knowledgeChecks, quizCompletionStatus]
+  );
+
+  useEffect(() => {
+    if (!knowledgeChecks.length && activeKnowledgeCheckId) {
+      setActiveKnowledgeCheckId(null);
+    }
+  }, [knowledgeChecks.length, activeKnowledgeCheckId]);
+
+  const goToNextLesson = useCallback(async (shouldBypassKnowledgeChecks = false) => {
+    if (!shouldBypassKnowledgeChecks && firstIncompleteKnowledgeCheck) {
+      if (firstIncompleteKnowledgeCheck.id !== activeKnowledgeCheckId) {
+        activateKnowledgeCheck(firstIncompleteKnowledgeCheck.id);
+      }
+      showError('Complete the knowledge check before moving on.');
+      return;
+    }
+
+    if (course && lesson) {
+      try {
+        const { data: lessonsData } = await actions.fetchCourseLessons(course.id);
+        if (lessonsData && Object.keys(lessonsData).length > 0) {
+          const flatLessons = [];
+          Object.values(lessonsData).forEach(moduleData => {
+            if (moduleData.lessons && Array.isArray(moduleData.lessons)) {
+              flatLessons.push(...moduleData.lessons);
+            }
+          });
+
+          flatLessons.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+
+          const currentIndex = flatLessons.findIndex(l => l.id === lessonId);
+          const nextLesson = flatLessons[currentIndex + 1];
+          if (nextLesson) {
+            activateKnowledgeCheck(null);
+            navigate(`/app/courses/${courseId}/lesson/${nextLesson.id}`);
+          } else {
+            const allLessonsCompleted = lessons.every(lessonEntry => (
+              courseProgress[courseId]?.[lessonEntry.id]?.completed
+            ));
+
+            if (!allLessonsCompleted) {
+              showError('Keep going! Mark every lesson as completed to finish the course.');
+              return;
+            }
+
+            activateKnowledgeCheck(null);
+            navigate(`/app/courses/${courseId}/completion`);
+          }
+        }
+      } catch (_) {
+        // Ignore navigation errors
+      }
+    }
+  }, [
+    firstIncompleteKnowledgeCheck,
+    activeKnowledgeCheckId,
+    showError,
+    course,
+    lesson,
+    actions,
+    lessonId,
+    courseId,
+    navigate,
+    activateKnowledgeCheck,
+    lessons,
+    courseProgress
+  ]);
+
+  const advanceAfterKnowledgeCheck = useCallback(() => {
+    const remaining = knowledgeChecks.filter(quiz => !quizCompletionStatus[quiz.id]);
+
+    if (remaining.length > 0) {
+      activateKnowledgeCheck(remaining[0].id);
+      return;
+    }
+
+    activateKnowledgeCheck(null);
+    goToNextLesson(true);
+  }, [knowledgeChecks, quizCompletionStatus, activateKnowledgeCheck, goToNextLesson]);
+
+  const handleKnowledgeCheckModalClose = useCallback(() => {
+    if (!activeKnowledgeCheckId) {
+      return;
+    }
+
+    const isCompleted = Boolean(quizCompletionStatus[activeKnowledgeCheckId]);
+    if (isCompleted) {
+      advanceAfterKnowledgeCheck();
+      return;
+    }
+
+    activateKnowledgeCheck(null);
+  }, [activeKnowledgeCheckId, quizCompletionStatus, advanceAfterKnowledgeCheck, activateKnowledgeCheck]);
+
   const handleKnowledgeCheckContinue = useCallback(
     (quizId) => {
-      const currentIndex = knowledgeChecks.findIndex(quiz => quiz.id === quizId);
-      if (currentIndex === -1) {
-        activateKnowledgeCheck(null);
+      const isCompleted = Boolean(quizCompletionStatus[quizId]);
+      if (!isCompleted) {
         return;
       }
 
-      const nextPending = knowledgeChecks
-        .slice(currentIndex + 1)
-        .find(quiz => !quizCompletionStatus[quiz.id]);
-
-      if (nextPending) {
-        activateKnowledgeCheck(nextPending.id);
-      } else {
-        activateKnowledgeCheck(null);
-      }
+      advanceAfterKnowledgeCheck();
     },
-    [knowledgeChecks, quizCompletionStatus, activateKnowledgeCheck]
+    [quizCompletionStatus, advanceAfterKnowledgeCheck]
   );
-
 
   // Player refs
   const playerRef = useRef(null)
@@ -287,7 +375,11 @@ export default function LessonView() {
             // Sort lessons by their order_index
             flatLessons.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
             
-            setLessons(flatLessons)
+            setLessons(prevLessons => {
+              const isSameLength = prevLessons.length === flatLessons.length;
+              const hasSameOrder = isSameLength && prevLessons.every((lessonItem, index) => lessonItem.id === flatLessons[index].id);
+              return hasSameOrder ? prevLessons : flatLessons;
+            })
 
             // Fetch quizzes for the whole course to build lesson->quizzes map
             try {
@@ -394,6 +486,12 @@ export default function LessonView() {
   }, [saveProgress, lesson, course, currentTime])
 
   const markAsCompleted = async () => {
+    if (firstIncompleteKnowledgeCheck) {
+      activateKnowledgeCheck(firstIncompleteKnowledgeCheck.id);
+      showError('Complete the knowledge check before marking this lesson complete.');
+      return;
+    }
+
     if (user?.id && lesson && course) {
       try {
         setIsCompleting(true)
@@ -437,65 +535,6 @@ export default function LessonView() {
   }
 
   
-
-  const goToNextLesson = useCallback(async () => {
-    if (knowledgeChecks.length > 0) {
-      const nextPending = knowledgeChecks.find(quiz => !quizCompletionStatus[quiz.id]);
-
-      if (nextPending) {
-        if (nextPending.id === activeKnowledgeCheckId) {
-          showError('Complete the knowledge check to continue.');
-        } else {
-          activateKnowledgeCheck(nextPending.id);
-        }
-        return;
-      }
-
-      if (activeKnowledgeCheckId) {
-        activateKnowledgeCheck(null);
-        return;
-      }
-    }
-
-    if (course && lesson) {
-      try {
-        const { data: lessonsData } = await actions.fetchCourseLessons(course.id);
-        if (lessonsData && Object.keys(lessonsData).length > 0) {
-          const flatLessons = [];
-          Object.values(lessonsData).forEach(moduleData => {
-            if (moduleData.lessons && Array.isArray(moduleData.lessons)) {
-              flatLessons.push(...moduleData.lessons);
-            }
-          });
-
-          flatLessons.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
-
-          const currentIndex = flatLessons.findIndex(l => l.id === lessonId);
-          const nextLesson = flatLessons[currentIndex + 1];
-          activateKnowledgeCheck(null);
-          if (nextLesson) {
-            navigate(`/app/courses/${courseId}/lesson/${nextLesson.id}`);
-          } else {
-            navigate(`/app/courses/${courseId}/completion`);
-          }
-        }
-      } catch (_) {
-        // Ignore navigation errors
-      }
-    }
-  }, [
-    knowledgeChecks,
-    quizCompletionStatus,
-    activeKnowledgeCheckId,
-    showError,
-    course,
-    lesson,
-    actions,
-    lessonId,
-    courseId,
-    navigate,
-    activateKnowledgeCheck
-  ]);
 
   const goToPreviousLesson = async () => {
     if (course && lesson) {
@@ -1367,7 +1406,11 @@ export default function LessonView() {
       'bg-white',
       'p-6',
       'transition-shadow',
-      variant === 'primary' ? 'rounded-none border-none shadow-none sm:p-10 min-h-[420px]' : 'rounded-2xl border border-background-dark shadow-sm',
+      variant === 'modal'
+        ? 'rounded-2xl shadow-lg sm:p-10 max-h-[70vh] overflow-y-auto'
+        : variant === 'embedded'
+          ? 'rounded-xl border border-background-dark shadow-sm'
+          : 'rounded-2xl border border-background-dark shadow-sm',
       isActive ? 'ring-2 ring-primary-default shadow-lg' : ''
     ]
       .filter(Boolean)
@@ -1383,7 +1426,7 @@ export default function LessonView() {
             <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-primary-default">
               <span className="inline-flex items-center gap-1 rounded-full bg-primary-superlight px-2 py-1 font-semibold text-primary-darker">
                 <CheckCircle className="h-3 w-3" />
-                Knowledge Check hjvh
+                Knowledge Check
               </span>
               {questions?.length ? (
                 <span className="text-text-light">{questions.length} question{questions.length > 1 ? 's' : ''}</span>
@@ -1408,7 +1451,7 @@ export default function LessonView() {
               const breakdownEntry = result?.breakdown?.find(entry => entry.questionId === question.id);
               const questionFeedback = breakdownEntry ? breakdownEntry.isCorrect : null;
               return (
-                <div key={question.id} className="space-y-4 rounded-lg border border-background-dark p-4">
+                <div key={question.id || `${quiz.id}-${index}`} className="space-y-4 rounded-lg border border-background-dark p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold text-text-dark">
@@ -2210,6 +2253,9 @@ export default function LessonView() {
     )
   }
 
+  const currentLessonIndex = lessons.findIndex(lessonEntry => lessonEntry.id === lessonId);
+  const isLastLesson = currentLessonIndex !== -1 && currentLessonIndex === lessons.length - 1;
+
   return (
     <div className={`grid grid-cols-1 gap-6 transition-all duration-300 ${
       sidebarCollapsed ? 'lg:grid-cols-1' : 'lg:grid-cols-4'
@@ -2253,79 +2299,27 @@ export default function LessonView() {
         </div>
 
         {/* Content Player */}
-        <Card className={`p-0 ${activeKnowledgeCheck ? '' : 'overflow-hidden'}`}>
-          {activeKnowledgeCheck ? (
-            <div className="bg-background-light">
-              <div className="border-b border-background-dark bg-white px-6 py-4 sm:px-10">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle className="h-4 w-4 text-primary-default" />
-                    <span className="text-sm font-semibold text-text-dark">
-                      Knowledge Check
-                    </span>
-                  </div>
-                  <div className="text-xs text-text-light">
-                    Complete the check to unlock the lesson content.
-                  </div>
-                </div>
-              </div>
-              <div className="px-6 py-8 sm:px-10">
-                <KnowledgeCheckCard
-                  quiz={activeKnowledgeCheck}
-                  questions={quizQuestionsById[activeKnowledgeCheck.id] || []}
-                  initialResult={knowledgeCheckResults[activeKnowledgeCheck.id]}
-                  isCompleted={!!quizCompletionStatus[activeKnowledgeCheck.id]}
-                  onSubmit={handleKnowledgeCheckSubmit}
-                  onRetake={handleKnowledgeCheckReset}
-                  isActive
-                  variant="primary"
-                  onContinue={() => handleKnowledgeCheckContinue(activeKnowledgeCheck.id)}
-                />
-              </div>
-            </div>
+        <Card className="p-0 overflow-hidden">
+          {lesson.content_type === 'scorm' ? (
+            <ScormPlayer
+              scormUrl={lesson.content_url}
+              lessonId={lesson.id}
+              courseId={courseId}
+              onProgress={() => {}}
+              onComplete={() => {
+                setIsCompleted(true);
+              }}
+              onError={() => {
+                showError('Failed to load SCORM content');
+              }}
+            />
           ) : (
-            <>
-              {lesson.content_type === 'scorm' ? (
-                <ScormPlayer
-                  scormUrl={lesson.content_url}
-                  lessonId={lesson.id}
-                  courseId={courseId}
-                  onProgress={() => {}}
-                  onComplete={() => {
-                    setIsCompleted(true);
-                  }}
-                  onError={() => {
-                    showError('Failed to load SCORM content');
-                  }}
-                />
-              ) : (
-                <VideoPlayer />
-              )}
-              {/* {knowledgeChecks.length > 0 && (
-                <div className="border-t border-background-dark bg-background-light">
-                  <div className="space-y-6 px-6 py-6">
-                    {knowledgeChecks.map(knowledgeCheck => (
-                      <KnowledgeCheckCard
-                        key={knowledgeCheck.id}
-                        quiz={knowledgeCheck}
-                        questions={quizQuestionsById[knowledgeCheck.id] || []}
-                        initialResult={knowledgeCheckResults[knowledgeCheck.id]}
-                        isCompleted={!!quizCompletionStatus[knowledgeCheck.id]}
-                        onSubmit={handleKnowledgeCheckSubmit}
-                        onRetake={handleKnowledgeCheckReset}
-                        isActive={activeKnowledgeCheckId === knowledgeCheck.id}
-                        variant="embedded"
-                      />
-                    ))}
-                  </div>
-                </div>
-              )} */}
-            </>
+            <VideoPlayer />
           )}
         </Card>
 
         {/* Audio Attachment Display */}
-        {lesson.audio_attachment_url && !activeKnowledgeCheck && (
+        {lesson.audio_attachment_url && (
           <Card className="p-6">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -2339,63 +2333,69 @@ export default function LessonView() {
             <AudioPlayer audioUrl={lesson.audio_attachment_url} />
           </Card>
         )}
-{/* Navigation */}
-<div className="flex justify-between">
-            <ActionButton
-              action="previous"
-              onClick={goToPreviousLesson}
-              disabled={lessons.findIndex(l => l.id === lessonId) === 0}
-              variant="secondary"
-            >
-              Previous Lesson
-            </ActionButton>
+
+        {/* Navigation */}
+        {isLastLesson ? (
+          <Button onClick={() => navigate(`/app/courses/${courseId}/completion`)}>
+            Complete Course
+          </Button>
+        ) : (
+          <></>
+          // <div className="flex justify-between">
+          //   <ActionButton
+          //     action="previous"
+          //     onClick={goToPreviousLesson}
+          //     disabled={lessons.findIndex(l => l.id === lessonId) === 0}
+          //     variant="secondary"
+          //   >
+          //     Previous Lesson
+          //   </ActionButton>
             
-            <ActionButton action="next" onClick={goToNextLesson}>
-              Next Lesson
-            </ActionButton>
-          </div>
+          //   <ActionButton action="next" onClick={goToNextLesson}>
+          //     Next Lesson
+          //   </ActionButton>
+          // </div>
+        )}
+
         {/* Video Error Display */}
-        {!activeKnowledgeCheck && <VideoErrorDisplay />}
-   
+        <VideoErrorDisplay />
 
         {/* Lesson Info */}
-        {!activeKnowledgeCheck && (
-          <Card className="p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h1 className="text-2xl font-bold text-text-dark mb-2">{lesson.title}</h1>
-                {/* Render formatted content preview (respect stored format marker) */}
-                {lessonDescriptionHtml}
-              </div>
+        <Card className="p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-text-dark mb-2">{lesson.title}</h1>
+              {/* Render formatted content preview (respect stored format marker) */}
+              {lessonDescriptionHtml}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {!isCompleted ? (
+                <Button onClick={markAsCompleted} disabled={isCompleting}>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  {isCompleting ? 'Completing...' : 'Mark Complete'}
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2 text-success-default">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="font-medium">Completed</span>
+                </div>
+              )}
               
-              <div className="flex items-center gap-2">
-                {!isCompleted ? (
-                  <Button onClick={markAsCompleted} disabled={isCompleting}>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    {isCompleting ? 'Completing...' : 'Mark Complete'}
-                  </Button>
-                ) : (
-                  <div className="flex items-center gap-2 text-success-default">
-                    <CheckCircle className="w-5 h-5" />
-                    <span className="font-medium">Completed</span>
-                  </div>
-                )}
-                
-              </div>
             </div>
+          </div>
 
-            <div className="flex items-center gap-6 text-sm text-text-muted">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                <span>{formatTime(lesson.duration_minutes * 60 || 0)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4" />
-                <span>Lesson {lesson.order_index || 1} of {lessons.length}</span>
-              </div>
+          <div className="flex items-center gap-6 text-sm text-text-muted">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              <span>{formatTime(lesson.duration_minutes * 60 || 0)}</span>
             </div>
-          </Card>
-        )}
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4" />
+              <span>Lesson {lesson.order_index || 1} of {lessons.length}</span>
+            </div>
+          </div>
+        </Card>
 
         {/* Lesson Content Tabs */}
         {/* <Card className="p-6">
@@ -2448,7 +2448,7 @@ export default function LessonView() {
 
 
         {/* Resources */}
-        {!activeKnowledgeCheck && lesson.content_url && (
+        {lesson.content_url && (
           <Card className="p-6">
             <h3 className="text-lg font-semibold text-text-dark mb-4">Lesson Resources</h3>
             <div className="space-y-3">
@@ -2720,6 +2720,28 @@ export default function LessonView() {
           </Button>
         </>
       )}
+
+      <Modal
+         isOpen={Boolean(activeKnowledgeCheck)}
+         onClose={handleKnowledgeCheckModalClose}
+         title={activeKnowledgeCheck ? activeKnowledgeCheck.title || 'Knowledge Check' : 'Knowledge Check'}
+         size="lg"
+         showCloseButton
+       >
+        {activeKnowledgeCheck && (
+          <KnowledgeCheckCard
+            quiz={activeKnowledgeCheck}
+            questions={quizQuestionsById[activeKnowledgeCheck.id] || []}
+            initialResult={knowledgeCheckResults[activeKnowledgeCheck.id]}
+            isCompleted={!!quizCompletionStatus[activeKnowledgeCheck.id]}
+            onSubmit={handleKnowledgeCheckSubmit}
+            onRetake={handleKnowledgeCheckReset}
+            isActive
+            variant="modal"
+            onContinue={() => handleKnowledgeCheckContinue(activeKnowledgeCheck.id)}
+          />
+        )}
+      </Modal>
 
       {/* Certificate Preview Modal */}
       {showCertificateModal && (
