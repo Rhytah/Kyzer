@@ -116,6 +116,14 @@ export default function CourseForm({ course = null, onSuccess, onCancel }) {
 
     if (!(await validateForm())) return;
 
+    // Show confirmation dialog for course creation
+    if (!isEditing) {
+      const confirmed = window.confirm(
+        `Are you sure you want to create the course "${formData.title}"?`
+      );
+      if (!confirmed) return;
+    }
+
     setLoading(true);
 
     try {

@@ -700,7 +700,20 @@ const processScormPackage = useCallback(async () => {
     // [Keep your existing code for parsing and displaying SCORM content]
     
   } catch (error) {
-    // [Keep your existing error handling]
+    // Improved error handling
+    const errorMessage = error?.message || 'Failed to load SCORM content';
+    setError(errorMessage);
+    setIsLoading(false);
+    setLoadingStep('');
+    
+    if (onError) {
+      onError(error);
+    }
+    
+    // Log error for debugging
+    if (error) {
+      // Error logging removed per project rules
+    }
   }
 }, [scormUrl, getPublicUrl, downloadScormPackage, onError]);
   /**

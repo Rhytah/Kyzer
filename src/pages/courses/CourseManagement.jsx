@@ -105,9 +105,11 @@ export default function CourseManagement() {
 
   const [countsMap, setCountsMap] = useState({});
 
-  const handleCourseSuccess = (courseData) => {
+  const handleCourseSuccess = async (courseData) => {
     setShowCourseForm(false);
     setEditingCourse(null);
+    // Refresh courses list after creation/update
+    await fetchCourses();
   };
 
   const handleLessonSuccess = (lessonData) => {
@@ -118,12 +120,14 @@ export default function CourseManagement() {
     }
   };
 
-  const handleModuleSuccess = (moduleData) => {
+  const handleModuleSuccess = async (moduleData) => {
     setShowModuleForm(false);
     setEditingModule(null);
     if (selectedCourseId) {
-      loadCourseModules(selectedCourseId);
-      loadCourseLessons(selectedCourseId);
+      await loadCourseModules(selectedCourseId);
+      await loadCourseLessons(selectedCourseId);
+      // Show success feedback
+      success(editingModule ? 'Module updated successfully!' : 'Module added successfully!');
     }
   };
 
@@ -150,6 +154,8 @@ export default function CourseManagement() {
     const result = await deleteCourse(courseId);
     if (result.success) {
       success('Course deleted successfully!');
+      // Refresh courses list after deletion
+      await fetchCourses();
     } else {
       showError(result.error || 'Failed to delete course');
     }
@@ -158,12 +164,24 @@ export default function CourseManagement() {
 
   const handleTogglePublish = async (courseId, currentStatus) => {
     const isPublished = currentStatus === 'published';
+    
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      isPublished 
+        ? 'Are you sure you want to unpublish this course? It will no longer be visible to students.'
+        : 'Are you sure you want to publish this course? It will become visible to students.'
+    );
+    
+    if (!confirmed) return;
+    
     const result = await toggleCoursePublish(courseId, !isPublished);
     if (result.data) {
       const message = isPublished 
         ? 'Course unpublished successfully!' 
         : 'Course published successfully!';
       success(message);
+      // Refresh courses list
+      await fetchCourses();
     } else {
       showError(result.error || 'Failed to update course status');
     }

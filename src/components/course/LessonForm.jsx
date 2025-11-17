@@ -571,10 +571,17 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         },
       });
 
+      // Handle edge function errors (non-2xx status codes)
       if (error) {
+        // Check if it's a function error with status code
+        if (error.status && error.status >= 400) {
+          const errorMessage = error.message || error.body || 'Edge Function returned a non-2xx status code';
+          throw new Error(deriveNarrationErrorMessage({ ...error, message: errorMessage }));
+        }
         throw new Error(deriveNarrationErrorMessage(error));
       }
 
+      // Handle errors in response data
       if (data?.error) {
         throw new Error(deriveNarrationErrorMessage(data.error));
       }
@@ -737,10 +744,16 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
           }
         }
       } else if (pdfSourceType === 'split') {
-        // For PDF split, require split data
+        // For PDF split, require split data - but only check if we're actually trying to save
+        // Don't show error if split was already completed successfully
         if (!pdfSplitData || !pdfSplitData.images || pdfSplitData.images.length === 0) {
-          setError('Please split a PDF into images first');
-          return false;
+          // Only show error if we're not in the middle of processing or if split was never attempted
+          const hasAttemptedSplit = pdfFile || initialSplitData;
+          if (!hasAttemptedSplit) {
+            setError('Please split a PDF into images first');
+            return false;
+          }
+          // If split was attempted but failed, allow user to retry without blocking
         }
       } else {
         if (!formData.content_url.trim()) {

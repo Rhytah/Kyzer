@@ -95,6 +95,8 @@ export default function LessonView() {
   const [knowledgeCheckResults, setKnowledgeCheckResults] = useState({})
   const [activeKnowledgeCheckId, setActiveKnowledgeCheckId] = useState(() => searchParams.get('knowledgeCheck'))
   const [showCertificateModal, setShowCertificateModal] = useState(false)
+  const [courseFinalAssessment, setCourseFinalAssessment] = useState(null)
+  const [finalAssessmentCompleted, setFinalAssessmentCompleted] = useState(false)
   const { success, error: showError } = useToast()
   const knowledgeChecks = useMemo(() => {
     if (!lesson?.id) return [];
@@ -169,7 +171,13 @@ export default function LessonView() {
             }
 
             activateKnowledgeCheck(null);
-            navigate(`/app/courses/${courseId}/completion`);
+            
+            // Check if there's a course-level final assessment that hasn't been completed
+            if (courseFinalAssessment && !finalAssessmentCompleted) {
+              navigate(`/app/courses/${courseId}/quiz/${courseFinalAssessment.id}`);
+            } else {
+              navigate(`/app/courses/${courseId}/completion`);
+            }
           }
         }
       } catch (_) {
@@ -188,7 +196,9 @@ export default function LessonView() {
     navigate,
     activateKnowledgeCheck,
     lessons,
-    courseProgress
+    courseProgress,
+    courseFinalAssessment,
+    finalAssessmentCompleted
   ]);
 
   const advanceAfterKnowledgeCheck = useCallback(() => {
@@ -275,7 +285,7 @@ export default function LessonView() {
           setVideoError({
             error: null,
             errorCode: 'TIMEOUT',
-            errorMessage: 'Video loading timeout - taking too long to load',
+            errorMessage: 'Video playback timed out. Please check your connection and try again.',
             networkState: 3,
             readyState: 0,
             src: lesson.content_url
@@ -364,24 +374,53 @@ export default function LessonView() {
                   return new Date(a.created_at) - new Date(b.created_at);
                 });
 
-                // Filter to only include quizzes that have questions
+                // Separate course-level final assessments from lesson quizzes
+                const courseLevelFinalAssessments = [];
                 const quizzesWithQuestions = [];
+                
                 for (const quiz of sorted) {
-                  if (!quiz.lesson_id) continue;
-
                   // Check if quiz has questions
                   try {
                     const { data: questions } = await actions.fetchQuizQuestions(quiz.id);
                     if (questions && questions.length > 0) {
-                      quizzesWithQuestions.push({
-                        ...quiz,
-                        question_count: questions.length
-                      });
-                      questionMap[quiz.id] = questions;
+                      // Course-level final assessment: graded quiz without lesson_id
+                      if (!quiz.lesson_id && quiz.quiz_type === 'graded') {
+                        courseLevelFinalAssessments.push({
+                          ...quiz,
+                          question_count: questions.length
+                        });
+                        questionMap[quiz.id] = questions;
+                      } else if (quiz.lesson_id) {
+                        // Lesson-level quiz
+                        quizzesWithQuestions.push({
+                          ...quiz,
+                          question_count: questions.length
+                        });
+                        questionMap[quiz.id] = questions;
+                      }
                     }
                   } catch (error) {
                     // Skip this quiz if we can't fetch its questions
                   }
+                }
+
+                // Set the first course-level final assessment (if any)
+                if (courseLevelFinalAssessments.length > 0) {
+                  setCourseFinalAssessment(courseLevelFinalAssessments[0]);
+                  
+                  // Check if final assessment is completed
+                  if (user?.id) {
+                    try {
+                      const { data: attempts } = await actions.fetchQuizAttempts(user.id, courseLevelFinalAssessments[0].id);
+                      const hasPassedAttempt = attempts && attempts.some(attempt => attempt.passed);
+                      setFinalAssessmentCompleted(hasPassedAttempt || false);
+                    } catch (error) {
+                      setFinalAssessmentCompleted(false);
+                    }
+                  }
+                } else {
+                  setCourseFinalAssessment(null);
+                  setFinalAssessmentCompleted(false);
                 }
 
                 // Build the map with only quizzes that have questions, sorted by order_index
@@ -407,10 +446,14 @@ export default function LessonView() {
               } else {
                 setQuizzesByLesson({})
                 setQuizQuestionsById({})
+                setCourseFinalAssessment(null)
+                setFinalAssessmentCompleted(false)
               }
             } catch (_) {
               setQuizzesByLesson({})
               setQuizQuestionsById({})
+              setCourseFinalAssessment(null)
+              setFinalAssessmentCompleted(false)
             }
             // Find the current lesson
             const foundLesson = flatLessons.find(l => l.id === lessonId)
@@ -473,7 +516,7 @@ export default function LessonView() {
   const markAsCompleted = async () => {
     if (firstIncompleteKnowledgeCheck) {
       activateKnowledgeCheck(firstIncompleteKnowledgeCheck.id);
-      showError('Complete the knowledge check before marking this lesson complete.');
+      showError('Please complete the knowledge check for this lesson before marking it as complete.');
       return;
     }
 
@@ -494,7 +537,7 @@ export default function LessonView() {
         setIsCompleted(true)
         // Ensure we do not downgrade completion on immediate autosave
         await saveProgress(timeSpent, true)
-        success('Lesson marked as complete')
+        success('Lesson marked as complete!')
         // Navigate to next lesson if available
         const { data: lessonsData } = await actions.fetchCourseLessons(course.id)
         if (lessonsData && Object.keys(lessonsData).length > 0) {
@@ -512,7 +555,7 @@ export default function LessonView() {
           }
         }
       } catch (error) {
-        showError('Failed to mark lesson complete')
+        showError('Failed to mark lesson as complete. Please try again.')
       } finally {
         setIsCompleting(false)
       }
@@ -779,50 +822,99 @@ export default function LessonView() {
 
   LazyIframe.displayName = 'LazyIframe';
 
-  // Memoized PDF Viewer component
+  // Memoized PDF Viewer component with navigation
   const PDFViewer = memo(({ pdfUrl }) => {
     const [isLoaded, setIsLoaded] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(null);
 
     useEffect(() => {
       setIsLoaded(false);
+      setCurrentPage(1);
     }, [pdfUrl]);
 
     const handleLoad = useCallback(() => {
       setIsLoaded(true);
     }, []);
 
+    const goToNextPage = useCallback(() => {
+      if (totalPages === null || currentPage < totalPages) {
+        setCurrentPage(prev => prev + 1);
+        // Update iframe src to navigate to next page
+        const iframe = document.querySelector(`iframe[title="PDF Document"]`);
+        if (iframe) {
+          iframe.src = `${pdfUrl}#page=${currentPage + 1}`;
+        }
+      }
+    }, [currentPage, totalPages, pdfUrl]);
+
+    const goToPreviousPage = useCallback(() => {
+      if (currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+        // Update iframe src to navigate to previous page
+        const iframe = document.querySelector(`iframe[title="PDF Document"]`);
+        if (iframe) {
+          iframe.src = `${pdfUrl}#page=${currentPage - 1}`;
+        }
+      }
+    }, [currentPage, pdfUrl]);
+
     return (
       <div className="bg-gray-50 rounded-lg p-4">
         {pdfUrl ? (
-          <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
-            <div className="relative w-full h-full">
-              <LazyIframe
-                key={pdfUrl}
-                src={`${pdfUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
-                title="PDF Document"
-                className={`w-full h-full transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-                onLoad={handleLoad}
-                frameBorder="0"
-              />
-              {!isLoaded && (
-                <div className="absolute inset-0 flex items-center justify-center bg-[rgba(6,17,48,0.96)]">
-                  <div className="flex flex-col items-center gap-3 text-white">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#FF8F3F]"></div>
-                    <p className="text-xs font-medium tracking-wide text-[#FFCB9E] uppercase">Loading document…</p>
+          <>
+            <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
+              <div className="relative w-full h-full">
+                <LazyIframe
+                  key={pdfUrl}
+                  src={`${pdfUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitH&page=${currentPage}`}
+                  title="PDF Document"
+                  className={`w-full h-full transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                  onLoad={handleLoad}
+                  frameBorder="0"
+                />
+                {!isLoaded && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-[rgba(6,17,48,0.96)]">
+                    <div className="flex flex-col items-center gap-3 text-white">
+                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#FF8F3F]"></div>
+                      <p className="text-xs font-medium tracking-wide text-[#FFCB9E] uppercase">Loading document…</p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+            {/* PDF Navigation Buttons */}
+            <div className="mt-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={goToPreviousPage}
+                  disabled={currentPage <= 1}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Previous
+                </Button>
+                <span className="text-sm text-gray-600 px-2">
+                  Page {currentPage}{totalPages ? ` of ${totalPages}` : ''}
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={goToNextPage}
+                  disabled={totalPages !== null && currentPage >= totalPages}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+              <ActionButton action="view" variant="secondary" onClick={() => window.open(pdfUrl, '_blank')}>
+                Open in new tab
+              </ActionButton>
+            </div>
+          </>
         ) : (
           <div className="text-center text-gray-500 p-8">No PDF available.</div>
-        )}
-        {pdfUrl && (
-          <div className="mt-3 flex justify-end">
-            <ActionButton action="view" variant="secondary" onClick={() => window.open(pdfUrl, '_blank')}>
-              Open in new tab
-            </ActionButton>
-          </div>
         )}
       </div>
     );
@@ -1235,7 +1327,7 @@ export default function LessonView() {
 
     const handleSubmit = async () => {
       if (!questions || questions.length === 0) {
-        showError('This knowledge check does not have any questions yet.');
+        showError('This knowledge check has no questions.');
         return;
       }
 
@@ -1247,7 +1339,7 @@ export default function LessonView() {
       });
 
       if (unanswered.length > 0) {
-        showError('Please answer all knowledge check questions before submitting.');
+        showError('Please answer all questions before submitting.');
         return;
       }
 
@@ -1257,9 +1349,9 @@ export default function LessonView() {
         await onSubmit(quiz, answers, summary);
         setResult(summary);
         setShowFeedback(true);
-        success('Knowledge check submitted');
+        success('Knowledge check submitted successfully!');
       } catch (error) {
-        showError('Unable to submit knowledge check right now.');
+        showError('Failed to submit knowledge check. Please try again.');
       } finally {
         setIsSubmitting(false);
       }
@@ -1384,13 +1476,15 @@ export default function LessonView() {
                 value={currentAnswer || ''}
                 onChange={event => handleAnswerChange(question.id, event.target.value)}
                 disabled={showFeedback}
-                placeholder="Type your response..."
+                placeholder="Type your response here..."
                 className="w-full rounded-lg border border-background-dark px-3 py-2 text-sm focus:border-primary-default focus:outline-none focus:ring-2 focus:ring-primary-muted disabled:bg-background-light"
                 rows={3}
               />
               {showFeedback && (
                 <p className={`text-sm font-medium ${feedback ? 'text-success-darker' : 'text-error-darker'}`}>
-                  {feedback ? 'Great job! You matched the expected answer.' : `Expected answer: ${question.correct_answer}`}
+                  {feedback
+                    ? 'Correct!'
+                    : `Expected answer: ${question.correct_answer}`}
                 </p>
               )}
             </div>
@@ -1427,7 +1521,9 @@ export default function LessonView() {
                 Knowledge Check
               </span>
               {questions?.length ? (
-                <span className="text-text-light">{questions.length} question{questions.length > 1 ? 's' : ''}</span>
+                <span className="text-text-light">
+                  {questions.length} {questions.length === 1 ? 'question' : 'questions'}
+                </span>
               ) : null}
             </div>
             <h3 className="mt-3 text-lg font-semibold text-text-dark">{quiz.title}</h3>
@@ -1457,7 +1553,9 @@ export default function LessonView() {
                       </p>
                       {showFeedback && questionFeedback !== null && (
                         <p className={`mt-2 text-xs font-medium ${questionFeedback ? 'text-success-darker' : 'text-error-darker'}`}>
-                          {questionFeedback ? 'Nice work! That is correct.' : "Let's review this concept again."}
+                          {questionFeedback
+                            ? 'Great job! You got all questions correct.'
+                            : 'Review the questions you missed and try again.'}
                         </p>
                       )}
                     </div>
@@ -1468,7 +1566,7 @@ export default function LessonView() {
             })
           ) : (
             <div className="rounded-lg border border-dashed border-background-dark p-6 text-center text-sm text-text-light">
-              Questions for this knowledge check are not available yet.
+              No questions available for this knowledge check.
             </div>
           )}
         </div>
@@ -1483,7 +1581,7 @@ export default function LessonView() {
             </div>
           ) : (
             <p className="text-sm text-text-light">
-              Answer the questions below to check your understanding before moving on.
+              Answer all questions to complete this knowledge check.
             </p>
           )}
 
@@ -1502,7 +1600,9 @@ export default function LessonView() {
             )}
             {!showFeedback && (
               <Button onClick={handleSubmit} disabled={isSubmitting} size="sm">
-                {isSubmitting ? 'Submitting...' : 'Check Answers'}
+                {isSubmitting
+                  ? 'Submitting...'
+                  : 'Check Answers'}
               </Button>
             )}
           </div>
@@ -2009,8 +2109,10 @@ export default function LessonView() {
       // Fallback placeholder for other non-video content types
       return (
         <div className="bg-gray-100 rounded-lg p-8 text-center">
-          <div className="text-gray-500 text-lg mb-4">Content Placeholder</div>
-          <p className="text-sm text-gray-400">Content type: {lesson.content_type || 'unknown'}</p>
+          <div className="text-gray-500 text-lg mb-4">Content not available</div>
+          <p className="text-sm text-gray-400">
+            Content type: {lesson.content_type || 'Unknown'}
+          </p>
         </div>
       );
     }
@@ -2056,12 +2158,13 @@ export default function LessonView() {
             <p className="text-gray-700 mb-4">
               The provided URL is not a valid video file. Please provide a direct link to a video file (e.g., .mp4, .webm).
             </p>
-            <div className="text-sm text-gray-500 break-all">Current URL: {lesson.content_url}</div>
+            <div className="text-sm text-gray-500 break-all">
+              Current URL: {lesson.content_url}
+            </div>
             {lesson.content_url?.toLowerCase().endsWith('.mov') && (
               <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-3 mt-3 text-left">
-                This appears to be a .mov file. Web playback for MOV is unreliable across browsers/CDNs.
-                Please convert to MP4 (H.264 + AAC) before upload for best compatibility.
-            </div>
+                This appears to be a .mov file. Web playback for MOV is unreliable across browsers/CDNs. Please convert to MP4 (H.264 + AAC) before upload for best compatibility.
+              </div>
             )}
           </div>
         </div>
@@ -2111,7 +2214,7 @@ export default function LessonView() {
             setVideoError({
               error: null,
               errorCode: 'UNKNOWN',
-              errorMessage: 'Playback error',
+              errorMessage: 'Video playback error occurred. Please try again.',
               src: lesson.content_url
             });
             if (videoTimeoutRef.current) {
@@ -2137,7 +2240,7 @@ export default function LessonView() {
           <div className="absolute inset-0 rounded-lg flex items-center justify-center bg-[rgba(6,17,48,0.94)]">
             <div className="text-center text-white">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF8F3F] mx-auto mb-4"></div>
-              <div className="tracking-wide text-sm uppercase text-[#FFCB9E]">Loading video…</div>
+              <div className="tracking-wide text-sm uppercase text-[#FFCB9E]">Loading video...</div>
             </div>
           </div>
         )}
@@ -2153,20 +2256,20 @@ export default function LessonView() {
     
     const getErrorMessage = () => {
       if (videoError.errorCode === 'TIMEOUT') {
-        return 'Video loading timeout - taking too long to load';
+        return 'Video playback timed out. Please check your connection and try again.';
       }
       
       switch (videoError.errorCode) {
         case 1:
-          return 'Video loading was aborted';
+          return 'Video playback was aborted.';
         case 2:
-          return 'Network error occurred while loading video';
+          return 'Network error occurred while loading video.';
         case 3:
-          return 'Video decoding failed';
+          return 'Video decoding error occurred.';
         case 4:
-          return 'Video format not supported';
+          return 'Video format is not supported.';
         default:
-          return videoError.errorMessage || 'Unknown video error occurred';
+          return videoError.errorMessage || 'Unknown video error occurred.';
       }
     };
     
@@ -2179,13 +2282,13 @@ export default function LessonView() {
             </div>
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-red-800 mb-2">Video Loading Error</h3>
+            <h3 className="text-lg font-semibold text-red-800 mb-2">Video Playback Error</h3>
             <p className="text-red-700 mb-3">{getErrorMessage()}</p>
             <div className="text-sm text-red-600 mb-4">
               <p><strong>URL:</strong> {videoError.src}</p>
               <p><strong>Error Code:</strong> {videoError.errorCode}</p>
               {videoError.errorMessage && (
-                <p><strong>Details:</strong> {videoError.errorMessage}</p>
+                <p><strong>Message:</strong> {videoError.errorMessage}</p>
               )}
             </div>
             <div className="flex gap-3">
@@ -2243,7 +2346,7 @@ export default function LessonView() {
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold text-text-dark mb-4">Lesson Not Found</h2>
-        <p className="text-text-light mb-6">The lesson you're looking for doesn't exist.</p>
+        <p className="text-text-light mb-6">The lesson you're looking for doesn't exist or has been removed.</p>
         <ActionButton action="previous" onClick={() => navigate(`/app/courses/${courseId}`)}>
           Back to Course
         </ActionButton>
@@ -2333,27 +2436,46 @@ export default function LessonView() {
         )}
 
         {/* Navigation */}
-        {isLastLesson ? (
-          <Button onClick={() => navigate(`/app/courses/${courseId}/completion`)}>
-            Complete Course
+        <div className="flex justify-between items-center gap-4">
+          <Button
+            variant="outline"
+            onClick={goToPreviousLesson}
+            disabled={lessons.findIndex(l => l.id === lessonId) === 0}
+          >
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            Previous Lesson
           </Button>
-        ) : (
-          <></>
-          // <div className="flex justify-between">
-          //   <ActionButton
-          //     action="previous"
-          //     onClick={goToPreviousLesson}
-          //     disabled={lessons.findIndex(l => l.id === lessonId) === 0}
-          //     variant="secondary"
-          //   >
-          //     Previous Lesson
-          //   </ActionButton>
-            
-          //   <ActionButton action="next" onClick={goToNextLesson}>
-          //     Next Lesson
-          //   </ActionButton>
-          // </div>
-        )}
+          
+          {isLastLesson ? (
+            <Button onClick={async () => {
+              const allLessonsCompleted = lessons.every(lessonEntry => (
+                courseProgress[courseId]?.[lessonEntry.id]?.completed
+              ));
+              
+              if (!allLessonsCompleted) {
+                showError('Keep going! Mark every lesson as completed to finish the course.');
+                return;
+              }
+              
+              // Check if there's a course-level final assessment that hasn't been completed
+              if (courseFinalAssessment && !finalAssessmentCompleted) {
+                navigate(`/app/courses/${courseId}/quiz/${courseFinalAssessment.id}`);
+              } else {
+                navigate(`/app/courses/${courseId}/completion`);
+              }
+            }}>
+              {courseFinalAssessment && !finalAssessmentCompleted 
+                ? 'Take Final Assessment' 
+                : 'Complete Course'}
+              <ChevronRight className="w-4 h-4 ml-2" />
+            </Button>
+          ) : (
+            <Button onClick={() => goToNextLesson(false)}>
+              Next Lesson
+              <ChevronRight className="w-4 h-4 ml-2" />
+            </Button>
+          )}
+        </div>
 
         {/* Video Error Display */}
         <VideoErrorDisplay />
