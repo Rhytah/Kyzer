@@ -745,32 +745,56 @@ export default function MyCourses() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="p-6 text-center">
-          <div className="text-2xl font-bold text-primary-default mb-2">
+        {/* Total Enrolled - Blue */}
+        <Card className="p-6 border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50 to-blue-100/50 hover:shadow-lg transition-all duration-300">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-blue-500 rounded-lg">
+              <BookOpen className="w-6 h-6 text-white" />
+            </div>
+          </div>
+          <div className="text-3xl font-bold text-blue-700 mb-2">
             {courses.length}
           </div>
-          <div className="text-text-light">Total Enrolled</div>
+          <div className="text-sm font-medium text-blue-600">Total Enrolled</div>
         </Card>
         
-        <Card className="p-6 text-center">
-          <div className="text-2xl font-bold text-warning-default mb-2">
+        {/* In Progress - Orange/Yellow */}
+        <Card className="p-6 border-l-4 border-l-orange-500 bg-gradient-to-br from-orange-50 to-orange-100/50 hover:shadow-lg transition-all duration-300">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-orange-500 rounded-lg">
+              <TrendingUp className="w-6 h-6 text-white" />
+            </div>
+          </div>
+          <div className="text-3xl font-bold text-orange-700 mb-2">
             {courses.filter(c => (c.progress_percentage || 0) > 0 && (c.progress_percentage || 0) < 100).length}
           </div>
-          <div className="text-text-light">In Progress</div>
+          <div className="text-sm font-medium text-orange-600">In Progress</div>
         </Card>
         
-        <Card className="p-6 text-center">
-          <div className="text-2xl font-bold text-success-default mb-2">
+        {/* Completed - Green */}
+        <Card className="p-6 border-l-4 border-l-green-500 bg-gradient-to-br from-green-50 to-green-100/50 hover:shadow-lg transition-all duration-300">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-green-500 rounded-lg">
+              <Award className="w-6 h-6 text-white" />
+            </div>
+          </div>
+          <div className="text-3xl font-bold text-green-700 mb-2">
             {courses.filter(c => c.progress_percentage === 100).length}
           </div>
-          <div className="text-text-light">Completed</div>
+          <div className="text-sm font-medium text-green-600">Completed</div>
         </Card>
         
-        <Card className="p-6 text-center">
-          <div className="text-2xl font-bold text-text-dark mb-2">
-            {courses.reduce((total, course) => total + (course.duration_minutes || 0), 0)}m
+        {/* Total Duration - Purple/Indigo */}
+        <Card className="p-6 border-l-4 border-l-indigo-500 bg-gradient-to-br from-indigo-50 to-indigo-100/50 hover:shadow-lg transition-all duration-300">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-indigo-500 rounded-lg">
+              <Clock className="w-6 h-6 text-white" />
+            </div>
           </div>
-          <div className="text-text-light">Total Duration</div>
+          <div className="text-3xl font-bold text-indigo-700 mb-2">
+            {formatDuration(courses.reduce((total, course) => total + (course.duration_minutes || 0), 0))}
+          </div>
+          <div className="text-sm font-medium text-indigo-600">Total Duration</div>
         </Card>
       </div>
 

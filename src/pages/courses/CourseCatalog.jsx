@@ -203,9 +203,9 @@ const CourseCatalog = () => {
 
   // Course card component
   const CourseCard = ({ course }) => (
-    <Card className="group hover:shadow-lg transition-all duration-300 overflow-hidden">
+    <Card className="group hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col h-full">
       {/* Course Image */}
-      <div className="relative h-48 overflow-hidden">
+      <div className="relative h-48 overflow-hidden flex-shrink-0">
         {course.thumbnail_url ? (
           <img
             src={course.thumbnail_url}
@@ -245,97 +245,103 @@ const CourseCatalog = () => {
       </div>
 
       {/* Course Content */}
-      <div className="p-6">
-        {/* Category and Level */}
-        <div className="flex items-center gap-2 mb-3">
-                          {course.category && (
-                  <span 
-                    className="text-xs px-2 py-1 rounded-full font-medium"
-                    style={{
-                      backgroundColor: course.category.color ? `${course.category.color}20` : '#dbeafe',
-                      color: course.category.color || '#1d4ed8'
-                    }}
-                  >
-                    {course.category.name}
-                  </span>
-                )}
-          {course.difficulty_level && (
-            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-              {course.difficulty_level}
-            </span>
-          )}
+      <div className="p-6 flex flex-col flex-grow">
+        {/* Flexible Content Area */}
+        <div className="flex-grow">
+          {/* Category and Level */}
+          <div className="flex items-center gap-2 mb-3">
+            {course.category && (
+              <span 
+                className="text-xs px-2 py-1 rounded-full font-medium"
+                style={{
+                  backgroundColor: course.category.color ? `${course.category.color}20` : '#dbeafe',
+                  color: course.category.color || '#1d4ed8'
+                }}
+              >
+                {course.category.name}
+              </span>
+            )}
+            {course.difficulty_level && (
+              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                {course.difficulty_level}
+              </span>
+            )}
+          </div>
+
+          {/* Title */}
+          <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+            {course.title}
+          </h3>
+
+          {/* Description */}
+          <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+            {course.description}
+          </p>
         </div>
 
-        {/* Title */}
-        <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
-          {course.title}
-        </h3>
-
-        {/* Description */}
-        <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-          {course.description}
-        </p>
-
-        {/* Course Stats - Icons with Tooltips */}
-        <div className="flex items-center gap-3 mb-4 flex-wrap">
-          <Tooltip content={`Duration: ${formatDuration(course.duration_minutes)}`} position="bottom">
-            <div className="flex items-center gap-1 text-gray-500 hover:text-gray-700">
-              <Clock className="w-4 h-4" />
-            </div>
-          </Tooltip>
-          <Tooltip content={`${(courseCounts[course.id]?.lessons) ?? (course.lessons?.length || 0)} lessons`} position="bottom">
-            <div className="flex items-center gap-1 text-gray-500 hover:text-gray-700">
-              <BookOpen className="w-4 h-4" />
-            </div>
-          </Tooltip>
-          <Tooltip content={`${(courseCounts[course.id]?.modules) ?? (course.modules?.length || 0)} modules`} position="bottom">
-            <div className="flex items-center gap-1 text-gray-500 hover:text-gray-700">
-              <div className="w-4 h-4 bg-blue-100 rounded flex items-center justify-center">
-                <BookOpen className="w-3 h-3 text-blue-600" />
-              </div>
-            </div>
-          </Tooltip>
-          {course.creator && (
-            <Tooltip 
-              content={
-                course.creator.first_name && course.creator.last_name 
-                  ? `Creator: ${course.creator.first_name} ${course.creator.last_name}`
-                  : `Creator: ${course.creator.email || 'Unknown Creator'}`
-              } 
-              position="bottom"
-            >
+        {/* Fixed Bottom Section - Stats and Button */}
+        <div className="mt-auto">
+          {/* Course Stats - Icons with Tooltips */}
+          <div className="flex items-center gap-3 mb-4 flex-wrap">
+            <Tooltip content={`Duration: ${formatDuration(course.duration_minutes)}`} position="bottom">
               <div className="flex items-center gap-1 text-gray-500 hover:text-gray-700">
-                <Users className="w-4 h-4" />
+                <Clock className="w-4 h-4" />
               </div>
             </Tooltip>
-          )}
-        </div>
+            <Tooltip content={`${(courseCounts[course.id]?.lessons) ?? (course.lessons?.length || 0)} lessons`} position="bottom">
+              <div className="flex items-center gap-1 text-gray-500 hover:text-gray-700">
+                <BookOpen className="w-4 h-4" />
+              </div>
+            </Tooltip>
+            <Tooltip content={`${(courseCounts[course.id]?.modules) ?? (course.modules?.length || 0)} modules`} position="bottom">
+              <div className="flex items-center gap-1 text-gray-500 hover:text-gray-700">
+                <div className="w-4 h-4 bg-blue-100 rounded flex items-center justify-center">
+                  <BookOpen className="w-3 h-3 text-blue-600" />
+                </div>
+              </div>
+            </Tooltip>
+            {course.creator && (
+              <Tooltip 
+                content={
+                  course.creator.first_name && course.creator.last_name 
+                    ? `Creator: ${course.creator.first_name} ${course.creator.last_name}`
+                    : `Creator: ${course.creator.email || 'Unknown Creator'}`
+                } 
+                position="bottom"
+              >
+                <div className="flex items-center gap-1 text-gray-500 hover:text-gray-700">
+                  <Users className="w-4 h-4" />
+                </div>
+              </Tooltip>
+            )}
+          </div>
 
-        {/* Action Button */}
-        <Button
-          className="w-full"
-          variant={isEnrolled(course.id) ? "secondary" : "default"}
-          onClick={() => handleEnroll(course.id)}
-        >
-          {isEnrolled(course.id) ? (
-            canContinueLearning(course.id) ? (
-              <>
-                <Award className="w-4 h-4 mr-2" />
-                Continue Learning
-              </>
+          {/* Action Button */}
+          <Button
+            className="w-full"
+            variant={isEnrolled(course.id) ? "secondary" : "default"}
+            onClick={() => handleEnroll(course.id)}
+          >
+            {isEnrolled(course.id) ? (
+              canContinueLearning(course.id) ? (
+                <>
+                  <Award className="w-4 h-4 mr-2" />
+                  Continue Learning
+                </>
+              ) : (
+                <>
+                  <Award className="w-4 h-4 mr-2" />
+                  Course Completed
+                </>
+              )
             ) : (
               <>
-                <Award className="w-4 h-4 mr-2" />
-                Course Completed
+                <BookOpen className="w-4 h-4 mr-2" />
+                Enroll Now
               </>
-            )
-          ) : (
-            <>
-              <BookOpen className="w-4 h-4 mr-2" />
-              Enroll Now
-            </>
-          )}
-        </Button>
+            )}
+          </Button>
+        </div>
       </div>
     </Card>
   );
@@ -637,14 +643,9 @@ const CourseCatalog = () => {
         </div>
       )}
 
-      {/* Load More */}
-      {sortedCourses.length > 0 && (
-        <div className="text-center py-8">
-          <Button variant="secondary" size="lg">
-            Load More Courses
-          </Button>
-        </div>
-      )}
+      {/* Load More - Only show if there are more courses available beyond what's displayed */}
+      {/* Currently hidden since all courses are loaded at once */}
+      {/* To implement pagination: add state for current page/total count and show when hasMore */}
     </div>
   );
 };
