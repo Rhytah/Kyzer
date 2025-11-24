@@ -25,6 +25,7 @@ import {
   StatusBadge,
   EmptyState
 } from "@/components/ui";
+import Tooltip from "@/components/ui/Tooltip";
 
 const CourseCatalog = () => {
   const navigate = useNavigate();
@@ -275,32 +276,38 @@ const CourseCatalog = () => {
           {course.description}
         </p>
 
-        {/* Course Stats */}
-        <div className="flex items-center gap-4 mb-4 text-sm text-gray-500">
-          <div className="flex items-center gap-1">
-            <Clock className="w-4 h-4" />
-            <span>{formatDuration(course.duration_minutes)}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <BookOpen className="w-4 h-4" />
-            <span>{(courseCounts[course.id]?.lessons) ?? (course.lessons?.length || 0)} lessons</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-4 h-4 bg-blue-100 rounded flex items-center justify-center">
-              <BookOpen className="w-3 h-3 text-blue-600" />
+        {/* Course Stats - Icons with Tooltips */}
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
+          <Tooltip content={`Duration: ${formatDuration(course.duration_minutes)}`} position="bottom">
+            <div className="flex items-center gap-1 text-gray-500 hover:text-gray-700">
+              <Clock className="w-4 h-4" />
             </div>
-            <span>{(courseCounts[course.id]?.modules) ?? (course.modules?.length || 0)} modules</span>
-          </div>
+          </Tooltip>
+          <Tooltip content={`${(courseCounts[course.id]?.lessons) ?? (course.lessons?.length || 0)} lessons`} position="bottom">
+            <div className="flex items-center gap-1 text-gray-500 hover:text-gray-700">
+              <BookOpen className="w-4 h-4" />
+            </div>
+          </Tooltip>
+          <Tooltip content={`${(courseCounts[course.id]?.modules) ?? (course.modules?.length || 0)} modules`} position="bottom">
+            <div className="flex items-center gap-1 text-gray-500 hover:text-gray-700">
+              <div className="w-4 h-4 bg-blue-100 rounded flex items-center justify-center">
+                <BookOpen className="w-3 h-3 text-blue-600" />
+              </div>
+            </div>
+          </Tooltip>
           {course.creator && (
-            <div className="flex items-center gap-1">
-              <Users className="w-4 h-4" />
-              <span>
-                {course.creator.first_name && course.creator.last_name 
-                  ? `${course.creator.first_name} ${course.creator.last_name}`
-                  : course.creator.email || 'Unknown Creator'
-                }
-              </span>
-            </div>
+            <Tooltip 
+              content={
+                course.creator.first_name && course.creator.last_name 
+                  ? `Creator: ${course.creator.first_name} ${course.creator.last_name}`
+                  : `Creator: ${course.creator.email || 'Unknown Creator'}`
+              } 
+              position="bottom"
+            >
+              <div className="flex items-center gap-1 text-gray-500 hover:text-gray-700">
+                <Users className="w-4 h-4" />
+              </div>
+            </Tooltip>
           )}
         </div>
 
