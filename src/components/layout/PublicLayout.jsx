@@ -1,12 +1,12 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import Header from './Header';
+import PublicNav from './PublicNav';
 
 const PublicLayout = () => {
   return (
     <div className="min-h-screen bg-background-light">
-      <Header onMenuClick={() => {}} />
-      <main>
+      <PublicNav />
+      <main className="w-full">
         <Outlet />
       </main>
       {/* You can add a footer here if needed */}

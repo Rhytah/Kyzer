@@ -477,7 +477,8 @@ import {
   Download,
   Star,
   Eye,
-  Edit3
+  Edit3,
+  Flame
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
@@ -573,6 +574,85 @@ export default function MyCourses() {
     if (hours > 0) return `${hours}h`
     return `${mins}m`
   }
+
+  // Calculate learning streak from enrollment last_accessed dates
+  const calculateStreak = () => {
+    if (!courses || courses.length === 0) {
+      return { currentStreak: 0, bestStreak: 0 }
+    }
+
+    // Get all unique dates when user accessed courses
+    const accessDates = courses
+      .map(course => course.last_accessed)
+      .filter(date => date) // Remove null/undefined
+      .map(date => {
+        // Convert to date and set to start of day for comparison
+        const d = new Date(date)
+        d.setHours(0, 0, 0, 0)
+        return d.getTime()
+      })
+      .filter((date, index, self) => self.indexOf(date) === index) // Get unique dates
+      .sort((a, b) => b - a) // Sort descending (most recent first)
+
+    if (accessDates.length === 0) {
+      return { currentStreak: 0, bestStreak: 0 }
+    }
+
+    // Calculate current streak (consecutive days from most recent access backwards)
+    let currentStreak = 0
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayTime = today.getTime()
+    
+    // Check if user accessed today or yesterday (allows for timezone differences)
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayTime = yesterday.getTime()
+    
+    const mostRecentAccess = accessDates[0]
+    
+    // If most recent access is today or yesterday, the streak is still active
+    if (mostRecentAccess === todayTime || mostRecentAccess === yesterdayTime) {
+      // Start counting from the most recent access date
+      let checkDate = mostRecentAccess
+      let dayCount = 0
+      
+      // Count consecutive days backwards from most recent access
+      while (accessDates.includes(checkDate)) {
+        dayCount++
+        checkDate -= 86400000 // Subtract one day (in milliseconds)
+      }
+      
+      currentStreak = dayCount
+    } else {
+      // Most recent access was more than 1 day ago, streak is broken
+      currentStreak = 0
+    }
+
+    // Calculate best streak (longest consecutive sequence)
+    let bestStreak = 1
+    let tempStreak = 1
+    
+    for (let i = 1; i < accessDates.length; i++) {
+      const daysDiff = (accessDates[i - 1] - accessDates[i]) / 86400000
+      
+      if (daysDiff === 1) {
+        // Consecutive day
+        tempStreak++
+        bestStreak = Math.max(bestStreak, tempStreak)
+      } else {
+        // Streak broken
+        tempStreak = 1
+      }
+    }
+
+    return {
+      currentStreak: currentStreak,
+      bestStreak: bestStreak
+    }
+  }
+
+  const streakData = calculateStreak()
 
   const CourseCard = ({ course }) => (
     <Card className="overflow-hidden hover:shadow-lg transition-all duration-300">
@@ -744,7 +824,7 @@ export default function MyCourses() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         {/* Total Enrolled - Blue */}
         <Card className="p-6 border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50 to-blue-100/50 hover:shadow-lg transition-all duration-300">
           <div className="flex items-center justify-between mb-4">
@@ -795,6 +875,22 @@ export default function MyCourses() {
             {formatDuration(courses.reduce((total, course) => total + (course.duration_minutes || 0), 0))}
           </div>
           <div className="text-sm font-medium text-indigo-600">Total Duration</div>
+        </Card>
+        
+        {/* Learning Streak - Red/Orange */}
+        <Card className="p-6 border-l-4 border-l-red-500 bg-gradient-to-br from-red-50 to-orange-100/50 hover:shadow-lg transition-all duration-300">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg">
+              <Flame className="w-6 h-6 text-white" />
+            </div>
+          </div>
+          <div className="text-3xl font-bold text-red-700 mb-2">
+            {streakData.currentStreak}
+          </div>
+          <div className="text-sm font-medium text-red-600 mb-1">Day Streak</div>
+          <div className="text-xs text-red-500">
+            Best: {streakData.bestStreak} days
+          </div>
         </Card>
       </div>
 

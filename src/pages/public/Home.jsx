@@ -111,7 +111,7 @@ export default function Home() {
     <div className="min-h-screen">
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-primary-dark via-primary-default to-text-dark text-white py-10 lg:py-22">
-        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <h1 className="text-4xl md:text-6xl font-bold leading-tight mb-6">
@@ -168,7 +168,7 @@ export default function Home() {
 
       {/* Stats Section */}
       {/* <section className="py-20 bg-background-light">
-        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
               <div key={index} className="text-center">
@@ -182,7 +182,7 @@ export default function Home() {
 
       {/* Features Section */}
       <section className="py-20">
-        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-2xl md:text-4xl font-bold text-text-dark mb-4">
               Everything You Need to Scale Learning
@@ -211,7 +211,7 @@ export default function Home() {
 
       {/* Use Cases Section */}
       <section className="py-20 bg-background-light">
-        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-2xl md:text-4xl font-bold text-text-dark mb-4">
               Built for Every Learning Journey
@@ -249,7 +249,7 @@ export default function Home() {
 
       {/* Testimonials Section */}
       <section className="py-20">
-        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-2xl md:text-4xl font-bold text-text-dark mb-4">
               Loved by Learners and Leaders
@@ -304,7 +304,7 @@ export default function Home() {
 
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-primary-default to-primary-dark text-white">
-        <div className="max-w-8xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+        <div className="w-full text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl md:text-4xl font-bold mb-6">
             Ready to Transform Your Learning?
           </h2>
