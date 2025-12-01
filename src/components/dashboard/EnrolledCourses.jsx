@@ -54,20 +54,21 @@ const EnrolledCourses = ({ courses = [], loading = false }) => {
             <div className="flex-1">
               <h3 className="font-medium text-text-dark mb-1">{course.title}</h3>
               <div className="flex items-center gap-4 text-sm text-text-light">
-                <span className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  {course.duration}
-                </span>
+                {course.difficulty_level && (
+                  <span className="px-2 py-1 bg-background-medium rounded text-xs">
+                    {course.difficulty_level}
+                  </span>
+                )}
                 <span className="flex items-center gap-1">
                   <BookOpen className="w-4 h-4" />
-                  {course.lessons} lessons
+                  {course.progress || 0}% complete
                 </span>
               </div>
             </div>
             
             <div className="flex items-center gap-2">
-              {course.progress === 100 ? (
-                <CheckCircle className="w-5 h-5 text-success" />
+              {course.progress >= 100 ? (
+                <CheckCircle className="w-5 h-5 text-success-default" />
               ) : (
                 <Link 
                   to={`/app/courses/${course.id}`}

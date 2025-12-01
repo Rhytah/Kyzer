@@ -139,7 +139,22 @@ export const Dashboard = () => {
           {/* Left Column - Enrolled Courses */}
           <div className="lg:col-span-2">
             <EnrolledCourses 
-              enrollments={enrollments}
+              courses={enrollments
+                .filter(enrollment => enrollment.courses)
+                .map(enrollment => ({
+                  id: enrollment.courses.id,
+                  title: enrollment.courses.title,
+                  description: enrollment.courses.description,
+                  thumbnail_url: enrollment.courses.thumbnail_url,
+                  difficulty_level: enrollment.courses.difficulty_level,
+                  progress: enrollment.progress_percentage || 0,
+                  status: enrollment.progress_percentage >= 100 ? 'completed' : 
+                          enrollment.progress_percentage > 0 ? 'in-progress' : 'not-started',
+                  enrollment_id: enrollment.id,
+                  enrolled_at: enrollment.enrolled_at,
+                  completed_at: enrollment.completed_at,
+                  last_accessed: enrollment.last_accessed
+                }))}
               loading={enrollmentLoading}
             />
           </div>
