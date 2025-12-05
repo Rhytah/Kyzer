@@ -42,7 +42,6 @@ export const useEnrollment = () => {
       if (enrollmentsError) throw enrollmentsError;
 
       setEnrollments(enrollmentsData || []);
-      console.log("enrollmentsData", enrollmentsData);
       // Calculate stats
       const totalEnrolled = enrollmentsData?.length || 0;
       const completed = enrollmentsData?.filter(e => e.progress_percentage >= 100).length || 0;
@@ -157,7 +156,7 @@ export const useEnrollment = () => {
   useEffect(() => {
     loadUserStats();
   }, [user?.id]);
-  console.log(stats);
+
   return {
     enrollments,
     stats,

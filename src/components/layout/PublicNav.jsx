@@ -9,7 +9,7 @@ import UserMenu from './UserMenu';
 
 const PublicNav = () => {
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
@@ -27,8 +27,8 @@ const PublicNav = () => {
   };
 
   return (
-    <nav className="bg-background-white border-b border-border shadow-sm sticky top-0 z-50 w-full">
-      <div className="w-full px-4 sm:px-6 lg:px-8">
+    <nav className="bg-background-white border-b border-border shadow-sm sticky top-0 z-50 w-full relative">
+      <div className="w-full px-4 sm:px-6 lg:px-8 max-w-full">
         <div className="flex items-center justify-between h-16">
           {/* Left Section - Logo and Navigation */}
           <div className="flex items-center space-x-8">
@@ -62,7 +62,7 @@ const PublicNav = () => {
 
             {/* Desktop Auth Buttons */}
             <div className="hidden md:flex items-center space-x-3">
-              {isAuthenticated ? (
+              {!loading && isAuthenticated ? (
                 <>
                   <UserMenu />
                   <Link to="/app/dashboard">
@@ -74,15 +74,15 @@ const PublicNav = () => {
               ) : (
                 <>
                   <Link to="/login">
-                    <Button variant="ghost" size="sm">
+                    <Button variant="primary" size="sm">
                       Sign In
                     </Button>
                   </Link>
-                  <Link to="/signup">
+                  {/* <Link to="/signup">
                     <Button variant="primary" size="sm">
                       Get Started
                     </Button>
-                  </Link>
+                  </Link> */}
                 </>
               )}
             </div>
@@ -117,7 +117,7 @@ const PublicNav = () => {
                 </Link>
               ))}
               <div className="pt-4 border-t border-border space-y-2">
-                {isAuthenticated ? (
+                {!loading && isAuthenticated ? (
                   <>
                     <Link
                       to="/app/dashboard"

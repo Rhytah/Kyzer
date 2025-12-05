@@ -122,8 +122,18 @@ export function AuthProvider({ children }) {
         
         if (!mounted) return;
 
+        // Handle session_not_found error - clear state if session doesn't exist
         if (error) {
-          console.error("🔴 Session error:", error);
+          if (error.code === 'session_not_found' || 
+              error.message?.includes('Session from session_id claim')) {
+            // Session doesn't exist, clear local state
+            setSession(null);
+            setUser(null);
+            setProfile(null);
+            clearSessionStart();
+            setLoading(false);
+            return;
+          }
         }
         
         
@@ -133,6 +143,10 @@ export function AuthProvider({ children }) {
         
         if (session?.user) {
           loadUserProfile(session.user.id);
+        } else {
+          // No session, ensure state is cleared
+          setProfile(null);
+          clearSessionStart();
         }
 
       } catch (error) {
@@ -587,11 +601,14 @@ const signup = useCallback(async (userData) => {
   // Sign out function
   const signOut = useCallback(async () => {
     try {
-      
       const { error } = await supabase.auth.signOut();
       
-      if (error) {
-        console.error('🔴 Signout error:', error);
+      // If error is session-related, it's fine - user is already logged out
+      const isSessionError = error?.code === 'session_not_found' || 
+                           error?.message?.includes('Auth session missing') ||
+                           error?.message?.includes('Session from session_id claim');
+      
+      if (error && !isSessionError) {
         const handledError = handleError(error, 'signout');
         return { error: handledError };
       }
@@ -604,10 +621,27 @@ const signup = useCallback(async (userData) => {
       }
 
       setProfile(null);
+      setUser(null);
+      setSession(null);
       
       return { success: true };
     } catch (error) {
-      console.error('🔴 Signout exception:', error);
+      // If it's a session error, treat as success (already logged out)
+      const isSessionError = error?.code === 'session_not_found' || 
+                           error?.message?.includes('Auth session missing') ||
+                           error?.message?.includes('Session from session_id claim');
+      
+      if (isSessionError) {
+        clearSessionStart();
+        if (signoutTimerRef.current) {
+          clearTimeout(signoutTimerRef.current);
+          signoutTimerRef.current = null;
+        }
+        setProfile(null);
+        setUser(null);
+        setSession(null);
+        return { success: true };
+      }
       const handledError = handleError(error, 'signout');
       return { error: handledError };
     }
