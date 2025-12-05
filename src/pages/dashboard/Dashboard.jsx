@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/auth/useAuth';
 import { useEnrollment } from '@/hooks/courses/useEnrollment';
+import { useRecentActivity } from '@/hooks/courses/useRecentActivity';
 import StatsCard  from '@/components/dashboard/StatsCard';
 import  RecentActivity  from '@/components/dashboard/RecentActivity';
 import EnrolledCourses from '@/components/dashboard/EnrolledCourses';
@@ -28,6 +29,10 @@ export const Dashboard = () => {
     loading: enrollmentLoading, 
     error: enrollmentError 
   } = useEnrollment();
+  const { 
+    activities, 
+    loading: activityLoading 
+  } = useRecentActivity();
 
   // Show loading state
   if (enrollmentLoading) {
@@ -161,7 +166,10 @@ export const Dashboard = () => {
 
           {/* Right Column - Activity & Recommendations */}
           <div className="space-y-8">
-            <RecentActivity userId={user?.id} />
+            <RecentActivity 
+              activities={activities}
+              loading={activityLoading}
+            />
             <Recommendations 
               enrollments={enrollments}
               isCompanyAccount={isCompanyAccount}

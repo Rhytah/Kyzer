@@ -15,6 +15,7 @@ import ResetPassword from './pages/auth/ResetPassword';
 import Dashboard from './pages/dashboard/Dashboard';
 import Profile from './pages/dashboard/Profile';
 import Settings from './pages/dashboard/Settings';
+import Activity from './pages/dashboard/Activity';
 import CourseCatalog from './pages/courses/CourseCatalog';
 import MyCourses from './pages/courses/MyCourses';
 import CourseDetail from './pages/courses/CourseDetail';
@@ -240,6 +241,7 @@ function AppRoutes() {
         <Route path="courses/:courseId/completion" element={<CourseCompletion />} />
         
         {/* Additional Routes */}
+        <Route path="activity" element={<Activity />} />
         <Route path="progress" element={<Progress />} />
         <Route path="certificates" element={<Certificates />} />
       </Route>

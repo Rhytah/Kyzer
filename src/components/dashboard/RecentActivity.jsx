@@ -10,11 +10,11 @@ const RecentActivity = ({ activities = [], loading = false }) => {
       case 'course_started':
         return <Play className="w-4 h-4 text-primary" />;
       case 'course_completed':
-        return <CheckCircle className="w-4 h-4 text-success" />;
+        return <CheckCircle className="w-4 h-4 text-success-default" />;
       case 'lesson_completed':
-        return <BookOpen className="w-4 h-4 text-warning" />;
+        return <BookOpen className="w-4 h-4 text-warning-default" />;
       case 'certificate_earned':
-        return <Award className="w-4 h-4 text-success" />;
+        return <Award className="w-4 h-4 text-success-default" />;
       default:
         return <Clock className="w-4 h-4 text-text-muted" />;
     }
@@ -25,11 +25,11 @@ const RecentActivity = ({ activities = [], loading = false }) => {
       case 'course_started':
         return 'text-primary';
       case 'course_completed':
-        return 'text-success';
+        return 'text-success-default';
       case 'lesson_completed':
-        return 'text-warning';
+        return 'text-warning-default';
       case 'certificate_earned':
-        return 'text-success';
+        return 'text-success-default';
       default:
         return 'text-text-muted';
     }
