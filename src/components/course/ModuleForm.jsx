@@ -59,6 +59,13 @@ const ModuleForm = ({
       return;
     }
 
+    // Validate estimated_duration - must be a positive number
+    const duration = formData.estimated_duration ? parseFloat(formData.estimated_duration) : null;
+    if (!duration || duration <= 0 || isNaN(duration)) {
+      showError('Estimated duration is required and must be a positive number');
+      return;
+    }
+
     // Uniqueness validation
     const excludeId = module?.id || null;
     const unique = await isModuleTitleUnique(courseId, formData.title, excludeId);
@@ -70,29 +77,38 @@ const ModuleForm = ({
     setIsSubmitting(true);
 
     try {
+      // Prepare data - convert estimated_duration to number or null
+      const moduleData = {
+        ...formData,
+        estimated_duration: duration ? parseInt(duration, 10) : null
+      };
+
       let result;
       
       if (module) {
         // Update existing module
-        result = await actions.updateModule(module.id, formData);
+        result = await actions.updateModule(module.id, moduleData);
       } else {
         // Create new module
-        result = await actions.createModule(formData, courseId, user.id);
+        result = await actions.createModule(moduleData, courseId, user.id);
       }
 
       if (result.error) {
         throw new Error(result.error);
       }
 
-      showSuccess(
-        module 
-          ? 'Module updated successfully!' 
-          : 'Module created successfully!'
-      );
+      const successMessage = module 
+        ? `Module "${formData.title}" updated successfully!` 
+        : `Module "${formData.title}" created successfully!`;
       
-      if (onSuccess) {
-        onSuccess(result.data);
-      }
+      showSuccess(successMessage);
+      
+      // Add a small delay to ensure toast is visible before closing modal
+      setTimeout(() => {
+        if (onSuccess) {
+          onSuccess(result.data);
+        }
+      }, 500);
     } catch (error) {
       showError(error.message || 'Failed to save module');
     } finally {
@@ -150,7 +166,7 @@ const ModuleForm = ({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="estimated_duration" className="block text-sm font-medium text-gray-700 mb-1">
-              Estimated Duration (minutes)
+              Estimated Duration (minutes) *
             </label>
             <Input
               id="estimated_duration"
@@ -160,6 +176,7 @@ const ModuleForm = ({
               onChange={handleInputChange}
               placeholder="60"
               min="1"
+              required
               className="w-full"
             />
           </div>

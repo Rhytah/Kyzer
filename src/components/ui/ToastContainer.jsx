@@ -1,45 +1,42 @@
 // src/components/ui/ToastContainer.jsx
-import { useState, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import Toast from './Toast';
 
-let toastCount = 0;
-
+// Use react-hot-toast for global toast notifications
 export const useToast = () => {
-  const [toasts, setToasts] = useState([]);
+  const success = (message, duration) => {
+    return toast.success(message, { duration: duration || 3000 });
+  };
 
-  const addToast = useCallback((message, type = 'info', duration = 5000) => {
-    const id = `toast-${++toastCount}`;
-    const newToast = { id, message, type, duration };
-    
-    setToasts(prev => [...prev, newToast]);
-    
-    return id;
-  }, []);
+  const error = (message, duration) => {
+    return toast.error(message, { duration: duration || 5000 });
+  };
 
-  const removeToast = useCallback((id) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
-  }, []);
+  const warning = (message, duration) => {
+    return toast(message, { 
+      duration: duration || 4000,
+      icon: '⚠️',
+      style: {
+        background: '#fef3c7',
+        color: '#92400e',
+        border: '1px solid #fde68a'
+      }
+    });
+  };
 
-  const success = useCallback((message, duration) => {
-    return addToast(message, 'success', duration);
-  }, [addToast]);
-
-  const error = useCallback((message, duration) => {
-    return addToast(message, 'error', duration);
-  }, [addToast]);
-
-  const warning = useCallback((message, duration) => {
-    return addToast(message, 'warning', duration);
-  }, [addToast]);
-
-  const info = useCallback((message, duration) => {
-    return addToast(message, 'info', duration);
-  }, [addToast]);
+  const info = (message, duration) => {
+    return toast(message, { 
+      duration: duration || 4000,
+      icon: 'ℹ️',
+      style: {
+        background: '#dbeafe',
+        color: '#1e40af',
+        border: '1px solid #93c5fd'
+      }
+    });
+  };
 
   return {
-    toasts,
-    addToast,
-    removeToast,
     success,
     error,
     warning,
@@ -48,7 +45,10 @@ export const useToast = () => {
     showSuccess: success,
     showError: error,
     showWarning: warning,
-    showInfo: info
+    showInfo: info,
+    // For backward compatibility with Layout component
+    toasts: [],
+    removeToast: () => {}
   };
 };
 

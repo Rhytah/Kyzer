@@ -71,6 +71,9 @@ export default function CourseManagement() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [confirmDelete, setConfirmDelete] = useState({ open: false, courseId: null, courseTitle: '' });
   const [confirmDeleteModule, setConfirmDeleteModule] = useState({ open: false, moduleId: null, courseId: null, moduleTitle: '' });
+  const [isDeletingCourse, setIsDeletingCourse] = useState(false);
+  const [confirmPublish, setConfirmPublish] = useState({ open: false, courseId: null, courseTitle: '', isPublishing: false });
+  const [isTogglingPublish, setIsTogglingPublish] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -106,10 +109,13 @@ export default function CourseManagement() {
   const [countsMap, setCountsMap] = useState({});
 
   const handleCourseSuccess = async (courseData) => {
-    setShowCourseForm(false);
-    setEditingCourse(null);
-    // Refresh courses list after creation/update
-    await fetchCourses();
+    // Add a small delay to ensure success toast is visible before closing modal
+    setTimeout(async () => {
+      setShowCourseForm(false);
+      setEditingCourse(null);
+      // Refresh courses list after creation/update
+      await fetchCourses();
+    }, 1500);
   };
 
   const handleLessonSuccess = (lessonData) => {
@@ -121,14 +127,16 @@ export default function CourseManagement() {
   };
 
   const handleModuleSuccess = async (moduleData) => {
-    setShowModuleForm(false);
-    setEditingModule(null);
+    // Toast is already shown in ModuleForm, so we just refresh the data
     if (selectedCourseId) {
       await loadCourseModules(selectedCourseId);
       await loadCourseLessons(selectedCourseId);
-      // Show success feedback
-      success(editingModule ? 'Module updated successfully!' : 'Module added successfully!');
     }
+    // Close modal after a brief delay to ensure toast is visible
+    setTimeout(() => {
+      setShowModuleForm(false);
+      setEditingModule(null);
+    }, 500);
   };
 
   const handleQuizSuccess = () => {
@@ -144,46 +152,109 @@ export default function CourseManagement() {
     setShowCourseForm(true);
   };
 
-  const handleDeleteCourse = async (courseId) => {
-    setConfirmDelete({ open: true, courseId, courseTitle: (courses.find(c => c.id === courseId)?.title) || '' });
+  const handleDeleteCourse = (courseId) => {
+    if (!courseId) {
+      showError('Invalid course ID');
+      return;
+    }
+    
+    const course = courses.find(c => c.id === courseId);
+    if (!course) {
+      showError('Course not found');
+      return;
+    }
+    
+    // Open confirmation dialog
+    setConfirmDelete({ 
+      open: true, 
+      courseId, 
+      courseTitle: course.title || 'this course' 
+    });
   };
 
   const confirmDeleteCourse = async () => {
     const { courseId } = confirmDelete;
-    if (!courseId) return;
-    const result = await deleteCourse(courseId);
-    if (result.success) {
-      success('Course deleted successfully!');
-      // Refresh courses list after deletion
-      await fetchCourses();
-    } else {
-      showError(result.error || 'Failed to delete course');
+    if (!courseId) {
+      showError('No course selected for deletion');
+      return;
     }
-    setConfirmDelete({ open: false, courseId: null, courseTitle: '' });
+    
+    setIsDeletingCourse(true);
+    
+    try {
+      const result = await deleteCourse(courseId);
+      if (result.success) {
+        success('Course deleted successfully!');
+        // Refresh courses list after deletion
+        await fetchCourses();
+        setConfirmDelete({ open: false, courseId: null, courseTitle: '' });
+      } else {
+        const errorMessage = result.error || 'Failed to delete course';
+        showError(errorMessage);
+        // Keep dialog open on error so user can see the error message
+      }
+    } catch (error) {
+      const errorMessage = error.message || 'An unexpected error occurred while deleting the course';
+      showError(errorMessage);
+      // Keep dialog open on error so user can see the error message
+    } finally {
+      setIsDeletingCourse(false);
+    }
   };
 
-  const handleTogglePublish = async (courseId, currentStatus) => {
+  const handleTogglePublish = (courseId, currentStatus) => {
+    const course = courses.find(c => c.id === courseId);
+    if (!course) {
+      showError('Course not found');
+      return;
+    }
+    
     const isPublished = currentStatus === 'published';
     
     // Show confirmation dialog
-    const confirmed = window.confirm(
-      isPublished 
-        ? 'Are you sure you want to unpublish this course? It will no longer be visible to students.'
-        : 'Are you sure you want to publish this course? It will become visible to students.'
-    );
+    setConfirmPublish({
+      open: true,
+      courseId,
+      courseTitle: course.title || 'this course',
+      isPublishing: !isPublished
+    });
+  };
+
+  const confirmTogglePublish = async () => {
+    const { courseId, isPublishing } = confirmPublish;
+    if (!courseId) {
+      showError('No course selected');
+      return;
+    }
     
-    if (!confirmed) return;
+    setIsTogglingPublish(true);
     
-    const result = await toggleCoursePublish(courseId, !isPublished);
-    if (result.data) {
-      const message = isPublished 
-        ? 'Course unpublished successfully!' 
-        : 'Course published successfully!';
-      success(message);
-      // Refresh courses list
-      await fetchCourses();
-    } else {
-      showError(result.error || 'Failed to update course status');
+    try {
+      const result = await toggleCoursePublish(courseId, isPublishing);
+      
+      if (result.data) {
+        const message = isPublishing 
+          ? `Course "${confirmPublish.courseTitle}" published successfully!` 
+          : `Course "${confirmPublish.courseTitle}" unpublished successfully!`;
+        success(message);
+        
+        // Refresh courses list after a brief delay to ensure toast is visible
+        setTimeout(async () => {
+          await fetchCourses();
+        }, 500);
+        
+        setConfirmPublish({ open: false, courseId: null, courseTitle: '', isPublishing: false });
+      } else {
+        const errorMsg = result.error || 'Failed to update course status';
+        showError(errorMsg);
+        // Keep dialog open on error so user can see the error message
+      }
+    } catch (error) {
+      const errorMsg = error.message || 'An unexpected error occurred while updating course status';
+      showError(errorMsg);
+      // Keep dialog open on error so user can see the error message
+    } finally {
+      setIsTogglingPublish(false);
     }
   };
 
@@ -713,8 +784,19 @@ export default function CourseManagement() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDeleteCourse(course.id)}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (course?.id) {
+                            handleDeleteCourse(course.id);
+                          } else {
+                            showError('Unable to delete: Course ID not found');
+                          }
+                        }}
                         className="text-red-600 hover:text-red-700"
+                        title="Delete Course"
+                        aria-label="Delete Course"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -998,14 +1080,39 @@ export default function CourseManagement() {
       {/* Delete confirmation modal */}
       <ConfirmDialog
         isOpen={confirmDelete.open}
-        onClose={() => setConfirmDelete({ open: false, courseId: null, courseTitle: '' })}
+        onClose={() => {
+          if (!isDeletingCourse) {
+            setConfirmDelete({ open: false, courseId: null, courseTitle: '' });
+          }
+        }}
         onConfirm={confirmDeleteCourse}
         title="Delete Course"
-        description={`Are you sure you want to delete "${confirmDelete.courseTitle}"? This action cannot be undone.`}
-        confirmText="Delete"
+        description={`Are you sure you want to delete "${confirmDelete.courseTitle || 'this course'}"? This action cannot be undone.`}
+        confirmText={isDeletingCourse ? 'Deleting...' : 'Delete'}
         cancelText="Cancel"
         confirmVariant="danger"
       />
+      
+      {/* Publish/Unpublish confirmation modal */}
+      <ConfirmDialog
+        isOpen={confirmPublish.open}
+        onClose={() => {
+          if (!isTogglingPublish) {
+            setConfirmPublish({ open: false, courseId: null, courseTitle: '', isPublishing: false });
+          }
+        }}
+        onConfirm={confirmTogglePublish}
+        title={confirmPublish.isPublishing ? 'Publish Course' : 'Unpublish Course'}
+        description={
+          confirmPublish.isPublishing
+            ? `Are you sure you want to publish "${confirmPublish.courseTitle}"? It will become visible to students.`
+            : `Are you sure you want to unpublish "${confirmPublish.courseTitle}"? It will no longer be visible to students.`
+        }
+        confirmText={isTogglingPublish ? (confirmPublish.isPublishing ? 'Publishing...' : 'Unpublishing...') : (confirmPublish.isPublishing ? 'Publish' : 'Unpublish')}
+        cancelText="Cancel"
+        confirmVariant={confirmPublish.isPublishing ? 'primary' : 'warning'}
+      />
+      
       {/* Delete lesson confirmation modal */}
       <ConfirmDialog
         isOpen={confirmDeleteLesson.open}

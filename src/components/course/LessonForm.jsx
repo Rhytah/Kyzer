@@ -744,16 +744,15 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
           }
         }
       } else if (pdfSourceType === 'split') {
-        // For PDF split, require split data - but only check if we're actually trying to save
-        // Don't show error if split was already completed successfully
+        // For PDF split, require split data - only show error if split was never attempted
+        // Don't show error if split was already completed successfully or if splitter is open
         if (!pdfSplitData || !pdfSplitData.images || pdfSplitData.images.length === 0) {
-          // Only show error if we're not in the middle of processing or if split was never attempted
-          const hasAttemptedSplit = pdfFile || initialSplitData;
-          if (!hasAttemptedSplit) {
+          // Only show error if splitter was never opened (user hasn't attempted split)
+          if (!showPdfSplitter && !pdfFile) {
             setError('Please split a PDF into images first');
             return false;
           }
-          // If split was attempted but failed, allow user to retry without blocking
+          // If splitter is open or file is selected, user is in process - don't block
         }
       } else {
         if (!formData.content_url.trim()) {
@@ -930,8 +929,11 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
           lessonData.content_url = publicUrl;
           setIsUploading(false);
         } catch (error) {
-          setError('Failed to upload SCORM package: ' + error.message);
+          const errorMsg = `Failed to upload SCORM package: ${error.message}`;
+          setError(errorMsg);
+          showError(errorMsg);
           setIsUploading(false);
+          setLoading(false);
           return;
         }
       }
@@ -980,6 +982,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
             if (lessonResult.error) {
               setError(lessonResult.error);
               showError(lessonResult.error);
+              setLoading(false);
               return;
             }
 
@@ -996,8 +999,10 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
 
             const presentationResult = await createPresentation(presentationData);
             if (presentationResult.error) {
-              setError(`Failed to create presentation: ${presentationResult.error}`);
-              showError(`Failed to create presentation: ${presentationResult.error}`);
+              const errorMsg = `Failed to create presentation: ${presentationResult.error}`;
+              setError(errorMsg);
+              showError(errorMsg);
+              setLoading(false);
               return;
             }
 
@@ -1023,24 +1028,67 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
             }));
 
             // Create slides in batches to avoid overwhelming the database
+            let slidesCreated = 0;
+            let slidesFailed = 0;
             for (const slide of slides) {
               const slideResult = await createSlide(slide);
               if (slideResult.error) {
-                console.error(`Failed to create slide ${slide.slide_number}:`, slideResult.error);
+                slidesFailed++;
                 // Continue with other slides even if one fails
+              } else {
+                slidesCreated++;
               }
             }
 
-            success('Lesson with split PDF presentation created successfully!');
+            if (slidesFailed > 0) {
+              const warningMsg = `Lesson created with ${slidesCreated} slides, but ${slidesFailed} slides failed to create.`;
+              showError(warningMsg);
+              setError(warningMsg);
+            } else {
+              success(`Lesson with split PDF presentation created successfully! ${slidesCreated} slides added.`);
+            }
+            
+            setLoading(false);
             onSuccess(createdLesson);
+            return;
+          } else {
+            const errorMsg = 'Invalid split PDF data: No images found';
+            setError(errorMsg);
+            showError(errorMsg);
+            setLoading(false);
             return;
           }
         } catch (parseError) {
-          console.error('Failed to parse split PDF data:', parseError);
-          setError('Invalid split PDF data format');
-          showError('Invalid split PDF data format');
+          const errorMsg = `Failed to create presentation: ${parseError.message || 'Invalid split PDF data format'}`;
+          setError(errorMsg);
+          showError(errorMsg);
+          setLoading(false);
           return;
         }
+      }
+
+      // If presentation without split PDF data, create the lesson normally
+      // (User can add presentation content later using the Lesson Curation Form)
+      if (formData.content_type === 'presentation' && !pdfSplitData) {
+        const lessonResult = isEditing 
+          ? await updateLesson(lesson.id, lessonData)
+          : await createLesson(lessonData, courseId, lessonData.module_id, user.id);
+
+        if (lessonResult.error) {
+          setError(lessonResult.error);
+          showError(lessonResult.error);
+          setLoading(false);
+          return;
+        }
+
+        const message = isEditing 
+          ? `Lesson "${lessonData.title}" updated successfully!` 
+          : `Lesson "${lessonData.title}" created successfully! You can now add presentation content using the Lesson Curation Form.`;
+        
+        success(message);
+        onSuccess(lessonResult.data);
+        setLoading(false);
+        return;
       }
 
       // If not a presentation, create the lesson normally
@@ -1052,6 +1100,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         if (lessonResult.error) {
           setError(lessonResult.error);
           showError(lessonResult.error);
+          setLoading(false);
           return;
         }
 
@@ -1061,6 +1110,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         
         success(message);
         onSuccess(lessonResult.data);
+        setLoading(false);
         return;
       }
 
@@ -1076,8 +1126,11 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
           lessonData.content_url = publicUrl;
           setIsUploading(false);
         } catch (error) {
-          setError('Failed to upload image: ' + error.message);
+          const errorMsg = `Failed to upload image: ${error.message}`;
+          setError(errorMsg);
+          showError(errorMsg);
           setIsUploading(false);
+          setLoading(false);
           return;
         }
       }
@@ -1093,8 +1146,11 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
           lessonData.audio_attachment_url = publicUrl;
           setIsUploading(false);
         } catch (error) {
-          setError('Failed to upload audio attachment: ' + error.message);
+          const errorMsg = `Failed to upload audio attachment: ${error.message}`;
+          setError(errorMsg);
+          showError(errorMsg);
           setIsUploading(false);
+          setLoading(false);
           return;
         }
       }

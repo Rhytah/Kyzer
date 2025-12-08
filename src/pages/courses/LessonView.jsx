@@ -883,35 +883,6 @@ export default function LessonView() {
                 )}
               </div>
             </div>
-            {/* PDF Navigation Buttons */}
-            <div className="mt-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={goToPreviousPage}
-                  disabled={currentPage <= 1}
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Previous
-                </Button>
-                <span className="text-sm text-gray-600 px-2">
-                  Page {currentPage}{totalPages ? ` of ${totalPages}` : ''}
-                </span>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={goToNextPage}
-                  disabled={totalPages !== null && currentPage >= totalPages}
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
-              <ActionButton action="view" variant="secondary" onClick={() => window.open(pdfUrl, '_blank')}>
-                Open in new tab
-              </ActionButton>
-            </div>
           </>
         ) : (
           <div className="text-center text-gray-500 p-8">No PDF available.</div>
@@ -2686,6 +2657,15 @@ export default function LessonView() {
                 }
               });
               
+              // Add course-level final assessment at the end if it exists
+              if (courseFinalAssessment) {
+                combinedItems.push({
+                  type: 'finalAssessment',
+                  data: courseFinalAssessment,
+                  index: itemIndex++
+                });
+              }
+              
               return combinedItems.map((item) => {
                 if (item.type === 'lesson') {
                   const courseLesson = item.data;
@@ -2719,7 +2699,7 @@ export default function LessonView() {
                       </div>
                     </button>
                   );
-                } else {
+                } else if (item.type === 'quiz') {
                   // Quiz item
                   const qz = item.data;
                   const isKnowledgeCheck = qz.quiz_type === 'non_graded';
@@ -2793,7 +2773,48 @@ export default function LessonView() {
                       </div>
                     </button>
                   );
+                } else if (item.type === 'finalAssessment') {
+                  // Final Assessment item
+                  const finalAssessment = item.data;
+                  const isCompleted = finalAssessmentCompleted || false;
+                  const isCurrentQuiz = location.pathname.includes(`/quiz/${finalAssessment.id}`);
+
+                  return (
+                    <button
+                      key={`final-assessment-${finalAssessment.id}`}
+                      onClick={() => navigate(`/app/courses/${courseId}/quiz/${finalAssessment.id}`)}
+                      className={`w-full text-left p-3 rounded-lg transition-colors border-t-2 border-primary-default mt-2 ${
+                        isCurrentQuiz
+                          ? 'bg-primary-light text-primary-default'
+                          : 'hover:bg-background-light'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex-shrink-0">
+                          {isCompleted ? (
+                            <CheckCircle className="w-5 h-5 text-success-default" />
+                          ) : isCurrentQuiz ? (
+                            <Play className="w-5 h-5 text-primary-default" />
+                          ) : (
+                            <div className="w-5 h-5 rounded-full border-2 border-primary-default flex items-center justify-center">
+                              <span className="text-xs font-bold">{item.index + 1}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-sm truncate">
+                            <span className="text-primary-default">Final Assessment:</span>{' '}
+                            {finalAssessment.title}
+                          </h4>
+                          <p className="text-xs text-text-light">
+                            {finalAssessment.time_limit_minutes ? `${finalAssessment.time_limit_minutes} min` : 'No time limit'} • {finalAssessment.question_count || 0} questions
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
                 }
+                return null;
               });
             })()}
           </div>

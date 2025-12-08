@@ -1329,19 +1329,213 @@ const useCourseStore = create((set, get) => ({
     // Course Management: Delete course
     deleteCourse: async (courseId) => {
       try {
-        const { error } = await supabase
+        // First, get all related lesson IDs for this course
+        const { data: courseLessons } = await supabase
+          .from(TABLES.LESSONS)
+          .select('id')
+          .eq('course_id', courseId);
+
+        const lessonIds = courseLessons?.map(l => l.id) || [];
+
+        // Delete lesson progress for all lessons in this course
+        if (lessonIds.length > 0) {
+          const { error: progressError } = await supabase
+            .from(TABLES.LESSON_PROGRESS)
+            .delete()
+            .in('lesson_id', lessonIds);
+          
+          if (progressError) {
+            throw new Error(`Failed to delete lesson progress: ${progressError.message}`);
+          }
+        }
+
+        // Get all quiz IDs for this course
+        const { data: courseQuizzes } = await supabase
+          .from(TABLES.QUIZZES)
+          .select('id')
+          .eq('course_id', courseId);
+
+        const quizIds = courseQuizzes?.map(q => q.id) || [];
+
+        // Delete quiz attempts
+        if (quizIds.length > 0) {
+          const { error: attemptsError } = await supabase
+            .from('quiz_attempts')
+            .delete()
+            .in('quiz_id', quizIds);
+          
+          if (attemptsError) {
+            throw new Error(`Failed to delete quiz attempts: ${attemptsError.message}`);
+          }
+        }
+
+        // Delete quiz questions
+        if (quizIds.length > 0) {
+          const { error: questionsError } = await supabase
+            .from(TABLES.QUIZ_QUESTIONS)
+            .delete()
+            .in('quiz_id', quizIds);
+          
+          if (questionsError) {
+            throw new Error(`Failed to delete quiz questions: ${questionsError.message}`);
+          }
+        }
+
+        // Delete quizzes
+        const { error: quizzesError } = await supabase
+          .from(TABLES.QUIZZES)
+          .delete()
+          .eq('course_id', courseId);
+
+        if (quizzesError) {
+          throw new Error(`Failed to delete quizzes: ${quizzesError.message}`);
+        }
+
+        // Delete presentation-related data
+        if (lessonIds.length > 0) {
+          // Get presentation IDs
+          const { data: presentations } = await supabase
+            .from('lesson_presentations')
+            .select('id')
+            .in('lesson_id', lessonIds);
+
+          const presentationIds = presentations?.map(p => p.id) || [];
+
+          if (presentationIds.length > 0) {
+            // Delete slide progress
+            await supabase
+              .from('slide_progress')
+              .delete()
+              .in('presentation_id', presentationIds);
+
+            // Delete presentation progress
+            await supabase
+              .from('presentation_progress')
+              .delete()
+              .in('presentation_id', presentationIds);
+
+            // Delete slides
+            await supabase
+              .from('presentation_slides')
+              .delete()
+              .in('presentation_id', presentationIds);
+
+            // Delete presentations
+            await supabase
+              .from('lesson_presentations')
+              .delete()
+              .in('lesson_id', lessonIds);
+          }
+        }
+
+        // Delete lessons
+        const { error: lessonsError } = await supabase
+          .from(TABLES.LESSONS)
+          .delete()
+          .eq('course_id', courseId);
+
+        if (lessonsError) {
+          throw new Error(`Failed to delete lessons: ${lessonsError.message}`);
+        }
+
+        // Delete modules
+        const { error: modulesError } = await supabase
+          .from(TABLES.COURSE_MODULES)
+          .delete()
+          .eq('course_id', courseId);
+
+        if (modulesError) {
+          throw new Error(`Failed to delete modules: ${modulesError.message}`);
+        }
+
+        // Delete course enrollments
+        const { error: enrollmentsError } = await supabase
+          .from(TABLES.COURSE_ENROLLMENTS)
+          .delete()
+          .eq('course_id', courseId);
+
+        if (enrollmentsError) {
+          throw new Error(`Failed to delete enrollments: ${enrollmentsError.message}`);
+        }
+
+        // Delete company course assignments
+        const { error: companyAssignmentsError } = await supabase
+          .from(TABLES.COMPANY_COURSE_ASSIGNMENTS)
+          .delete()
+          .eq('course_id', courseId);
+
+        if (companyAssignmentsError) {
+          throw new Error(`Failed to delete company course assignments: ${companyAssignmentsError.message}`);
+        }
+
+        // Delete company employee course assignments
+        const { error: employeeAssignmentsError } = await supabase
+          .from(TABLES.COMPANY_EMPLOYEE_COURSE_ASSIGNMENTS)
+          .delete()
+          .eq('course_id', courseId);
+
+        if (employeeAssignmentsError) {
+          throw new Error(`Failed to delete employee course assignments: ${employeeAssignmentsError.message}`);
+        }
+
+        // Delete certificates - must be done before course deletion
+        // Check if there are any certificates first
+        const { data: existingCertificates, error: checkCertError } = await supabase
+          .from(TABLES.CERTIFICATES)
+          .select('id')
+          .eq('course_id', courseId);
+
+        if (checkCertError) {
+          throw new Error(`Failed to check certificates: ${checkCertError.message}`);
+        }
+
+        // Delete certificates if any exist
+        if (existingCertificates && existingCertificates.length > 0) {
+          const { error: certificatesError } = await supabase
+            .from(TABLES.CERTIFICATES)
+            .delete()
+            .eq('course_id', courseId);
+
+          if (certificatesError) {
+            throw new Error(`Failed to delete certificates: ${certificatesError.message}`);
+          }
+        }
+
+        // Finally, delete the course
+        const { error: courseError } = await supabase
           .from(TABLES.COURSES)
           .delete()
           .eq('id', courseId);
 
-        if (error) throw error;
+        if (courseError) {
+          throw new Error(`Failed to delete course: ${courseError.message}`);
+        }
 
-        // Don't refresh here to prevent infinite loops
-        // The store will update automatically
+        // Update local state
+        set(state => ({
+          courses: state.courses.filter(c => c.id !== courseId)
+        }));
 
         return { success: true, error: null };
       } catch (error) {
-        return { success: false, error: error.message };
+        // Check for specific error types and provide user-friendly messages
+        if (error.message?.includes('infinite recursion') || error.code === '42P17') {
+          // This is a database policy recursion error - provide helpful message
+          return { 
+            success: false, 
+            error: 'Unable to delete course. This course is currently being used by certificates, student enrollments, or company assignments. Please contact an administrator to resolve this issue.' 
+          };
+        }
+        
+        if (error.message?.includes('foreign key') || error.code === '23503') {
+          // Foreign key constraint error
+          return { 
+            success: false, 
+            error: 'Unable to delete course. This course is currently being used by certificates, student enrollments, or company assignments. Please remove all associated data before deleting.' 
+          };
+        }
+        
+        return { success: false, error: error.message || 'Failed to delete course. Please ensure all related data is removed first.' };
       }
     },
 

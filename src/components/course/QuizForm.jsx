@@ -258,18 +258,30 @@ export default function QuizForm({ quiz = null, courseId, onSuccess, onCancel })
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Attach to Lesson (optional)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Attach to Lesson
+                {formData.quiz_type === 'graded' && !formData.lesson_id && (
+                  <span className="ml-2 text-xs font-normal text-blue-600">(Course-Level Final Assessment)</span>
+                )}
+              </label>
               <select
                 name="lesson_id"
                 value={formData.lesson_id || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, lesson_id: e.target.value || null }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">No Lesson</option>
+                <option value="">Course-Level (Final Assessment)</option>
                 {lessonOptions.map(l => (
                   <option key={l.id} value={l.id}>{l.title}</option>
                 ))}
               </select>
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.quiz_type === 'graded' && !formData.lesson_id
+                  ? 'This quiz will appear at the end of the course as a final assessment'
+                  : formData.quiz_type === 'graded' && formData.lesson_id
+                  ? 'This quiz will be attached to the selected lesson'
+                  : 'Select a lesson to attach this quiz, or leave empty for course-level quiz'}
+              </p>
             </div>
           </div>
 
