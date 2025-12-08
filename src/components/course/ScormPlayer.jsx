@@ -42,6 +42,8 @@ const ScormPlayer = ({
   const [packageMetadata, setPackageMetadata] = useState(null);
   const [lastSaveTime, setLastSaveTime] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [loadingStartTime, setLoadingStartTime] = useState(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
 
   /**
    * Get properly formatted Supabase public URL
@@ -90,47 +92,34 @@ const ScormPlayer = ({
 const getPublicUrl = useCallback((urlOrPath) => {
   if (!urlOrPath) return null;
 
-  console.log('🔗 Original URL/Path:', urlOrPath);
-
   // If it's already a complete Supabase URL, extract the exact path
   if (urlOrPath.includes('supabase.co/storage/v1/object/public/')) {
-    console.log('✅ Already a Supabase public URL');
-    
     // Extract the exact path after '/public/'
     const fullPath = urlOrPath.split('/object/public/')[1];
-    console.log('📁 Full path from URL:', fullPath);
     
     // The path already includes the bucket name, so we need to split it
     const parts = fullPath.split('/');
     const bucketName = parts[0]; // This should be 'course-content'
     const filePath = parts.slice(1).join('/'); // This is the actual file path
     
-    console.log('📦 Bucket name:', bucketName);
-    console.log('🗂️ File path:', filePath);
-    
     // Use the exact path to generate URL
     const { data } = supabase.storage
       .from(bucketName)
       .getPublicUrl(filePath);
 
-    console.log('🌐 Regenerated public URL:', data.publicUrl);
     return data.publicUrl;
   }
 
   // If it's already a complete URL (but not Supabase), use it
   if (urlOrPath.startsWith('http://') || urlOrPath.startsWith('https://')) {
-    console.log('⚠️ External URL, using directly');
     return urlOrPath;
   }
 
   // For storage paths, use them exactly as provided
-  console.log('📁 Using provided path directly:', urlOrPath);
-  
   const { data } = supabase.storage
     .from('course-content')
     .getPublicUrl(urlOrPath);
 
-  console.log('🌐 Generated public URL:', data.publicUrl);
   return data.publicUrl;
 }, []);
   /**
@@ -179,8 +168,6 @@ const getPublicUrl = useCallback((urlOrPath) => {
  */
 const downloadScormPackage = useCallback(async (url) => {
   try {
-    console.log('⬇️ Downloading from:', url);
-
     // First, try a simple fetch with minimal headers
     const response = await fetch(url, {
       method: 'GET',
@@ -193,21 +180,11 @@ const downloadScormPackage = useCallback(async (url) => {
       credentials: 'omit'
     });
 
-    console.log('📥 Download response:', {
-      ok: response.ok,
-      status: response.status,
-      statusText: response.statusText,
-      contentType: response.headers.get('content-type'),
-      contentLength: response.headers.get('content-length'),
-      url: response.url
-    });
-
     if (!response.ok) {
       // Get detailed error message
       let errorBody = '';
       try {
         errorBody = await response.text();
-        console.error('❌ Error response body:', errorBody);
       } catch (e) {
         errorBody = 'Could not read error response';
       }
@@ -215,23 +192,7 @@ const downloadScormPackage = useCallback(async (url) => {
       throw new Error(`HTTP ${response.status}: ${response.statusText}. Details: ${errorBody}`);
     }
 
-    // Check if we got a valid ZIP file
-    const contentType = response.headers.get('content-type');
-    const contentLength = response.headers.get('content-length');
-    
-    console.log('📦 Response details:', {
-      contentType,
-      contentLength,
-      type: typeof contentType
-    });
-
     const blob = await response.blob();
-    
-    console.log('✅ Download successful:', {
-      blobSize: blob.size,
-      blobType: blob.type,
-      blobProperties: Object.keys(blob)
-    });
 
     if (blob.size === 0) {
       throw new Error('Downloaded file is empty (0 bytes)');
@@ -239,7 +200,6 @@ const downloadScormPackage = useCallback(async (url) => {
 
     // Verify it's a ZIP file (Supabase might return JSON errors as successful responses)
     if (blob.type && !blob.type.includes('application/zip') && !blob.type.includes('application/octet-stream')) {
-      console.warn('⚠️ Unexpected content type:', blob.type);
       // Try to read as text to see if it's an error message
       const text = await blob.text();
       if (text.includes('error') || text.includes('message')) {
@@ -249,7 +209,6 @@ const downloadScormPackage = useCallback(async (url) => {
 
     return blob;
   } catch (error) {
-    console.error('💥 Download error:', error);
     throw error;
   }
 }, []);
@@ -295,7 +254,7 @@ const downloadScormPackage = useCallback(async (url) => {
       
       return true;
     } catch (error) {
-      console.error('Error updating lesson progress:', error);
+      // Error updating lesson progress
       
       if (retryCount < 3 && mountedRef.current) {
         await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
@@ -343,7 +302,7 @@ const downloadScormPackage = useCallback(async (url) => {
         });
       }
     } catch (error) {
-      console.error('Error completing lesson:', error);
+      // Error completing lesson
       if (onError) onError(error);
     }
   }, [user?.id, lessonId, courseId, progress, status, scormData, actions, onComplete, onError, calculateSessionTime]);
@@ -356,12 +315,10 @@ const downloadScormPackage = useCallback(async (url) => {
 
     const scorm12API = {
       LMSInitialize: () => {
-        console.log('[SCORM 1.2] LMSInitialize');
         if (mountedRef.current) setStatus('incomplete');
         return 'true';
       },
       LMSFinish: () => {
-        console.log('[SCORM 1.2] LMSFinish');
         updateLessonProgress({ finished: true });
         return 'true';
       },
@@ -391,7 +348,6 @@ const downloadScormPackage = useCallback(async (url) => {
 
     const scorm2004API = {
       Initialize: () => {
-        console.log('[SCORM 2004] Initialize');
         if (mountedRef.current) setStatus('incomplete');
         return 'true';
       },
@@ -569,33 +525,6 @@ const downloadScormPackage = useCallback(async (url) => {
 //       if (onError) onError(error);
 //     }
 //   }, [downloadScormPackage, onError]);
-const extractAndDisplayScorm = useCallback(async (publicUrl) => {
-  if (!mountedRef.current) return;
-
-  try {
-    setLoadingStep('Downloading SCORM package...');
-    
-    // Try direct Supabase client download first
-    let zipBlob;
-    try {
-      // Extract the path from the URL or use the original scormUrl
-      const filePath = scormUrl.includes('supabase.co') 
-        ? scormUrl.split('/object/public/')[1]
-        : scormUrl;
-      
-      zipBlob = await downloadViaSupabaseClient(filePath);
-    } catch (supabaseError) {
-      console.log('Supabase client failed, falling back to public URL');
-      zipBlob = await downloadScormPackage(publicUrl);
-    }
-    
-    // Continue with the rest of your extraction logic...
-    // [Keep your existing extraction code here]
-    
-  } catch (error) {
-    // [Keep your existing error handling]
-  }
-}, [downloadScormPackage, scormUrl]);
   /**
    * Process SCORM package
    */
@@ -639,81 +568,525 @@ const extractAndDisplayScorm = useCallback(async (publicUrl) => {
 const processScormPackage = useCallback(async () => {
   if (!scormUrl || !mountedRef.current) return;
 
+  let zipBlobSize = 0;
+  let currentStep = 'Starting...';
+
+  const timeoutId = setTimeout(() => {
+    if (mountedRef.current) {
+      setError(`SCORM package loading timed out after 3 minutes. Current step: ${currentStep}. ${zipBlobSize > 0 ? `Package size: ${(zipBlobSize / 1024 / 1024).toFixed(2)} MB. ` : ''}The package may be too large or the connection is slow. Please try again or contact support.`);
+      setIsLoading(false);
+      setLoadingStep('');
+      if (onError) onError(new Error('Loading timeout'));
+    }
+  }, 180000); // 3 minute timeout (increased from 2 minutes)
+
   try {
     setIsLoading(true);
     setError(null);
+    setLoadingStartTime(Date.now());
+    setElapsedTime(0);
     setLoadingStep('Preparing download...');
-
-    console.log('=== SCORM Processing Started ===');
-    console.log('Input URL:', scormUrl);
 
     // Get the properly formatted public URL
     const publicUrl = getPublicUrl(scormUrl);
-    console.log('Public URL:', publicUrl);
 
     if (!publicUrl) {
+      clearTimeout(timeoutId);
       throw new Error('Could not generate valid URL from path');
     }
 
     // Extract the exact storage path for direct download
     let storagePath = scormUrl;
+    
+    // Handle public URLs: /storage/v1/object/public/course-content/path/to/file
     if (scormUrl.includes('supabase.co/storage/v1/object/public/')) {
       const fullPath = scormUrl.split('/object/public/')[1];
       const parts = fullPath.split('/');
       // Remove the bucket name to get just the file path
       storagePath = parts.slice(1).join('/');
+    } 
+    // Handle authenticated URLs: /storage/v1/object/course-content/path/to/file
+    else if (scormUrl.includes('supabase.co/storage/v1/object/')) {
+      const fullPath = scormUrl.split('/object/')[1];
+      const parts = fullPath.split('/');
+      // If first part is the bucket name, remove it
+      if (parts[0] === 'course-content') {
+        storagePath = parts.slice(1).join('/');
+      } else {
+        // If no bucket name, use the full path
+        storagePath = fullPath;
+      }
     }
-    
-    console.log('🗂️ Storage path for direct download:', storagePath);
+    // Fallback: try regex extraction for any Supabase URL format
+    else if (scormUrl.startsWith('http://') || scormUrl.startsWith('https://')) {
+      const urlMatch = scormUrl.match(/\/storage\/v1\/object\/(?:public\/)?([^?#]+)/);
+      if (urlMatch) {
+        const extractedPath = urlMatch[1];
+        const pathParts = extractedPath.split('/');
+        // If first part is the bucket name, remove it
+        if (pathParts[0] === 'course-content') {
+          storagePath = pathParts.slice(1).join('/');
+        } else {
+          storagePath = extractedPath;
+        }
+      }
+    }
 
     // Try direct Supabase download first with exact path
     setLoadingStep('Downloading SCORM package...');
     
     let zipBlob;
     try {
-      console.log('🔄 Attempting direct Supabase download...');
-      const { data, error } = await supabase.storage
+      const downloadPromise = supabase.storage
         .from('course-content')
         .download(storagePath);
 
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Download timeout after 60 seconds')), 60000)
+      );
+
+      const { data, error } = await Promise.race([downloadPromise, timeoutPromise]);
+
       if (error) {
-        console.error('❌ Supabase direct download failed:', error);
-        throw error;
+        // Provide more specific error messages for common errors
+        const errorMessage = error.message || error.toString();
+        const statusCode = error.statusCode || error.status || (errorMessage.includes('400') ? 400 : null);
+        
+        if (statusCode === 400 || errorMessage.includes('400') || errorMessage.includes('Bad Request')) {
+          // Try to list files in the directory to help diagnose the issue
+          const pathParts = storagePath.split('/');
+          const directory = pathParts.slice(0, -1).join('/');
+          const fileName = pathParts[pathParts.length - 1];
+          
+          let directoryInfo = '';
+          try {
+            const { data: files, error: listError } = await supabase.storage
+              .from('course-content')
+              .list(directory, { limit: 10 });
+            
+            if (!listError && files && files.length > 0) {
+              const fileNames = files.map(f => f.name).join(', ');
+              directoryInfo = ` Files found in directory: ${fileNames}.`;
+            }
+          } catch (listErr) {
+            // Ignore listing errors, just use the main error
+          }
+          
+          throw new Error(
+            `SCORM package file not found at path: ${storagePath}. ` +
+            `The file "${fileName}" may have been moved, deleted, or the path is incorrect.${directoryInfo} ` +
+            `Please verify the file exists in Supabase storage bucket "course-content" at path "${storagePath}". ` +
+            `If the file was recently uploaded, it may have a timestamp suffix in the filename.`
+          );
+        }
+        
+        if (statusCode === 404 || errorMessage.includes('404') || errorMessage.includes('Not Found')) {
+          throw new Error(
+            `SCORM package file not found at path: ${storagePath}. ` +
+            `Please verify the file exists in Supabase storage.`
+          );
+        }
+        
+        throw new Error(`Failed to download SCORM package: ${errorMessage}`);
       }
 
       if (!data) {
         throw new Error('No data received from Supabase storage');
       }
-
-      console.log('✅ Supabase direct download successful:', {
-        size: data.size,
-        type: data.type
-      });
       
       zipBlob = data;
+      zipBlobSize = zipBlob.size;
+      currentStep = 'Download complete';
+      setLoadingStep(`Downloaded ${(zipBlob.size / 1024 / 1024).toFixed(2)} MB`);
     } catch (supabaseError) {
-      console.log('🔄 Supabase client failed, falling back to public URL download');
-      zipBlob = await downloadScormPackage(publicUrl);
+      // If Supabase download fails, try public URL fetch
+      currentStep = 'Trying alternative download method...';
+      setLoadingStep('Trying alternative download method...');
+      
+      try {
+        const downloadPromise = downloadScormPackage(publicUrl);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Download timeout after 60 seconds')), 60000)
+        );
+        zipBlob = await Promise.race([downloadPromise, timeoutPromise]);
+        zipBlobSize = zipBlob.size;
+        currentStep = 'Download complete';
+        setLoadingStep(`Downloaded ${(zipBlob.size / 1024 / 1024).toFixed(2)} MB`);
+      } catch (fetchError) {
+        // Both methods failed - provide comprehensive error message
+        const errorMessage = supabaseError.message || supabaseError.toString();
+        const fetchErrorMessage = fetchError.message || fetchError.toString();
+        throw new Error(
+          `Failed to download SCORM package. ` +
+          `Storage error: ${errorMessage}. ` +
+          `Public URL error: ${fetchErrorMessage}. ` +
+          `Please verify the file exists at: ${storagePath}`
+        );
+      }
     }
 
-    // Continue with the rest of your processing...
-    // [Keep your existing code for parsing and displaying SCORM content]
+    if (!mountedRef.current) {
+      clearTimeout(timeoutId);
+      return;
+    }
+
+    // Small delay to ensure UI updates
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    if (!mountedRef.current) {
+      clearTimeout(timeoutId);
+      return;
+    }
+
+    // Update loading step before parsing
+    currentStep = 'Parsing SCORM manifest...';
+    setLoadingStep('Parsing SCORM manifest...');
     
-  } catch (error) {
-    // Improved error handling
-    const errorMessage = error?.message || 'Failed to load SCORM content';
-    setError(errorMessage);
+    // Force a UI update
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    if (!mountedRef.current) {
+      clearTimeout(timeoutId);
+      return;
+    }
+    
+    let parseResult;
+    try {
+      // Add timeout for parsing to prevent indefinite hanging
+      const parsePromise = (async () => {
+        const parser = new SCORMPackageParser(zipBlob);
+        return await parser.parse();
+      })();
+      
+      const parseTimeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Parsing timeout after 30 seconds. The SCORM package may be corrupted or too complex.')), 30000)
+      );
+      
+      parseResult = await Promise.race([parsePromise, parseTimeoutPromise]);
+      
+      // Update step after successful parsing
+      currentStep = 'Manifest parsed successfully';
+      setLoadingStep('Manifest parsed, extracting content...');
+    } catch (parseError) {
+      throw new Error(`Failed to parse SCORM manifest: ${parseError.message || 'Unknown parsing error'}`);
+    }
+    
+    if (!parseResult || !parseResult.isValid) {
+      throw new Error(`Invalid SCORM package: ${parseResult?.error || 'Unknown error'}`);
+    }
+    
+    if (!mountedRef.current) {
+      clearTimeout(timeoutId);
+      return;
+    }
+    
+    setScormVersion(parseResult.version);
+    setPackageMetadata(parseResult.packageData);
+    
+    const entryPoint = parseResult.packageData?.launchUrl;
+    if (!entryPoint) {
+      clearTimeout(timeoutId);
+      throw new Error('No launch URL found in manifest');
+    }
+    
+    currentStep = 'Extracting content...';
+    setLoadingStep('Extracting content from ZIP...');
+    
+    // Force UI update
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    if (!mountedRef.current) {
+      clearTimeout(timeoutId);
+      return;
+    }
+    
+    // Add timeout for ZIP loading
+    const zipLoadPromise = (async () => {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      return await zip.loadAsync(zipBlob);
+    })();
+    
+    const zipLoadTimeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('ZIP extraction timeout after 30 seconds')), 30000)
+    );
+    
+    const zipContent = await Promise.race([zipLoadPromise, zipLoadTimeoutPromise]);
+    
+    const entryFile = zipContent.files[entryPoint];
+    if (!entryFile) {
+      throw new Error(`Entry file not found: ${entryPoint}`);
+    }
+    
+    // Get the directory of the entry point
+    const entryDir = entryPoint.substring(0, entryPoint.lastIndexOf('/') + 1);
+    
+    // Extract entry file content first to find referenced assets
+    const entryContent = await entryFile.async('text');
+    
+    if (!mountedRef.current) {
+      clearTimeout(timeoutId);
+      return;
+    }
+    
+    // Extract only necessary files (entry file and assets referenced in HTML)
+    // This is much faster than extracting all files
+    const fileMap = {};
+    const blobUrlsToCleanup = [];
+    
+    // Find referenced files in the HTML (CSS, JS, images, etc.)
+    const assetPatterns = [
+      /href=["']([^"']+\.(css|ico))["']/gi,
+      /src=["']([^"']+\.(js|jpg|jpeg|png|gif|svg|webp|mp4|mp3|wav|ogg))["']/gi,
+      /url\(["']?([^"')]+)["']?\)/gi,
+      /background=["']([^"']+)["']/gi
+    ];
+    
+    const referencedFiles = new Set();
+    assetPatterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(entryContent)) !== null) {
+        const filePath = match[1] || match[0];
+        if (filePath && !filePath.startsWith('http') && !filePath.startsWith('data:')) {
+          // Resolve relative paths
+          let resolved = filePath;
+          if (filePath.startsWith('./')) {
+            resolved = entryDir + filePath.substring(2);
+          } else if (filePath.startsWith('../')) {
+            const pathParts = entryDir.split('/').filter(p => p);
+            pathParts.pop();
+            resolved = pathParts.join('/') + '/' + filePath.substring(3);
+          } else if (!filePath.startsWith('/')) {
+            resolved = entryDir + filePath;
+          } else {
+            resolved = filePath.substring(1);
+          }
+          resolved = resolved.replace(/\/+/g, '/').replace(/^\/+/, '');
+          referencedFiles.add(resolved);
+        }
+      }
+    });
+    
+    // Also include files in the same directory as entry point
+    Object.keys(zipContent.files).forEach(path => {
+      if (path.startsWith(entryDir) && !zipContent.files[path].dir) {
+        const relativePath = path.replace(entryDir, '');
+        if (relativePath && !relativePath.includes('/')) {
+          referencedFiles.add(path);
+        }
+      }
+    });
+    
+    // Extract only referenced files and common asset types
+    // Use parallel extraction for better performance
+    currentStep = `Extracting ${referencedFiles.size} files...`;
+    setLoadingStep(`Extracting ${referencedFiles.size} files...`);
+    
+    const totalFiles = referencedFiles.size;
+    const extractionPromises = [];
+    
+    for (const relativePath of referencedFiles) {
+      const file = zipContent.files[relativePath];
+      if (!file || file.dir) continue;
+      
+      const extractionPromise = (async () => {
+        try {
+          let blob;
+          const fileExtension = relativePath.split('.').pop()?.toLowerCase() || '';
+          
+          if (['css', 'js', 'html', 'htm', 'xml', 'json', 'txt'].includes(fileExtension)) {
+            const text = await file.async('text');
+            const mimeType = fileExtension === 'css' ? 'text/css' :
+                            fileExtension === 'js' ? 'application/javascript' :
+                            fileExtension === 'html' || fileExtension === 'htm' ? 'text/html' :
+                            fileExtension === 'xml' ? 'application/xml' :
+                            fileExtension === 'json' ? 'application/json' : 'text/plain';
+            blob = new Blob([text], { type: mimeType });
+          } else {
+            blob = await file.async('blob');
+          }
+          
+          const blobUrl = URL.createObjectURL(blob);
+          return { path: relativePath, url: blobUrl };
+        } catch (err) {
+          // Skip files that can't be extracted
+          return null;
+        }
+      })();
+      
+      extractionPromises.push(extractionPromise);
+    }
+    
+    // Extract files in parallel with progress updates
+    let completedCount = 0;
+    const progressInterval = setInterval(() => {
+      if (mountedRef.current && completedCount < totalFiles) {
+        currentStep = `Extracting files... (${completedCount}/${totalFiles})`;
+        setLoadingStep(`Extracting files... (${completedCount}/${totalFiles})`);
+      }
+    }, 500);
+    
+    try {
+      const results = await Promise.all(extractionPromises);
+      
+      if (!mountedRef.current) {
+        clearTimeout(timeoutId);
+        clearInterval(progressInterval);
+        return;
+      }
+      
+      results.forEach(result => {
+        if (result) {
+          fileMap[result.path] = result.url;
+          blobUrlsToCleanup.push(result.url);
+        }
+      });
+      
+      completedCount = totalFiles;
+    } finally {
+      clearInterval(progressInterval);
+    }
+    
+    // Also extract the entry file itself
+    const entryBlob = new Blob([entryContent], { type: 'text/html' });
+    const entryBlobUrl = URL.createObjectURL(entryBlob);
+    fileMap[entryPoint] = entryBlobUrl;
+    blobUrlsToCleanup.push(entryBlobUrl);
+    
+    // Rewrite HTML content to use absolute blob URLs for assets
+    let processedContent = entryContent;
+    
+    // Simple regex-based replacement for common asset references
+    // Replace relative paths in src, href, and url() references
+    processedContent = processedContent.replace(
+      /(src|href|url\(['"]?)(\.\/|\.\.\/)?([^'")\s]+)(['"]?\)?)/gi,
+      (match, prefix, relPath, filePath, suffix) => {
+        // Skip if already absolute URL
+        if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('data:')) {
+          return match;
+        }
+        
+        // Resolve relative path
+        let resolvedPath = filePath;
+        if (relPath) {
+          const pathParts = entryDir.split('/').filter(p => p);
+          if (relPath === '../') {
+            pathParts.pop();
+          }
+          resolvedPath = pathParts.join('/') + '/' + filePath;
+        } else if (!filePath.startsWith('/')) {
+          resolvedPath = entryDir + filePath;
+        }
+        
+        // Normalize path
+        resolvedPath = resolvedPath.replace(/\/+/g, '/').replace(/^\/+/, '');
+        
+        // Replace with blob URL if available
+        if (fileMap[resolvedPath]) {
+          return prefix + fileMap[resolvedPath] + suffix;
+        }
+        
+        return match;
+      }
+    );
+    
+    // Create HTML with file map for dynamic loading
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${parseResult.packageData?.title || 'SCORM Content'}</title>
+  <script>
+    // File map for accessing extracted files
+    window.__scormFileMap = ${JSON.stringify(fileMap)};
+    window.__scormBaseDir = '${entryDir}';
+    
+    // Helper to resolve file paths
+    window.__scormResolvePath = function(path) {
+      if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+        return path;
+      }
+      const baseDir = window.__scormBaseDir;
+      let resolved = path.startsWith('/') ? path.substring(1) : baseDir + path;
+      resolved = resolved.replace(/\\/\\.\\//g, '/').replace(/\\/\\.\\.\\//g, '/');
+      return window.__scormFileMap[resolved] || path;
+    };
+    
+    // Override fetch to serve from blob URLs
+    const originalFetch = window.fetch;
+    window.fetch = function(url, options) {
+      if (typeof url === 'string' && !url.startsWith('http') && !url.startsWith('data:')) {
+        const resolved = window.__scormResolvePath(url);
+        if (resolved !== url && resolved.startsWith('blob:')) {
+          return originalFetch(resolved, options);
+        }
+      }
+      return originalFetch(url, options);
+    };
+    
+    // Fix asset URLs after DOM loads
+    document.addEventListener('DOMContentLoaded', function() {
+      const fixUrls = function() {
+        document.querySelectorAll('img[src], link[href], script[src], source[src]').forEach(el => {
+          const attr = el.hasAttribute('src') ? 'src' : 'href';
+          const url = el.getAttribute(attr);
+          if (url && !url.startsWith('http') && !url.startsWith('data:') && !url.startsWith('blob:')) {
+            const resolved = window.__scormResolvePath(url);
+            if (resolved !== url) {
+              el.setAttribute(attr, resolved);
+            }
+          }
+        });
+      };
+      fixUrls();
+      setTimeout(fixUrls, 100);
+      setTimeout(fixUrls, 500);
+    });
+  </script>
+</head>
+<body>
+  ${processedContent}
+</body>
+</html>`;
+    
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const contentUrl = URL.createObjectURL(blob);
+    
+    // Store blob URLs for cleanup
+    clearTimeout(timeoutId);
+    
+    if (mountedRef.current) {
+      setScormContentUrl(contentUrl);
     setIsLoading(false);
     setLoadingStep('');
     
-    if (onError) {
-      onError(error);
+      // Store blob URLs for cleanup on unmount
+      if (!window.__scormBlobUrls) {
+        window.__scormBlobUrls = [];
+      }
+      window.__scormBlobUrls.push(...blobUrlsToCleanup);
+    } else {
+      URL.revokeObjectURL(contentUrl);
+      blobUrlsToCleanup.forEach(url => URL.revokeObjectURL(url));
     }
     
-    // Log error for debugging
-    if (error) {
-      // Error logging removed per project rules
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (!mountedRef.current) return;
+    
+    let errorMessage = error.message || error.toString() || 'Failed to load SCORM package: Unknown error occurred.';
+    
+    // If the error message already contains detailed information, use it as-is
+    // Otherwise, add context
+    if (!errorMessage.includes('SCORM package') && !errorMessage.includes('Failed to download')) {
+      errorMessage = `Failed to load SCORM package: ${errorMessage}`;
     }
+    
+    setError(errorMessage);
+    setIsLoading(false);
+    setLoadingStep('');
+    if (onError) onError(error);
   }
 }, [scormUrl, getPublicUrl, downloadScormPackage, onError]);
   /**
@@ -724,6 +1097,7 @@ const processScormPackage = useCallback(async () => {
       isInitializedRef.current = true;
       processScormPackage();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scormUrl]);
 
   /**
@@ -764,7 +1138,6 @@ const processScormPackage = useCallback(async () => {
           try {
             iframe.contentWindow.API = apis.scorm12API;
             iframe.contentWindow.API_1484_11 = apis.scorm2004API;
-            console.log('✓ SCORM APIs injected');
             
             if (scormVersion === '2004') {
               apis.scorm2004API.Initialize('');
@@ -772,11 +1145,11 @@ const processScormPackage = useCallback(async () => {
               apis.scorm12API.LMSInitialize('');
             }
           } catch (e) {
-            console.warn('Cross-origin blocked (expected)');
+            // Cross-origin blocked (expected)
           }
         }
       } catch (error) {
-        console.error('API init error:', error);
+        // API init error
       }
     };
 
@@ -805,6 +1178,18 @@ const processScormPackage = useCallback(async () => {
       
       if (scormContentUrl?.startsWith('blob:')) {
         URL.revokeObjectURL(scormContentUrl);
+      }
+      
+      // Cleanup all SCORM blob URLs
+      if (window.__scormBlobUrls) {
+        window.__scormBlobUrls.forEach(url => {
+          try {
+            URL.revokeObjectURL(url);
+          } catch (e) {
+            // Ignore errors during cleanup
+          }
+        });
+        window.__scormBlobUrls = [];
       }
     };
   }, [scormContentUrl, scormVersion]);
@@ -865,16 +1250,55 @@ const processScormPackage = useCallback(async () => {
     );
   }
 
+  // Update elapsed time while loading
+  useEffect(() => {
+    if (!isLoading || !loadingStartTime) return;
+    
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - loadingStartTime) / 1000);
+      setElapsedTime(elapsed);
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [isLoading, loadingStartTime]);
+
   if (isLoading) {
+    const minutes = Math.floor(elapsedTime / 60);
+    const seconds = elapsedTime % 60;
+    const timeDisplay = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+    
     return (
       <div className="flex items-center justify-center min-h-[400px] bg-gray-50 border border-gray-200 rounded-lg p-8">
-        <div className="text-center">
+        <div className="text-center max-w-md">
           <div className="relative w-16 h-16 mx-auto mb-4">
             <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
             <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
           </div>
           <p className="text-lg font-medium text-gray-700 mb-2">Loading SCORM content...</p>
-          {loadingStep && <p className="text-sm text-gray-500">{loadingStep}</p>}
+          {loadingStep && (
+            <p className="text-sm text-gray-600 mb-2">{loadingStep}</p>
+          )}
+          <p className="text-xs text-gray-500 mt-4">
+            Elapsed time: {timeDisplay}
+            {elapsedTime > 60 && (
+              <span className="block mt-1 text-orange-600">
+                This is taking longer than usual. Large packages may take 2-3 minutes.
+              </span>
+            )}
+          </p>
+          {elapsedTime > 120 && (
+            <button
+              onClick={() => {
+                setError('Loading cancelled by user');
+                setIsLoading(false);
+                setLoadingStep('');
+                if (onError) onError(new Error('Loading cancelled'));
+              }}
+              className="mt-4 px-4 py-2 text-sm text-red-600 hover:text-red-700 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+            >
+              Cancel Loading
+            </button>
+          )}
         </div>
       </div>
     );
@@ -884,43 +1308,6 @@ const processScormPackage = useCallback(async () => {
 
   return (
     <div className="scorm-player-container space-y-4">
-      {/* Add this debug section temporarily */}
-<div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
-  <p className="text-sm text-yellow-800 mb-2 font-semibold">Debug Tools:</p>
-  <div className="flex gap-2 flex-wrap">
-    <button
-      onClick={debugStorageContents}
-      className="px-3 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700"
-    >
-      Check Storage Contents
-    </button>
-    <button
-      onClick={() => {
-        const publicUrl = getPublicUrl(scormUrl);
-        console.log('Generated URL:', publicUrl);
-        window.open(publicUrl, '_blank');
-      }}
-      className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-    >
-      Test URL in New Tab
-    </button>
-    <button
-      onClick={async () => {
-        const path = scormUrl.includes('supabase.co/storage/v1/object/public/') 
-          ? scormUrl.split('/object/public/')[1]
-          : scormUrl;
-        console.log('Testing direct download for path:', path);
-        const { data, error } = await supabase.storage
-          .from('course-content')
-          .download(path);
-        console.log('Direct download result:', { data, error });
-      }}
-      className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
-    >
-      Test Direct Download
-    </button>
-  </div>
-</div>
       {scormContentUrl && (
         <div className="relative rounded-lg overflow-hidden border border-gray-200 shadow-sm">
           <iframe
