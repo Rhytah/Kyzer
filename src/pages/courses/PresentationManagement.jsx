@@ -1,5 +1,5 @@
 // src/pages/courses/PresentationManagement.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCourseStore } from '@/store/courseStore';
 import { useAuth } from '@/hooks/auth/useAuth';
@@ -45,40 +45,54 @@ export default function PresentationManagement() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSlideDetails, setShowSlideDetails] = useState(false);
 
-  const fetchLesson = useCourseStore(state => state.actions.fetchLesson);
-  const fetchPresentationByLesson = useCourseStore(state => state.actions.fetchPresentationByLesson);
-  const deletePresentation = useCourseStore(state => state.actions.deletePresentation);
-  const testPresentationTables = useCourseStore(state => state.actions.testPresentationTables);
+  // Track if data has been loaded to prevent infinite loops
+  const dataLoadedRef = useRef({ lessonId: null });
+  const isLoadingRef = useRef(false);
 
   // Function to refresh presentation data
   const refreshPresentationData = async () => {
     if (!lessonId) return;
     
     try {
-      const presentationResult = await fetchPresentationByLesson(lessonId);
+      const { actions } = useCourseStore.getState();
+      const presentationResult = await actions.fetchPresentationByLesson(lessonId);
       if (presentationResult.error) {
-        console.log('No presentation found for lesson:', lessonId);
         setPresentation(null);
       } else if (presentationResult.data) {
         setPresentation(presentationResult.data);
       }
     } catch (err) {
-      console.error('Failed to refresh presentation data:', err);
+      // Handle error silently
     }
   };
 
   useEffect(() => {
+    // Early return if no lessonId
+    if (!lessonId) {
+      showError('No lesson ID provided');
+      return;
+    }
+
+    // Prevent re-fetching if we've already loaded data for this lesson
+    if (dataLoadedRef.current.lessonId === lessonId) {
+      return;
+    }
+
+    // Prevent concurrent loads
+    if (isLoadingRef.current) {
+      return;
+    }
+
     const loadData = async () => {
-      if (!lessonId) {
-        showError('No lesson ID provided');
-        return;
-      }
-      
+      isLoadingRef.current = true;
       try {
         setLoading(true);
         
+        // Get actions from store directly to avoid dependency issues
+        const { actions } = useCourseStore.getState();
+        
         // Fetch lesson details
-        const lessonResult = await fetchLesson(lessonId);
+        const lessonResult = await actions.fetchLesson(lessonId);
         if (lessonResult.error) {
           showError('Failed to load lesson: ' + lessonResult.error);
           setLoading(false);
@@ -94,22 +108,28 @@ export default function PresentationManagement() {
         setLesson(lessonResult.data);
 
         // Fetch presentation if it exists
-        const presentationResult = await fetchPresentationByLesson(lessonId);
+        const presentationResult = await actions.fetchPresentationByLesson(lessonId);
         if (presentationResult.error) {
           // Don't show error for missing presentation, it's optional
-          console.log('No presentation found for lesson:', lessonId);
+          setPresentation(null);
         } else if (presentationResult.data) {
           setPresentation(presentationResult.data);
         }
+        
+        // Mark data as loaded for this lesson
+        dataLoadedRef.current = { lessonId };
+        setLoading(false);
       } catch (err) {
         showError('Failed to load data: ' + err.message);
-      } finally {
         setLoading(false);
+        // Don't mark as loaded on error - allow retry on next render
+      } finally {
+        isLoadingRef.current = false;
       }
     };
 
     loadData();
-  }, [lessonId, fetchLesson, fetchPresentationByLesson, showError]);
+  }, [lessonId]);
 
   const handleCreatePresentation = () => {
     setShowForm(true);
@@ -127,7 +147,8 @@ export default function PresentationManagement() {
     }
 
     try {
-      const result = await deletePresentation(presentation.id);
+      const { actions } = useCourseStore.getState();
+      const result = await actions.deletePresentation(presentation.id);
       if (result.error) {
         showError('Failed to delete presentation: ' + result.error);
         return;
@@ -141,8 +162,6 @@ export default function PresentationManagement() {
   };
 
   const handleFormSuccess = (newPresentation) => {
-    console.log('🎯 PresentationManagement: handleFormSuccess called - this will close the form and return to overview');
-    console.log('🎯 PresentationManagement: New presentation data:', newPresentation);
     setPresentation(newPresentation);
     setShowForm(false);
     success('Presentation saved successfully');
@@ -191,7 +210,8 @@ export default function PresentationManagement() {
 
   if (!lesson) {
     const handleTestDatabase = async () => {
-      const result = await testPresentationTables();
+      const { actions } = useCourseStore.getState();
+      const result = await actions.testPresentationTables();
       if (result.success) {
         success('Database tables are working correctly!');
       } else {

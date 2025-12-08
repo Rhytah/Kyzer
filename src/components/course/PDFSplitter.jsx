@@ -49,14 +49,18 @@ const PDFSplitter = ({
   const [selectedFormat] = useState('slideshow'); // Always slideshow
   const [formatSettings] = useState({}); // No settings needed for slideshow
   const [previewImage, setPreviewImage] = useState(null);
-
-  // Debug logging for initialization
-  console.log('PDFSplitter initialized with:', {
-    hasInitialPdfFile: !!initialPdfFile,
-    hasInitialSplitData: !!initialSplitData,
-    initialStep: initialSplitData ? 'arrange' : 'upload',
-    imagesCount: images.length
-  });
+  
+  // Track if initial PDF has been processed to prevent infinite loops
+  const hasProcessedInitialPdfRef = useRef(false);
+  const lastInitialPdfFileRef = useRef(initialPdfFile);
+  
+  // Reset the processed flag if initialPdfFile changes
+  useEffect(() => {
+    if (lastInitialPdfFileRef.current !== initialPdfFile) {
+      hasProcessedInitialPdfRef.current = false;
+      lastInitialPdfFileRef.current = initialPdfFile;
+    }
+  }, [initialPdfFile]);
 
   const handleFileSelect = useCallback(async (file) => {
     if (!file) return;
@@ -77,8 +81,6 @@ const PDFSplitter = ({
     setProcessingProgress(0);
 
     try {
-      console.log('Starting PDF processing for file:', file.name);
-      
       // Simulate progress updates
       const progressInterval = setInterval(() => {
         setProcessingProgress(prev => {
@@ -90,15 +92,11 @@ const PDFSplitter = ({
         });
       }, 200);
 
-      console.log('Calling processPdfToImages with courseId:', courseId);
       const processedImages = await processPdfToImages(file, courseId, {
         scale: 2.0,
         format: 'image/jpeg',
         quality: 0.8
       });
-      
-      console.log('PDF processing completed, images:', processedImages.length);
-      console.log('First image data:', processedImages[0]);
 
       clearInterval(progressInterval);
       setProcessingProgress(100);
@@ -116,24 +114,31 @@ const PDFSplitter = ({
       setCurrentStep('arrange');
       
     } catch (error) {
-      console.error('PDF processing failed:', error);
       showError(`Failed to process PDF: ${error.message}`);
       setIsProcessing(false);
       setCurrentStep('upload');
     } finally {
       setIsProcessing(false);
     }
-  }, [courseId, showError, success, images, initialSplitData]);
+  }, [courseId, showError, success, initialSplitData]);
 
   // Auto-process initial PDF file if provided (only for new splits, not editing)
   useEffect(() => {
-    if (initialPdfFile && !initialSplitData && currentStep === 'upload' && images.length === 0) {
-      console.log('Auto-processing initial PDF file for new split');
+    if (
+      initialPdfFile && 
+      !initialSplitData && 
+      currentStep === 'upload' && 
+      images.length === 0 &&
+      !hasProcessedInitialPdfRef.current
+    ) {
+      hasProcessedInitialPdfRef.current = true;
       handleFileSelect(initialPdfFile);
     }
-  }, [initialPdfFile, initialSplitData, currentStep, handleFileSelect, images.length]);
+    // Only depend on initialPdfFile and initialSplitData - other values are checked inside
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPdfFile, initialSplitData]);
 
-  // Cleanup blob URLs on unmount to prevent memory leaks
+  // Cleanup blob URLs on unmount or when images change to prevent memory leaks
   useEffect(() => {
     return () => {
       images.forEach(img => {
@@ -142,7 +147,7 @@ const PDFSplitter = ({
         }
       });
     };
-  }, []);
+  }, [images]);
 
   const handleImagesChange = useCallback((newImages) => {
     setImages(newImages);
