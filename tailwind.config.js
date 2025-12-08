@@ -46,7 +46,7 @@ export default {
         sans: ['Inter', 'system-ui', 'sans-serif']
       },
       maxWidth: {
-        '8xl': '1408px', // 88rem - for wide content areas like course management
+        '8xl': '80%', // 88rem - for wide content areas like course management
       }
     },
   },

@@ -824,72 +824,82 @@ export default function MyCourses() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {/* Total Enrolled - Blue */}
-        <Card className="p-6 border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50 to-blue-100/50 hover:shadow-lg transition-all duration-300">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-blue-500 rounded-lg">
-              <BookOpen className="w-6 h-6 text-white" />
+        <Card className="p-4 bg-background-white border border-blue-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-blue-500 rounded-lg">
+              <BookOpen className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1">
+              <div className="text-2xl font-bold text-blue-600 mb-1">
+                {courses.length}
+              </div>
+              <div className="text-xs font-medium text-text-medium">Total Enrolled</div>
             </div>
           </div>
-          <div className="text-3xl font-bold text-blue-700 mb-2">
-            {courses.length}
-          </div>
-          <div className="text-sm font-medium text-blue-600">Total Enrolled</div>
         </Card>
         
         {/* In Progress - Orange/Yellow */}
-        <Card className="p-6 border-l-4 border-l-orange-500 bg-gradient-to-br from-orange-50 to-orange-100/50 hover:shadow-lg transition-all duration-300">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-orange-500 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-white" />
+        <Card className="p-4 bg-background-white border border-orange-200 hover:border-orange-300 hover:shadow-md transition-all duration-200">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-orange-500 rounded-lg">
+              <TrendingUp className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1">
+              <div className="text-2xl font-bold text-orange-600 mb-1">
+                {courses.filter(c => (c.progress_percentage || 0) > 0 && (c.progress_percentage || 0) < 100).length}
+              </div>
+              <div className="text-xs font-medium text-text-medium">In Progress</div>
             </div>
           </div>
-          <div className="text-3xl font-bold text-orange-700 mb-2">
-            {courses.filter(c => (c.progress_percentage || 0) > 0 && (c.progress_percentage || 0) < 100).length}
-          </div>
-          <div className="text-sm font-medium text-orange-600">In Progress</div>
         </Card>
         
         {/* Completed - Green */}
-        <Card className="p-6 border-l-4 border-l-green-500 bg-gradient-to-br from-green-50 to-green-100/50 hover:shadow-lg transition-all duration-300">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-green-500 rounded-lg">
-              <Award className="w-6 h-6 text-white" />
+        <Card className="p-4 bg-background-white border border-green-200 hover:border-green-300 hover:shadow-md transition-all duration-200">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-green-500 rounded-lg">
+              <Award className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1">
+              <div className="text-2xl font-bold text-green-600 mb-1">
+                {courses.filter(c => c.progress_percentage === 100).length}
+              </div>
+              <div className="text-xs font-medium text-text-medium">Completed</div>
             </div>
           </div>
-          <div className="text-3xl font-bold text-green-700 mb-2">
-            {courses.filter(c => c.progress_percentage === 100).length}
-          </div>
-          <div className="text-sm font-medium text-green-600">Completed</div>
         </Card>
         
         {/* Total Duration - Purple/Indigo */}
-        <Card className="p-6 border-l-4 border-l-indigo-500 bg-gradient-to-br from-indigo-50 to-indigo-100/50 hover:shadow-lg transition-all duration-300">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-indigo-500 rounded-lg">
-              <Clock className="w-6 h-6 text-white" />
+        <Card className="p-4 bg-background-white border border-indigo-200 hover:border-indigo-300 hover:shadow-md transition-all duration-200">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-indigo-500 rounded-lg">
+              <Clock className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1">
+              <div className="text-2xl font-bold text-indigo-600 mb-1">
+                {formatDuration(courses.reduce((total, course) => total + (course.duration_minutes || 0), 0))}
+              </div>
+              <div className="text-xs font-medium text-text-medium">Total Duration</div>
             </div>
           </div>
-          <div className="text-3xl font-bold text-indigo-700 mb-2">
-            {formatDuration(courses.reduce((total, course) => total + (course.duration_minutes || 0), 0))}
-          </div>
-          <div className="text-sm font-medium text-indigo-600">Total Duration</div>
         </Card>
         
         {/* Learning Streak - Red/Orange */}
-        <Card className="p-6 border-l-4 border-l-red-500 bg-gradient-to-br from-red-50 to-orange-100/50 hover:shadow-lg transition-all duration-300">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg">
-              <Flame className="w-6 h-6 text-white" />
+        <Card className="p-4 bg-background-white border border-red-200 hover:border-red-300 hover:shadow-md transition-all duration-200">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg">
+              <Flame className="w-4 h-4 text-white" />
             </div>
-          </div>
-          <div className="text-3xl font-bold text-red-700 mb-2">
-            {streakData.currentStreak}
-          </div>
-          <div className="text-sm font-medium text-red-600 mb-1">Day Streak</div>
-          <div className="text-xs text-red-500">
-            Best: {streakData.bestStreak} days
+            <div className="flex-1">
+              <div className="text-2xl font-bold text-red-600 mb-1">
+                {streakData.currentStreak}
+              </div>
+              <div className="text-xs font-medium text-text-medium">Day Streak</div>
+              <div className="text-xs text-text-light mt-0.5">
+                Best: {streakData.bestStreak} days
+              </div>
+            </div>
           </div>
         </Card>
       </div>
