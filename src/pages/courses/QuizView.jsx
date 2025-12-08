@@ -51,30 +51,56 @@ const QuizView = () => {
   
   const quizTimerRef = useRef(null);
   const quizBlockRef = useRef(null);
+  
+  // Track if data has been loaded to prevent infinite loops
+  const dataLoadedRef = useRef({ courseId: null, quizId: null });
+  const isLoadingRef = useRef(false);
 
   // Load course and quiz data
   useEffect(() => {
+    // Early return if no courseId or quizId
+    if (!courseId || !quizId) {
+      return;
+    }
+
+    // Prevent re-fetching if we've already loaded data for this course/quiz
+    if (dataLoadedRef.current.courseId === courseId && dataLoadedRef.current.quizId === quizId) {
+      return;
+    }
+
+    // Prevent concurrent loads
+    if (isLoadingRef.current) {
+      return;
+    }
+
     const loadQuizData = async () => {
+      isLoadingRef.current = true;
       try {
         setLoading(true);
         
+        // Get current courses from store directly to avoid dependency issues
+        const { courses: coursesFromStore, actions: storeActions } = useCourseStore.getState();
+        
         // Fetch courses if not already loaded
-        if (courses.length === 0) {
+        let coursesToUse = coursesFromStore;
+        if (coursesToUse.length === 0) {
           if (user?.id) {
-            await actions.fetchCourses({}, user.id);
+            await storeActions.fetchCourses({}, user.id);
           } else {
-            await actions.fetchCourses();
+            await storeActions.fetchCourses();
           }
+          // Get fresh courses after fetch
+          coursesToUse = useCourseStore.getState().courses;
         }
         
         // Find the current course
-        const foundCourse = courses.find(c => c.id === courseId);
+        const foundCourse = coursesToUse.find(c => c.id === courseId);
         if (foundCourse) {
           setCourse(foundCourse);
-          actions.setCurrentCourse(foundCourse);
+          storeActions.setCurrentCourse(foundCourse);
           
           // Fetch course lessons
-          const { data: fetchedLessons } = await actions.fetchCourseLessons(courseId);
+          const { data: fetchedLessons } = await storeActions.fetchCourseLessons(courseId);
           if (fetchedLessons && Object.keys(fetchedLessons).length > 0) {
             const flatLessons = [];
             Object.values(fetchedLessons).forEach(moduleData => {
@@ -87,7 +113,7 @@ const QuizView = () => {
           }
           
           // Fetch all quizzes for the course
-          const { data: courseQuizzes } = await actions.fetchQuizzes(courseId);
+          const { data: courseQuizzes } = await storeActions.fetchQuizzes(courseId);
           if (courseQuizzes && Array.isArray(courseQuizzes)) {
             setQuizzes(courseQuizzes);
             
@@ -97,37 +123,40 @@ const QuizView = () => {
               setQuiz(foundQuiz);
               
               // Fetch quiz questions
-              const { data: questions } = await actions.fetchQuizQuestions(quizId);
+              const { data: questions } = await storeActions.fetchQuizQuestions(quizId);
               setQuizQuestions(questions || []);
               
               // Check if quiz is completed
               if (user?.id) {
                 try {
-                  const { data: progress } = await actions.fetchCourseProgress(user.id, courseId);
+                  const { data: progress } = await storeActions.fetchCourseProgress(user.id, courseId);
                   const quizProgress = progress?.quiz_completions?.[quizId];
                   if (quizProgress?.completed) {
                     setQuizCompleted(true);
                     setQuizCompletionData(quizProgress);
                   }
                 } catch (err) {
-                  console.log('No quiz progress found');
+                  // No quiz progress found - this is normal
                 }
               }
             }
           }
         }
-      } catch (error) {
-        console.error('Error loading quiz data:', error);
-        showError('Failed to load quiz data');
-      } finally {
+        
+        // Mark data as loaded for this course/quiz combination
+        dataLoadedRef.current = { courseId, quizId };
         setLoading(false);
+      } catch (error) {
+        // Handle error silently or set error state if needed
+        setLoading(false);
+        // Don't mark as loaded on error - allow retry on next render
+      } finally {
+        isLoadingRef.current = false;
       }
     };
 
-    if (courseId && quizId) {
-      loadQuizData();
-    }
-  }, [courseId, quizId, courses, user?.id, actions, showError]);
+    loadQuizData();
+  }, [courseId, quizId, user?.id]);
 
   useEffect(() => {
     if (quiz && quiz.quiz_type === 'non_graded' && !quizStarted && !quizCompleted) {

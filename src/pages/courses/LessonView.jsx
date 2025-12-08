@@ -319,21 +319,48 @@ export default function LessonView() {
     return () => clearTimeout(timeoutId)
   }, [activeKnowledgeCheckId])
 
+  // Track if data has been loaded to prevent infinite loops
+  const dataLoadedRef = useRef({ courseId: null, lessonId: null });
+  const isLoadingRef = useRef(false);
+
   // Load course and lesson data from store
   useEffect(() => {
+    // Early return if no courseId or lessonId
+    if (!courseId || !lessonId) {
+      return;
+    }
+
+    // Prevent re-fetching if we've already loaded data for this course/lesson
+    if (dataLoadedRef.current.courseId === courseId && dataLoadedRef.current.lessonId === lessonId) {
+      return;
+    }
+
+    // Prevent concurrent loads
+    if (isLoadingRef.current) {
+      return;
+    }
+
+    // Set loading state when courseId or lessonId changes
+    // This happens when navigating to a new course/lesson
+    setLoading(true);
+
     const loadCourseData = async () => {
+      isLoadingRef.current = true;
       try {
-        // Fetch courses if not already loaded
-        if (courses.length === 0) {
+        // Get current courses from store directly to avoid dependency issues
+        let coursesToUse = useCourseStore.getState().courses;
+        if (coursesToUse.length === 0) {
           if (user?.id) {
             await actions.fetchCourses({}, user.id)
           } else {
             await actions.fetchCourses()
           }
+          // Get fresh courses after fetch
+          coursesToUse = useCourseStore.getState().courses;
         }
         
         // Find the current course
-        const foundCourse = courses.find(c => c.id === courseId)
+        const foundCourse = coursesToUse.find(c => c.id === courseId)
         if (foundCourse) {
           setCourse(foundCourse)
           actions.setCurrentCourse(foundCourse)
@@ -470,17 +497,23 @@ export default function LessonView() {
             }
           }
         }
+        
+        // Mark data as loaded for this course/lesson combination
+        dataLoadedRef.current = { courseId, lessonId };
         setLoading(false)
       } catch (_) {
         // Handle error silently or set error state if needed
         setLoading(false)
+        // Don't mark as loaded on error - allow retry on next render
+      } finally {
+        isLoadingRef.current = false;
       }
     }
 
     if (courseId && lessonId) {
       loadCourseData()
     }
-  }, [courseId, lessonId, courses, actions, user?.id])
+  }, [courseId, lessonId, user?.id])
 
   const saveProgress = useCallback(async (time = currentTime, completedOverride = null) => {
     if (user?.id && lesson && course) {
