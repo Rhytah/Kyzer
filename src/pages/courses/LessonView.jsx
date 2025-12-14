@@ -77,6 +77,18 @@ export default function LessonView() {
   
   const [lesson, setLesson] = useState(null)
   const [course, setCourse] = useState(null)
+  
+  // Get course from store as fallback if local state isn't set yet
+  const courseFromStore = useMemo(() => {
+    if (course) return course
+    return courses.find(c => c.id === courseId) || null
+  }, [course, courses, courseId])
+  
+  // Check if user can manage this course (course creator or has permissions)
+  const canManageCourse = useMemo(() => {
+    if (!user?.id || !courseFromStore) return false
+    return courseFromStore.created_by === user.id
+  }, [user?.id, courseFromStore])
   const [lessons, setLessons] = useState([])
   const [loading, setLoading] = useState(true)
   const [currentTime, setCurrentTime] = useState(0)
@@ -2494,6 +2506,18 @@ export default function LessonView() {
             </div>
             
             <div className="flex items-center gap-2">
+              {canManageCourse && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate(`/app/courses/${courseId}/lesson/${lessonId}/presentation`)}
+                  className="text-primary-default hover:text-primary-dark"
+                  title="Manage Presentation Content"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
+                </Button>
+              )}
               {!isCompleted ? (
                 <Button onClick={markAsCompleted} disabled={isCompleting}>
                   <CheckCircle className="w-4 h-4 mr-2" />

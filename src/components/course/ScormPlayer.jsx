@@ -570,15 +570,22 @@ const processScormPackage = useCallback(async () => {
 
   let zipBlobSize = 0;
   let currentStep = 'Starting...';
+  let timeoutFired = false;
 
+  // Create a more robust timeout that can't be easily cleared
   const timeoutId = setTimeout(() => {
+    timeoutFired = true;
     if (mountedRef.current) {
-      setError(`SCORM package loading timed out after 3 minutes. Current step: ${currentStep}. ${zipBlobSize > 0 ? `Package size: ${(zipBlobSize / 1024 / 1024).toFixed(2)} MB. ` : ''}The package may be too large or the connection is slow. Please try again or contact support.`);
+      const errorMsg = `SCORM package loading timed out after 5 minutes. Current step: ${currentStep}. ${zipBlobSize > 0 ? `Package size: ${(zipBlobSize / 1024 / 1024).toFixed(2)} MB. ` : ''}The package may be too large, corrupted, or the processing is stuck. Please try again with a smaller package or contact support.`;
+      setError(errorMsg);
       setIsLoading(false);
       setLoadingStep('');
       if (onError) onError(new Error('Loading timeout'));
     }
-  }, 180000); // 3 minute timeout (increased from 2 minutes)
+  }, 300000); // 5 minute timeout
+  
+  // Store timeout ID for cleanup only on success
+  const timeoutIdRef = { id: timeoutId };
 
   try {
     setIsLoading(true);
@@ -591,7 +598,7 @@ const processScormPackage = useCallback(async () => {
     const publicUrl = getPublicUrl(scormUrl);
 
     if (!publicUrl) {
-      clearTimeout(timeoutId);
+      if (!timeoutFired) clearTimeout(timeoutIdRef.id);
       throw new Error('Could not generate valid URL from path');
     }
 
@@ -725,16 +732,16 @@ const processScormPackage = useCallback(async () => {
       }
     }
 
-    if (!mountedRef.current) {
-      clearTimeout(timeoutId);
+    if (!mountedRef.current || timeoutFired) {
+      if (!timeoutFired) clearTimeout(timeoutIdRef.id);
       return;
     }
 
     // Small delay to ensure UI updates
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    if (!mountedRef.current) {
-      clearTimeout(timeoutId);
+    if (!mountedRef.current || timeoutFired) {
+      if (!timeoutFired) clearTimeout(timeoutIdRef.id);
       return;
     }
 
@@ -742,41 +749,55 @@ const processScormPackage = useCallback(async () => {
     currentStep = 'Parsing SCORM manifest...';
     setLoadingStep('Parsing SCORM manifest...');
     
-    // Force a UI update
+    // Force a UI update and check timeout
     await new Promise(resolve => setTimeout(resolve, 50));
     
-    if (!mountedRef.current) {
-      clearTimeout(timeoutId);
+    if (!mountedRef.current || timeoutFired) {
+      if (!timeoutFired) clearTimeout(timeoutIdRef.id);
       return;
+    }
+    
+    // Check if we've exceeded reasonable time
+    if (Date.now() - loadingStartTime > 300000) {
+      throw new Error('Processing is taking too long. The SCORM package may be too large or complex.');
     }
     
     let parseResult;
     try {
       // Add timeout for parsing to prevent indefinite hanging
+      const parseStartTime = Date.now();
       const parsePromise = (async () => {
         const parser = new SCORMPackageParser(zipBlob);
         return await parser.parse();
       })();
       
       const parseTimeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Parsing timeout after 30 seconds. The SCORM package may be corrupted or too complex.')), 30000)
+        setTimeout(() => reject(new Error('Parsing timeout after 60 seconds. The SCORM package may be corrupted or too complex.')), 60000)
       );
       
       parseResult = await Promise.race([parsePromise, parseTimeoutPromise]);
       
+      // Check if timeout fired during parsing
+      if (timeoutFired || !mountedRef.current) {
+        if (!timeoutFired) clearTimeout(timeoutIdRef.id);
+        return;
+      }
+      
       // Update step after successful parsing
       currentStep = 'Manifest parsed successfully';
-      setLoadingStep('Manifest parsed, extracting content...');
+      setLoadingStep(`Manifest parsed (took ${Math.round((Date.now() - parseStartTime) / 1000)}s), extracting content...`);
     } catch (parseError) {
+      if (!timeoutFired) clearTimeout(timeoutIdRef.id);
       throw new Error(`Failed to parse SCORM manifest: ${parseError.message || 'Unknown parsing error'}`);
     }
     
     if (!parseResult || !parseResult.isValid) {
+      if (!timeoutFired) clearTimeout(timeoutIdRef.id);
       throw new Error(`Invalid SCORM package: ${parseResult?.error || 'Unknown error'}`);
     }
     
-    if (!mountedRef.current) {
-      clearTimeout(timeoutId);
+    if (!mountedRef.current || timeoutFired) {
+      if (!timeoutFired) clearTimeout(timeoutIdRef.id);
       return;
     }
     
@@ -785,8 +806,14 @@ const processScormPackage = useCallback(async () => {
     
     const entryPoint = parseResult.packageData?.launchUrl;
     if (!entryPoint) {
-      clearTimeout(timeoutId);
+      if (!timeoutFired) clearTimeout(timeoutIdRef.id);
       throw new Error('No launch URL found in manifest');
+    }
+    
+    // Check timeout before continuing
+    if (timeoutFired || !mountedRef.current) {
+      if (!timeoutFired) clearTimeout(timeoutIdRef.id);
+      return;
     }
     
     currentStep = 'Extracting content...';
@@ -795,12 +822,19 @@ const processScormPackage = useCallback(async () => {
     // Force UI update
     await new Promise(resolve => setTimeout(resolve, 50));
     
-    if (!mountedRef.current) {
-      clearTimeout(timeoutId);
+    if (!mountedRef.current || timeoutFired) {
+      if (!timeoutFired) clearTimeout(timeoutIdRef.id);
       return;
     }
     
+    // Check if we've exceeded reasonable time
+    if (Date.now() - loadingStartTime > 300000) {
+      if (!timeoutFired) clearTimeout(timeoutIdRef.id);
+      throw new Error('Processing is taking too long. The SCORM package may be too large or complex.');
+    }
+    
     // Add timeout for ZIP loading
+    const zipLoadStartTime = Date.now();
     const zipLoadPromise = (async () => {
       const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
@@ -808,10 +842,23 @@ const processScormPackage = useCallback(async () => {
     })();
     
     const zipLoadTimeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('ZIP extraction timeout after 30 seconds')), 30000)
+      setTimeout(() => reject(new Error('ZIP extraction timeout after 60 seconds')), 60000)
     );
     
-    const zipContent = await Promise.race([zipLoadPromise, zipLoadTimeoutPromise]);
+    let zipContent;
+    try {
+      zipContent = await Promise.race([zipLoadPromise, zipLoadTimeoutPromise]);
+      
+      if (timeoutFired || !mountedRef.current) {
+        if (!timeoutFired) clearTimeout(timeoutIdRef.id);
+        return;
+      }
+      
+      setLoadingStep(`ZIP loaded (took ${Math.round((Date.now() - zipLoadStartTime) / 1000)}s), processing files...`);
+    } catch (zipError) {
+      if (!timeoutFired) clearTimeout(timeoutIdRef.id);
+      throw new Error(`Failed to extract ZIP: ${zipError.message || 'Unknown error'}`);
+    }
     
     const entryFile = zipContent.files[entryPoint];
     if (!entryFile) {
@@ -824,8 +871,8 @@ const processScormPackage = useCallback(async () => {
     // Extract entry file content first to find referenced assets
     const entryContent = await entryFile.async('text');
     
-    if (!mountedRef.current) {
-      clearTimeout(timeoutId);
+    if (!mountedRef.current || timeoutFired) {
+      if (!timeoutFired) clearTimeout(timeoutIdRef.id);
       return;
     }
     
@@ -920,17 +967,36 @@ const processScormPackage = useCallback(async () => {
     // Extract files in parallel with progress updates
     let completedCount = 0;
     const progressInterval = setInterval(() => {
-      if (mountedRef.current && completedCount < totalFiles) {
+      if (timeoutFired || !mountedRef.current) {
+        clearInterval(progressInterval);
+        return;
+      }
+      
+      if (completedCount < totalFiles) {
         currentStep = `Extracting files... (${completedCount}/${totalFiles})`;
         setLoadingStep(`Extracting files... (${completedCount}/${totalFiles})`);
+        
+        // Check if we've exceeded reasonable time
+        const elapsed = Date.now() - loadingStartTime;
+        if (elapsed > 300000) {
+          clearInterval(progressInterval);
+          if (!timeoutFired) {
+            timeoutFired = true;
+            clearTimeout(timeoutIdRef.id);
+            setError(`Processing timeout: Extraction is taking too long (${Math.round(elapsed / 1000)}s). The package may be too large.`);
+            setIsLoading(false);
+            setLoadingStep('');
+            if (onError) onError(new Error('Processing timeout'));
+          }
+        }
       }
     }, 500);
     
     try {
       const results = await Promise.all(extractionPromises);
       
-      if (!mountedRef.current) {
-        clearTimeout(timeoutId);
+      if (!mountedRef.current || timeoutFired) {
+        if (!timeoutFired) clearTimeout(timeoutIdRef.id);
         clearInterval(progressInterval);
         return;
       }
@@ -990,6 +1056,124 @@ const processScormPackage = useCallback(async () => {
       }
     );
     
+    // Determine SCORM version
+    const scormVersionToUse = parseResult.version || '1.2';
+    
+    // Create SCORM API injection script (injected directly into HTML)
+    const scormApiScript = scormVersionToUse === '2004' ? `
+    // SCORM 2004 API
+    window.API_1484_11 = {
+      Initialize: function(param) {
+        return 'true';
+      },
+      Terminate: function(param) {
+        return 'true';
+      },
+      GetValue: function(element) {
+        return window.__scormData && window.__scormData[element] ? String(window.__scormData[element]) : '';
+      },
+      SetValue: function(element, value) {
+        if (!window.__scormData) window.__scormData = {};
+        window.__scormData[element] = value;
+        // Notify parent via postMessage
+        if (window.parent && window.parent !== window) {
+          try {
+            window.parent.postMessage({
+              type: 'scorm_setvalue',
+              element: element,
+              value: value
+            }, '*');
+          } catch(e) {}
+        }
+        return 'true';
+      },
+      Commit: function(param) {
+        // Notify parent via postMessage
+        if (window.parent && window.parent !== window) {
+          try {
+            window.parent.postMessage({
+              type: 'scorm_commit'
+            }, '*');
+          } catch(e) {}
+        }
+        return 'true';
+      },
+      GetLastError: function() {
+        return '0';
+      },
+      GetErrorString: function(errorCode) {
+        return 'No error';
+      },
+      GetDiagnostic: function(errorCode) {
+        return 'No diagnostic';
+      }
+    };
+    ` : `
+    // SCORM 1.2 API
+    window.API = {
+      LMSInitialize: function(param) {
+        // Notify parent via postMessage
+        if (window.parent && window.parent !== window) {
+          try {
+            window.parent.postMessage({
+              type: 'scorm_initialize'
+            }, '*');
+          } catch(e) {}
+        }
+        return 'true';
+      },
+      LMSFinish: function(param) {
+        // Notify parent via postMessage
+        if (window.parent && window.parent !== window) {
+          try {
+            window.parent.postMessage({
+              type: 'scorm_finish'
+            }, '*');
+          } catch(e) {}
+        }
+        return 'true';
+      },
+      LMSGetValue: function(element) {
+        return window.__scormData && window.__scormData[element] ? String(window.__scormData[element]) : '';
+      },
+      LMSSetValue: function(element, value) {
+        if (!window.__scormData) window.__scormData = {};
+        window.__scormData[element] = value;
+        // Notify parent via postMessage
+        if (window.parent && window.parent !== window) {
+          try {
+            window.parent.postMessage({
+              type: 'scorm_setvalue',
+              element: element,
+              value: value
+            }, '*');
+          } catch(e) {}
+        }
+        return 'true';
+      },
+      LMSCommit: function(param) {
+        // Notify parent via postMessage
+        if (window.parent && window.parent !== window) {
+          try {
+            window.parent.postMessage({
+              type: 'scorm_commit'
+            }, '*');
+          } catch(e) {}
+        }
+        return 'true';
+      },
+      LMSGetLastError: function() {
+        return '0';
+      },
+      LMSGetErrorString: function(errorCode) {
+        return 'No error';
+      },
+      LMSGetDiagnostic: function(errorCode) {
+        return 'No diagnostic';
+      }
+    };
+    `;
+    
     // Create HTML with file map for dynamic loading
     const htmlContent = `<!DOCTYPE html>
 <html>
@@ -998,6 +1182,11 @@ const processScormPackage = useCallback(async () => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${parseResult.packageData?.title || 'SCORM Content'}</title>
   <script>
+    // SCORM Data storage
+    window.__scormData = {};
+    
+    ${scormApiScript}
+    
     // File map for accessing extracted files
     window.__scormFileMap = ${JSON.stringify(fileMap)};
     window.__scormBaseDir = '${entryDir}';
@@ -1054,9 +1243,9 @@ const processScormPackage = useCallback(async () => {
     const contentUrl = URL.createObjectURL(blob);
     
     // Store blob URLs for cleanup
-    clearTimeout(timeoutId);
+    if (!timeoutFired) clearTimeout(timeoutIdRef.id);
     
-    if (mountedRef.current) {
+    if (mountedRef.current && !timeoutFired) {
       setScormContentUrl(contentUrl);
     setIsLoading(false);
     setLoadingStep('');
@@ -1072,8 +1261,8 @@ const processScormPackage = useCallback(async () => {
     }
     
   } catch (error) {
-    clearTimeout(timeoutId);
-    if (!mountedRef.current) return;
+    if (!timeoutFired) clearTimeout(timeoutIdRef.id);
+    if (!mountedRef.current || timeoutFired) return;
     
     let errorMessage = error.message || error.toString() || 'Failed to load SCORM package: Unknown error occurred.';
     
@@ -1121,41 +1310,59 @@ const processScormPackage = useCallback(async () => {
   }, [autoSave, autoSaveInterval, status, isSaving]);
 
   /**
-   * Initialize SCORM API
+   * Handle SCORM API messages from iframe
    */
   useEffect(() => {
-    const iframe = iframeRef.current;
-    if (!iframe || !scormContentUrl || !mountedRef.current) return;
+    if (!scormContentUrl || !mountedRef.current) return;
 
-    const handleLoad = () => {
+    const handleMessage = (event) => {
+      // Only accept messages from our iframe (blob URLs are same-origin)
       if (!mountedRef.current) return;
 
       try {
         const apis = createScormAPI();
-        scormApiRef.current = apis;
-        
-        if (apis && iframe.contentWindow) {
-          try {
-            iframe.contentWindow.API = apis.scorm12API;
-            iframe.contentWindow.API_1484_11 = apis.scorm2004API;
-            
+        if (!apis) return;
+
+        const { type, element, value } = event.data || {};
+
+        switch (type) {
+          case 'scorm_initialize':
             if (scormVersion === '2004') {
               apis.scorm2004API.Initialize('');
             } else {
               apis.scorm12API.LMSInitialize('');
             }
-          } catch (e) {
-            // Cross-origin blocked (expected)
-          }
+            break;
+          case 'scorm_setvalue':
+            if (scormVersion === '2004') {
+              apis.scorm2004API.SetValue(element, value);
+            } else {
+              apis.scorm12API.LMSSetValue(element, value);
+            }
+            break;
+          case 'scorm_commit':
+            if (scormVersion === '2004') {
+              apis.scorm2004API.Commit('');
+            } else {
+              apis.scorm12API.LMSCommit('');
+            }
+            break;
+          case 'scorm_finish':
+            if (scormVersion === '2004') {
+              apis.scorm2004API.Terminate('');
+            } else {
+              apis.scorm12API.LMSFinish('');
+            }
+            break;
         }
       } catch (error) {
-        // API init error
+        // Ignore message handling errors
       }
     };
 
-    iframe.addEventListener('load', handleLoad);
-    return () => iframe.removeEventListener('load', handleLoad);
-  }, [scormContentUrl, scormVersion]);
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [scormContentUrl, scormVersion, createScormAPI]);
 
   /**
    * Cleanup
