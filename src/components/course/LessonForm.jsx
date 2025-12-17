@@ -1817,10 +1817,29 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                   </div>
                 )}
 
+                {/* Text Content for Image Lessons */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Text Content (Optional)
+                  </label>
+                  <textarea
+                    name="content_text"
+                    value={formData.content_text || ''}
+                    onChange={handleInputChange}
+                    rows={6}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Add descriptive text, captions, or additional information about the image..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Add text content to accompany the image. This can include descriptions, captions, or additional context.
+                  </p>
+                </div>
+
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <h4 className="text-sm font-medium text-blue-900 mb-2">Image Lesson Information</h4>
                   <ul className="text-xs text-blue-700 space-y-1">
                     <li>• Images will be displayed in the lesson view</li>
+                    <li>• You can add text content and audio narration to accompany the image</li>
                     <li>• Supported formats: JPEG, PNG, GIF, WebP, SVG</li>
                     <li>• Maximum file size: 50MB</li>
                     <li>• Images are optimized for web display</li>
@@ -1848,20 +1867,141 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
 
                 {formData.content_format !== 'html' && (
                   <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <button type="button" className="text-xs px-2 py-1 border rounded" onClick={() => applyFormat('bold')} title="Bold (Ctrl/Cmd+B)"><strong>B</strong></button>
-                    <button type="button" className="text-xs px-2 py-1 border rounded" onClick={() => applyFormat('italic')} title="Italic (Ctrl/Cmd+I)"><em>I</em></button>
+                    <button 
+                      type="button" 
+                      className="text-xs px-2 py-1 border rounded hover:bg-gray-100 cursor-pointer" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        applyFormat('bold');
+                      }} 
+                      title="Bold (Ctrl/Cmd+B)"
+                    >
+                      <strong>B</strong>
+                    </button>
+                    <button 
+                      type="button" 
+                      className="text-xs px-2 py-1 border rounded hover:bg-gray-100 cursor-pointer" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        applyFormat('italic');
+                      }} 
+                      title="Italic (Ctrl/Cmd+I)"
+                    >
+                      <em>I</em>
+                    </button>
                     <span className="mx-1 text-gray-300">|</span>
-                    <button type="button" className="text-xs px-2 py-1 border rounded" onClick={() => applyFormat('h1')} title="Heading 1 (Ctrl/Cmd+1)">H1</button>
-                    <button type="button" className="text-xs px-2 py-1 border rounded" onClick={() => applyFormat('h2')} title="Heading 2 (Ctrl/Cmd+2)">H2</button>
-                    <button type="button" className="text-xs px-2 py-1 border rounded" onClick={() => applyFormat('h3')} title="Heading 3">H3</button>
+                    <button 
+                      type="button" 
+                      className="text-xs px-2 py-1 border rounded hover:bg-gray-100 cursor-pointer" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        applyFormat('h1');
+                      }} 
+                      title="Heading 1 (Ctrl/Cmd+1)"
+                    >
+                      H1
+                    </button>
+                    <button 
+                      type="button" 
+                      className="text-xs px-2 py-1 border rounded hover:bg-gray-100 cursor-pointer" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        applyFormat('h2');
+                      }} 
+                      title="Heading 2 (Ctrl/Cmd+2)"
+                    >
+                      H2
+                    </button>
+                    <button 
+                      type="button" 
+                      className="text-xs px-2 py-1 border rounded hover:bg-gray-100 cursor-pointer" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        applyFormat('h3');
+                      }} 
+                      title="Heading 3"
+                    >
+                      H3
+                    </button>
                     <span className="mx-1 text-gray-300">|</span>
-                    <button type="button" className="text-xs px-2 py-1 border rounded" onClick={() => applyFormat('ul')} title="Bulleted List (Ctrl/Cmd+U)">• List</button>
-                    <button type="button" className="text-xs px-2 py-1 border rounded" onClick={() => applyFormat('ol')} title="Numbered List (Ctrl/Cmd+O)">1. List</button>
-                    <button type="button" className="text-xs px-2 py-1 border rounded" onClick={() => applyFormat('quote')} title="> Quote">“”</button>
+                    <button 
+                      type="button" 
+                      className="text-xs px-2 py-1 border rounded hover:bg-gray-100 cursor-pointer" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        applyFormat('ul');
+                      }} 
+                      title="Bulleted List (Ctrl/Cmd+U)"
+                    >
+                      • List
+                    </button>
+                    <button 
+                      type="button" 
+                      className="text-xs px-2 py-1 border rounded hover:bg-gray-100 cursor-pointer" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        applyFormat('ol');
+                      }} 
+                      title="Numbered List (Ctrl/Cmd+O)"
+                    >
+                      1. List
+                    </button>
+                    <button 
+                      type="button" 
+                      className="text-xs px-2 py-1 border rounded hover:bg-gray-100 cursor-pointer" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        applyFormat('quote');
+                      }} 
+                      title="> Quote"
+                    >
+                      ""
+                    </button>
                     <span className="mx-1 text-gray-300">|</span>
-                    <button type="button" className="text-xs px-2 py-1 border rounded" onClick={() => applyFormat('code-inline')} title="Inline code">{`</>`}</button>
-                    <button type="button" className="text-xs px-2 py-1 border rounded" onClick={() => applyFormat('code-block')} title="Code block">{`{ }`}</button>
-                    <button type="button" className="text-xs px-2 py-1 border rounded" onClick={() => applyFormat('hr')} title="Horizontal rule">HR</button>
+                    <button 
+                      type="button" 
+                      className="text-xs px-2 py-1 border rounded hover:bg-gray-100 cursor-pointer" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        applyFormat('code-inline');
+                      }} 
+                      title="Inline code"
+                    >
+                      {`</>`}
+                    </button>
+                    <button 
+                      type="button" 
+                      className="text-xs px-2 py-1 border rounded hover:bg-gray-100 cursor-pointer" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        applyFormat('code-block');
+                      }} 
+                      title="Code block"
+                    >
+                      {`{ }`}
+                    </button>
+                    <button 
+                      type="button" 
+                      className="text-xs px-2 py-1 border rounded hover:bg-gray-100 cursor-pointer" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        applyFormat('hr');
+                      }} 
+                      title="Horizontal rule"
+                    >
+                      HR
+                    </button>
                     <span className="flex-1" />
                     <label className="inline-flex items-center gap-2 text-xs text-gray-600">
                       <input type="checkbox" checked={splitPreview} onChange={(e) => setSplitPreview(e.target.checked)} />

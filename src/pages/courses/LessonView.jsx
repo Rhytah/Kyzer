@@ -1063,37 +1063,63 @@ export default function LessonView() {
   TextContentViewer.displayName = 'TextContentViewer';
 
   // Memoized Image Viewer component
-  const ImageViewer = memo(({ imageUrl }) => {
+  const ImageViewer = memo(({ imageUrl, textContent, audioUrl }) => {
     return (
-      <div className="bg-gray-50 rounded-lg p-4">
+      <div className="space-y-6">
         {imageUrl ? (
-          <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
-            <div className="w-full h-full flex items-center justify-center p-4">
-              <img
-                src={imageUrl}
-                alt="Lesson Image"
-                className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'block';
-                }}
-              />
-              <div 
-                className="hidden text-center text-gray-500"
-                style={{ display: 'none' }}
-              >
-                <div className="text-gray-500 text-lg mb-4">Failed to load image</div>
-                <p className="text-sm">The image could not be displayed.</p>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="w-full bg-gray-50 rounded-lg overflow-hidden">
+              <div className="w-full flex items-center justify-center p-4">
+                <img
+                  src={imageUrl}
+                  alt="Lesson Image"
+                  className="max-w-full max-h-[600px] object-contain rounded-lg shadow-sm"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    const errorDiv = e.target.nextElementSibling;
+                    if (errorDiv) errorDiv.style.display = 'block';
+                  }}
+                />
+                <div 
+                  className="hidden text-center text-gray-500"
+                  style={{ display: 'none' }}
+                >
+                  <div className="text-gray-500 text-lg mb-4">Failed to load image</div>
+                  <p className="text-sm">The image could not be displayed.</p>
+                </div>
               </div>
-            </div>
-            <div className="mt-3 flex justify-center">
-              <Button variant="secondary" onClick={() => window.open(imageUrl, '_blank')}>
-                Open in new tab
-              </Button>
+              <div className="mt-3 flex justify-center">
+                <Button variant="secondary" onClick={() => window.open(imageUrl, '_blank')}>
+                  Open in new tab
+                </Button>
+              </div>
             </div>
           </div>
         ) : (
           <div className="text-center text-gray-500 p-8">No image available.</div>
+        )}
+
+        {/* Text Content */}
+        {textContent && (
+          <Card className="p-6">
+            <div className="prose max-w-none">
+              {lesson.content_format === 'html' ? (
+                <div dangerouslySetInnerHTML={{ __html: textContent }} />
+              ) : lesson.content_format === 'markdown' ? (
+                <div className="whitespace-pre-wrap">{textContent}</div>
+              ) : (
+                <div className="whitespace-pre-wrap">{textContent}</div>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {/* Audio Narration */}
+        {audioUrl && (
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-text-dark mb-4">Audio Narration</h3>
+            <AudioPlayer audioUrl={audioUrl} />
+          </Card>
         )}
       </div>
     );
@@ -1423,8 +1449,16 @@ export default function LessonView() {
                     key={optionIndex}
                     type="button"
                     className={getOptionClass(isSelected, optionIndex, optionIndex)}
-                    onClick={() => !showFeedback && handleAnswerChange(question.id, optionIndex)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (!showFeedback) {
+                        handleAnswerChange(question.id, optionIndex);
+                      }
+                    }}
+                    disabled={showFeedback}
                     aria-pressed={isSelected}
+                    style={{ cursor: showFeedback ? 'not-allowed' : 'pointer' }}
                   >
                     <span className="font-medium">{String.fromCharCode(65 + optionIndex)}.</span>
                     <span>{option}</span>
@@ -1444,7 +1478,9 @@ export default function LessonView() {
                     key={optionIndex}
                     type="button"
                     className={getOptionClass(isSelected, optionIndex, optionIndex)}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       if (showFeedback) return;
                       const updated = new Set(selectedAnswers);
                       if (updated.has(optionIndex)) {
@@ -1454,7 +1490,9 @@ export default function LessonView() {
                       }
                       handleAnswerChange(question.id, Array.from(updated));
                     }}
+                    disabled={showFeedback}
                     aria-pressed={isSelected}
+                    style={{ cursor: showFeedback ? 'not-allowed' : 'pointer' }}
                   >
                     <span className="font-medium">{String.fromCharCode(65 + optionIndex)}.</span>
                     <span>{option}</span>
@@ -1476,8 +1514,16 @@ export default function LessonView() {
                     key={label}
                     type="button"
                     className={getOptionClass(isSelected, optionIndex, value)}
-                    onClick={() => !showFeedback && handleAnswerChange(question.id, value)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (!showFeedback) {
+                        handleAnswerChange(question.id, value);
+                      }
+                    }}
+                    disabled={showFeedback}
                     aria-pressed={isSelected}
+                    style={{ cursor: showFeedback ? 'not-allowed' : 'pointer' }}
                   >
                     <span>{label}</span>
                   </button>
@@ -2109,7 +2155,13 @@ export default function LessonView() {
       }
       // Handle image rendering
       if (lesson.content_type === 'image') {
-        return <ImageViewer imageUrl={lesson.content_url} />;
+        return (
+          <ImageViewer 
+            imageUrl={lesson.content_url} 
+            textContent={lesson.content_text}
+            audioUrl={lesson.audio_attachment_url}
+          />
+        );
       }
 
       // Handle presentation rendering

@@ -465,7 +465,24 @@ const QuizView = () => {
                       <RotateCcw className="w-4 h-4 mr-2" />
                       Retake Quiz
                     </Button>
-                    <Button onClick={() => setShowQuizResult(true)}>
+                    <Button 
+                      onClick={() => {
+                        if (quizResult) {
+                          setShowQuizResult(true);
+                        } else if (quizCompletionData) {
+                          // Reconstruct quiz result from completion data
+                          setQuizResult({
+                            score: quizCompletionData.score,
+                            maxScore: quizCompletionData.maxScore,
+                            percentage: quizCompletionData.percentage,
+                            passed: quizCompletionData.passed,
+                            userAnswers: quizCompletionData.answers || {},
+                            timeSpent: quizCompletionData.timeSpent || 0
+                          });
+                          setShowQuizResult(true);
+                        }
+                      }}
+                    >
                       <CheckCircle className="w-4 h-4 mr-2" />
                       View Results
                     </Button>

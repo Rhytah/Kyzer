@@ -407,34 +407,36 @@ export default function CourseDetail() {
                   const progressPct = getProgressPercentage();
                   const hasStarted = progressPct > 0 || !!course?.last_accessed;
                   const nextLessonId = getNextLessonId();
+                  const isCompleted = progressPct >= 100;
+                  
                   return (
                     <div className="space-y-3">
-                      {hasStarted ? (
-                        nextLessonId && (
-                          <Link to={`/app/courses/${courseId}/lesson/${nextLessonId}`}>
-                            <Button className="w-full" size="lg">
-                              <BookOpen className="w-4 h-4 mr-2" />
-                              Continue ({progressPct}%)
-                            </Button>
-                          </Link>
-                        )
+                      {isCompleted ? (
+                        <Link to={`/app/courses/${courseId}/completion`}>
+                          <Button className="w-full" size="lg">
+                            <Award className="w-4 h-4 mr-2" />
+                            View Certificate
+                          </Button>
+                        </Link>
+                      ) : hasStarted && nextLessonId ? (
+                        <Link to={`/app/courses/${courseId}/lesson/${nextLessonId}`}>
+                          <Button className="w-full" size="lg">
+                            <BookOpen className="w-4 h-4 mr-2" />
+                            Continue Learning ({progressPct}%)
+                          </Button>
+                        </Link>
+                      ) : nextLessonId ? (
+                        <Link to={`/app/courses/${courseId}/lesson/${nextLessonId}`}>
+                          <Button className="w-full" size="lg">
+                            <Play className="w-5 h-5 mr-2" />
+                            Start Learning
+                          </Button>
+                        </Link>
                       ) : (
-                        (() => {
-                          const firstLessonId = getNextLessonId();
-                          return firstLessonId ? (
-                            <Link to={`/app/courses/${courseId}/lesson/${firstLessonId}`}>
-                              <Button className="w-full" size="lg">
-                                <Play className="w-5 h-5 mr-2" />
-                                Start Learning
-                              </Button>
-                            </Link>
-                          ) : (
-                            <Button className="w-full" size="lg" disabled>
-                              <Play className="w-5 h-5 mr-2" />
-                              No Lessons Available
-                            </Button>
-                          );
-                        })()
+                        <Button className="w-full" size="lg" disabled>
+                          <Play className="w-5 h-5 mr-2" />
+                          {lessons.length === 0 ? 'Loading...' : 'No Lessons Available'}
+                        </Button>
                       )}
                       <div className="text-center text-sm text-success-default">
                         ✓ You're enrolled in this course

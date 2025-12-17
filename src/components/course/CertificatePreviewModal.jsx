@@ -33,6 +33,56 @@ export default function CertificatePreviewModal({
     }
   }, [isOpen]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  const loadCertificate = useCallback(async () => {
+    if (!userId || !courseId) {
+      setError('User ID or Course ID is missing');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get the user's certificate for this course
+      const { data: userCertificate, error: fetchError } = await actions.getCertificateForCourse(userId, courseId);
+
+      if (fetchError) {
+        setError('Certificate not found. You may need to complete the course first.');
+        setLoading(false);
+        return;
+      }
+
+      if (userCertificate) {
+        setCertificateData(userCertificate);
+
+        // Generate preview with error handling
+        try {
+          const { blob, url } = await actions.generateCertificatePreview(userCertificate.id);
+          if (url) {
+            setPreviewUrl(url);
+          }
+        } catch (previewError) {
+          setError('Unable to generate certificate preview. You can still download the certificate.');
+        }
+      } else {
+        setError('No certificate found for this course. Please complete the course to earn a certificate.');
+      }
+    } catch (error) {
+      const errorMessage = handleCertificateError(error, 'load certificate');
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, courseId, actions]);
+
   useEffect(() => {
     let mounted = true;
 
@@ -42,50 +92,14 @@ export default function CertificatePreviewModal({
       }
     };
 
-    loadData();
+    if (isOpen && userId && courseId) {
+      loadData();
+    }
 
     return () => {
       mounted = false;
-      revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
     };
-  }, [isOpen, userId, courseId, previewUrl, loadCertificate]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
-
-  const loadCertificate = useCallback(async () => {
-    if (!userId || !courseId) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Get the user's certificate for this course
-      const { data: userCertificate } = await actions.getCertificateForCourse(userId, courseId);
-
-      if (userCertificate) {
-        setCertificateData(userCertificate);
-
-        // Generate preview with error handling
-        try {
-          const { blob, url } = await actions.generateCertificatePreview(userCertificate.id);
-          setPreviewUrl(url);
-        } catch (previewError) {
-          setError('Unable to generate certificate preview. You can still download the certificate.');
-        }
-      }
-    } catch (error) {
-      const errorMessage = handleCertificateError(error, 'load certificate');
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, courseId, actions]);
+  }, [isOpen, userId, courseId, loadCertificate]);
 
   const handleDownload = useCallback(async () => {
     if (!certificateData) return;
