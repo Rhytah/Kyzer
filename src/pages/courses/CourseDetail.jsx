@@ -19,11 +19,36 @@ import {
   Globe,
   Smartphone,
   Layers,
-  Edit3
+  Edit3,
+  ExternalLink,
+  File
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+
+// Normalize URL to ensure it has a protocol (for existing data that might not have it)
+const normalizeUrl = (url) => {
+  if (!url) return url;
+  const trimmed = url.trim();
+  // If URL doesn't start with http:// or https://, add https://
+  if (!trimmed.match(/^https?:\/\//i)) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
+};
+
+// Download file helper function
+const downloadFile = (url, filename) => {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename || '';
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
 
 export default function CourseDetail() {
   const { courseId } = useParams()
@@ -221,15 +246,16 @@ export default function CourseDetail() {
   }, [user?.id, fetchEnrolledCourses])
 
   useEffect(() => {
-    // Fetch courses if not already loaded
-    if (!courses || courses.length === 0) {
+    // Fetch courses if not already loaded or if current course is not in store
+    const courseInStore = courses?.find(c => c.id === courseId);
+    if (!courses || courses.length === 0 || !courseInStore) {
       if (user?.id) {
         fetchCourses({}, user.id)
       } else {
         fetchCourses()
       }
     }
-  }, [courses, fetchCourses, user?.id])
+  }, [courses, courseId, fetchCourses, user?.id])
 
   // Handle course enrollment
   const handleEnroll = async () => {
@@ -412,12 +438,20 @@ export default function CourseDetail() {
                   return (
                     <div className="space-y-3">
                       {isCompleted ? (
-                        <Link to={`/app/courses/${courseId}/completion`}>
-                          <Button className="w-full" size="lg">
-                            <Award className="w-4 h-4 mr-2" />
-                            View Certificate
-                          </Button>
-                        </Link>
+                        <>
+                          <Link to={`/app/courses/${courseId}/lesson/${lessons[0]?.id || nextLessonId}`}>
+                            <Button className="w-full" size="lg">
+                              <BookOpen className="w-4 h-4 mr-2" />
+                              Review Course
+                            </Button>
+                          </Link>
+                          <Link to={`/app/courses/${courseId}/completion`}>
+                            <Button variant="secondary" className="w-full" size="lg">
+                              <Award className="w-4 h-4 mr-2" />
+                              View Certificate
+                            </Button>
+                          </Link>
+                        </>
                       ) : hasStarted && nextLessonId ? (
                         <Link to={`/app/courses/${courseId}/lesson/${nextLessonId}`}>
                           <Button className="w-full" size="lg">
@@ -495,7 +529,8 @@ export default function CourseDetail() {
             { id: 'overview', label: 'Overview' },
             { id: 'curriculum', label: 'Curriculum' },
             { id: 'instructor', label: 'Instructor' },
-            { id: 'reviews', label: 'Reviews' }
+            { id: 'reviews', label: 'Reviews' },
+            { id: 'resources', label: 'Resources' }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -747,6 +782,74 @@ export default function CourseDetail() {
                 </>
               ) : (
                 <p className="text-text-medium">No reviews available for this course yet.</p>
+              )}
+            </Card>
+          )}
+
+          {activeTab === 'resources' && (
+            <Card className="p-6">
+              <h2 className="text-2xl font-bold text-text-dark mb-6">Course Resources</h2>
+              {course?.resources && Array.isArray(course.resources) && course.resources.length > 0 ? (
+                <div className="space-y-3">
+                  {course.resources.map((resource) => (
+                    resource.type === 'link' ? (
+                      <a
+                        key={resource.id}
+                        href={normalizeUrl(resource.url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-start p-4 border border-background-dark rounded-lg hover:bg-background-light cursor-pointer no-underline"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <ExternalLink className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-text-dark truncate">{resource.title}</h4>
+                            {resource.description && (
+                              <p className="text-sm text-text-light truncate">{resource.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      </a>
+                    ) : (
+                      <div 
+                        key={resource.id} 
+                        onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
+                        className="flex items-center justify-between p-4 border border-background-dark rounded-lg hover:bg-background-light cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <File className="w-5 h-5 text-text-muted flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-text-dark truncate">{resource.title}</h4>
+                            {resource.description && (
+                              <p className="text-sm text-text-light truncate">{resource.description}</p>
+                            )}
+                            {resource.file_size && (
+                              <p className="text-xs text-text-muted">
+                                {resource.file_size < 1024 
+                                  ? `${resource.file_size} B`
+                                  : resource.file_size < 1024 * 1024
+                                  ? `${(resource.file_size / 1024).toFixed(2)} KB`
+                                  : `${(resource.file_size / (1024 * 1024)).toFixed(2)} MB`}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            downloadFile(resource.url, resource.file_name || resource.title);
+                          }}
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )
+                  ))}
+                </div>
+              ) : (
+                <p className="text-text-medium">No resources available for this course yet.</p>
               )}
             </Card>
           )}

@@ -742,7 +742,7 @@ const EmployeeManagement = () => {
             )}
       {/* Data List */}
       <Card>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" style={{ position: 'relative' }}>
           <table className="w-full">
             <thead>
               <tr className="border-b border-background-dark">
@@ -1048,6 +1048,11 @@ function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIco
 
   const handleRoleUpdate = async () => {
     try {
+      // Validate employee ID before updating
+      if (!employee.id || employee.id === 'undefined') {
+        console.error('Invalid employee ID');
+        return;
+      }
       await onUpdateRole(employee.id, newRole)
       setShowRoleEdit(false)
     } catch (error) {
@@ -1124,7 +1129,7 @@ function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIco
       </td>
       
       <td className="py-3 px-4 text-right">
-        <div className="relative">
+        <div className="relative" style={{ zIndex: showActions ? 1000 : 'auto' }}>
           <Button
             variant="ghost"
             size="sm"
@@ -1134,7 +1139,7 @@ function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIco
           </Button>
           
           {showActions && (
-            <div className="absolute right-0 top-8 w-48 bg-white border border-background-dark rounded-lg shadow-lg z-10">
+            <div className="absolute right-0 top-8 w-48 bg-white border border-background-dark rounded-lg shadow-xl z-[9999]">
               <button
                 onClick={() => {
                   setShowRoleEdit(true)

@@ -8,6 +8,7 @@ import Input from '@/components/ui/Input';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui';
 import PDFSplitter from './PDFSplitter';
+import ResourcesManager from './ResourcesManager';
 import {
   supabase,
   uploadFile,
@@ -38,7 +39,8 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     duration_minutes: '',
     order_index: 1,
     is_required: true,
-    module_id: ''
+    module_id: '',
+    resources: []
   });
 
   // Separate state for text lesson content
@@ -111,7 +113,8 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         duration_minutes: lesson.duration_minutes || '',
         order_index: lesson.order_index || 1,
         is_required: lesson.is_required !== undefined ? lesson.is_required : true,
-        module_id: lesson.module_id || '' // Assuming lesson object has module_id
+        module_id: lesson.module_id || '', // Assuming lesson object has module_id
+        resources: lesson.resources || []
       });
       
       // Set text content separately for text lessons
@@ -902,6 +905,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         order_index: formData.order_index ? parseInt(formData.order_index, 10) : 1,
         content_url: formData.content_url?.trim() || '',
         content_text: formData.content_text || '',
+        resources: formData.resources || []
       };
 
       // For text lessons, use textContent with format marker
@@ -2475,6 +2479,16 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                   This lesson is required to complete the course
                 </label>
               </div>
+            </div>
+
+            {/* Resources Section */}
+            <div className="md:col-span-2">
+              <ResourcesManager
+                resources={formData.resources || []}
+                onChange={(resources) => setFormData({ ...formData, resources })}
+                courseId={courseId}
+                label="Lesson Resources"
+              />
             </div>
           </div>
 

@@ -214,17 +214,36 @@ If you didn't expect this invitation, you can safely ignore this email.
     
     // Try to send email using Supabase's built-in email functionality
     try {
-      // Use Supabase's email service (requires proper email configuration)
-      const { data: emailData, error: emailError } = await supabaseClient.auth.admin.generateLink({
-        type: 'signup',
-        email: email,
-        options: {
-          redirectTo: `${baseURL}/auth/accept-invitation?token=${data.invitationLink.split('token=')[1]}`
-        }
+      // First, try to use Supabase Auth to invite the user (this will send an email if configured)
+      const { data: emailData, error: emailError } = await supabaseClient.auth.admin.inviteUserByEmail(email, {
+        data: {
+          companyName: data.companyName,
+          inviterName: data.inviterName,
+          role: data.role,
+          customMessage: data.customMessage,
+          invitationLink: data.invitationLink
+        },
+        redirectTo: `${baseURL}/auth/accept-invitation?token=${data.invitationLink.split('token=')[1] || data.invitationLink}`
       })
 
       if (emailError) {
-        throw emailError
+        // If inviteUserByEmail fails, try generateLink as fallback
+        const { data: linkData, error: linkError } = await supabaseClient.auth.admin.generateLink({
+          type: 'signup',
+          email: email,
+          options: {
+            redirectTo: `${baseURL}/auth/accept-invitation?token=${data.invitationLink.split('token=')[1] || data.invitationLink}`,
+            data: {
+              companyName: data.companyName,
+              inviterName: data.inviterName,
+              role: data.role
+            }
+          }
+        })
+
+        if (linkError) {
+          throw linkError
+        }
       }
 
       // If successful, return success

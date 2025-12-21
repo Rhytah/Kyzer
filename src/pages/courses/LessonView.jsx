@@ -21,7 +21,9 @@ import {
   RotateCcw,
   PanelLeftClose,
   PanelLeftOpen,
-  Award
+  Award,
+  ExternalLink,
+  File
 } from 'lucide-react'
 import { ScormPlayer } from '@/components/course'
 import PresentationViewer from '@/components/course/PresentationViewer'
@@ -63,6 +65,29 @@ const useIntersectionObserver = (options = {}) => {
   return [ref, isIntersecting, hasIntersected]
 }
 
+// Normalize URL to ensure it has a protocol (for existing data that might not have it)
+const normalizeUrl = (url) => {
+  if (!url) return url;
+  const trimmed = url.trim();
+  // If URL doesn't start with http:// or https://, add https://
+  if (!trimmed.match(/^https?:\/\//i)) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
+};
+
+// Download file helper function
+const downloadFile = (url, filename) => {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename || '';
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
 export default function LessonView() {
   const { courseId, lessonId } = useParams()
   const navigate = useNavigate()
@@ -72,8 +97,10 @@ export default function LessonView() {
   
   // Store selectors - individual to prevent infinite loops
   const courses = useCourseStore(state => state.courses)
+  const enrolledCourses = useCourseStore(state => state.enrolledCourses)
   const courseProgress = useCourseStore(state => state.courseProgress)
   const actions = useCourseStore(state => state.actions)
+  const fetchEnrolledCourses = useCourseStore(state => state.actions.fetchEnrolledCourses)
   
   const [lesson, setLesson] = useState(null)
   const [course, setCourse] = useState(null)
@@ -145,13 +172,59 @@ export default function LessonView() {
     }
   }, [knowledgeChecks.length, activeKnowledgeCheckId]);
 
+  // Calculate course progress data first (needed for isCourseCompleted)
+  const courseProgressData = useMemo(() => {
+    const totalLessons = lessons.length || 0;
+    const progressPercentage = course && courseProgress[courseId] && totalLessons > 0 ? 
+      Math.round((Object.values(courseProgress[courseId]).filter(p => p.completed).length / totalLessons) * 100) : 0;
+    
+    return {
+      percentage: progressPercentage,
+      completedCount: course && courseProgress[courseId] ? 
+        Object.values(courseProgress[courseId]).filter(p => p.completed).length : 0,
+      totalCount: totalLessons
+    };
+  }, [course, courseProgress, courseId, lessons.length]);
+
+  // Check if course is completed (for review mode) - must be defined before goToNextLesson
+  const isCourseCompleted = useMemo(() => {
+    if (!courseId || !user?.id) return false;
+    
+    // Check enrollment progress first
+    const enrollment = enrolledCourses?.find(e => 
+      (e.course_id === courseId || e.id === courseId) && e.progress_percentage >= 100
+    );
+    
+    if (enrollment) return true;
+    
+    // Fallback: check course progress from lesson completion
+    return courseProgressData.percentage >= 100;
+  }, [courseId, user?.id, enrolledCourses, courseProgressData.percentage]);
+
   const goToNextLesson = useCallback(async (shouldBypassKnowledgeChecks = false) => {
-    if (!shouldBypassKnowledgeChecks && firstIncompleteKnowledgeCheck) {
-      if (firstIncompleteKnowledgeCheck.id !== activeKnowledgeCheckId) {
-        activateKnowledgeCheck(firstIncompleteKnowledgeCheck.id);
+    // For completed courses, allow free navigation (review mode)
+    if (isCourseCompleted) {
+      // Skip all restrictions for completed courses
+      shouldBypassKnowledgeChecks = true;
+    } else {
+      // Check if lesson has been reviewed for minimum time (only for incomplete courses)
+      if (user?.id && lesson && course) {
+        const progress = courseProgress[course.id]?.[lesson.id];
+        if (progress && progress.minimum_time_required && !progress.review_completed) {
+          const timeRemaining = progress.minimum_time_required - (progress.time_spent_seconds || 0);
+          const minutesRemaining = Math.ceil(timeRemaining / 60);
+          showError(`Please review this lesson for at least ${Math.ceil(progress.minimum_time_required / 60)} minutes before proceeding. You need ${minutesRemaining} more minute${minutesRemaining !== 1 ? 's' : ''}.`);
+          return;
+        }
       }
-      showError('Complete the knowledge check before moving on.');
-      return;
+      
+      if (!shouldBypassKnowledgeChecks && firstIncompleteKnowledgeCheck) {
+        if (firstIncompleteKnowledgeCheck.id !== activeKnowledgeCheckId) {
+          activateKnowledgeCheck(firstIncompleteKnowledgeCheck.id);
+        }
+        showError('Complete the knowledge check before moving on.');
+        return;
+      }
     }
 
     if (course && lesson) {
@@ -210,7 +283,8 @@ export default function LessonView() {
     lessons,
     courseProgress,
     courseFinalAssessment,
-    finalAssessmentCompleted
+    finalAssessmentCompleted,
+    isCourseCompleted
   ]);
 
   const advanceAfterKnowledgeCheck = useCallback(() => {
@@ -500,7 +574,7 @@ export default function LessonView() {
               setLesson(foundLesson)
               actions.setCurrentLesson(foundLesson)
               
-              // Check if lesson is completed
+              // Check if lesson is completed and load existing time
               if (user?.id) {
                 const { data: progress } = await actions.fetchCourseProgress(user.id, courseId)
                 const lessonProgress = progress?.[lessonId]
@@ -527,36 +601,82 @@ export default function LessonView() {
     }
   }, [courseId, lessonId, user?.id])
 
-  const saveProgress = useCallback(async (time = currentTime, completedOverride = null) => {
-    if (user?.id && lesson && course) {
-      try {
-        const completedFlag = completedOverride !== null ? completedOverride : isCompleted;
-        await actions.updateLessonProgress(
-          user.id,
-          lesson.id,
-          course.id,
-          completedFlag,
-          { 
-            timeSpent: time,
-            lastAccessed: new Date().toISOString()
-          }
-        )
-      } catch (_) {
-        // Handle error silently or set error state if needed
+  // Fetch enrolled courses to check completion status
+  useEffect(() => {
+    if (user?.id) {
+      fetchEnrolledCourses(user.id)
+    }
+  }, [user?.id, fetchEnrolledCourses])
+
+  const saveProgress = useCallback(async (additionalTime = 0, completedOverride = null) => {
+    // Validate all required IDs before making any database calls
+    if (!user?.id || !lesson?.id || !course?.id) {
+      return; // Silently skip if data not ready
+    }
+    
+    // Additional validation to ensure IDs are not the string "undefined"
+    if (user.id === 'undefined' || lesson.id === 'undefined' || course.id === 'undefined') {
+      return;
+    }
+    
+    try {
+      const completedFlag = completedOverride !== null ? completedOverride : isCompleted;
+      await actions.updateLessonProgress(
+        user.id,
+        lesson.id,
+        course.id,
+        completedFlag,
+        { 
+          timeSpent: additionalTime,
+          lastAccessed: new Date().toISOString()
+        }
+      )
+    } catch (_) {
+      // Handle error silently or set error state if needed
+    }
+  }, [user?.id, lesson?.id, course?.id, isCompleted, actions])
+
+  // Track time for all content types (videos, PDFs, text, etc.)
+  useEffect(() => {
+    if (!lesson || !course || !user?.id) return
+    
+    let intervalId = null
+    let lastSaveTime = Date.now()
+    let sessionStart = Date.now()
+    
+    // For videos, track based on video playback position
+    // For other content (PDF, text, etc.), track based on page visibility
+    const trackTime = () => {
+      if (document.visibilityState === 'visible') {
+        const now = Date.now()
+        const timeSinceLastSave = Math.floor((now - lastSaveTime) / 1000)
+        
+        // Save every 30 seconds
+        if (timeSinceLastSave >= 30) {
+          saveProgress(timeSinceLastSave)
+          lastSaveTime = now
+        }
       }
     }
-  }, [user?.id, lesson, course, isCompleted, currentTime, actions])
-
-  useEffect(() => {
-    // Auto-save progress every 30 seconds
-    const interval = setInterval(() => {
-      if (currentTime > 0 && lesson && course) {
-        saveProgress(currentTime)
+    
+    // Start tracking immediately
+    sessionStart = Date.now()
+    lastSaveTime = Date.now()
+    
+    // Check every 30 seconds
+    intervalId = setInterval(trackTime, 30000)
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId)
+      // Save any remaining time on unmount
+      if (document.visibilityState === 'visible') {
+        const finalTime = Math.floor((Date.now() - lastSaveTime) / 1000)
+        if (finalTime > 0) {
+          saveProgress(finalTime)
+        }
       }
-    }, 30000)
-
-    return () => clearInterval(interval)
-  }, [saveProgress, lesson, course, currentTime])
+    }
+  }, [lesson, course, user?.id, saveProgress])
 
   const markAsCompleted = async () => {
     if (firstIncompleteKnowledgeCheck) {
@@ -568,20 +688,29 @@ export default function LessonView() {
     if (user?.id && lesson && course) {
       try {
         setIsCompleting(true)
-        const timeSpent = currentTime;
-        await actions.updateLessonProgress(
+        // Time tracking is handled automatically by the interval
+        // Just mark as complete - time will be saved by the tracking interval
+        const result = await actions.updateLessonProgress(
           user.id,
           lesson.id,
           course.id,
           true,
           { 
-            timeSpent: timeSpent,
+            timeSpent: 0, // Time is accumulated automatically, just pass 0 here
             completedAt: new Date().toISOString()
           }
         )
+        
+        // Check if completion was blocked due to minimum time requirement
+        if (result && !result.canComplete && result.minimumTimeRequired) {
+          const timeRemaining = result.minimumTimeRequired - (result.timeSpentSeconds || 0);
+          const minutesRemaining = Math.ceil(timeRemaining / 60);
+          showError(`Please review the material for at least ${Math.ceil(result.minimumTimeRequired / 60)} minutes before completing. You need ${minutesRemaining} more minute${minutesRemaining !== 1 ? 's' : ''}.`);
+          setIsCompleting(false);
+          return;
+        }
+        
         setIsCompleted(true)
-        // Ensure we do not downgrade completion on immediate autosave
-        await saveProgress(timeSpent, true)
         success('Lesson marked as complete!')
         // Navigate to next lesson if available
         const { data: lessonsData } = await actions.fetchCourseLessons(course.id)
@@ -825,17 +954,6 @@ export default function LessonView() {
     ));
   }, [lesson?.content_text]);
 
-  const courseProgressData = useMemo(() => {
-    const progressPercentage = course && courseProgress[courseId] ? 
-      Math.round((Object.values(courseProgress[courseId]).filter(p => p.completed).length / lessons.length) * 100) : 0;
-    
-    return {
-      percentage: progressPercentage,
-      completedCount: course && courseProgress[courseId] ? 
-        Object.values(courseProgress[courseId]).filter(p => p.completed).length : 0,
-      totalCount: lessons.length
-    };
-  }, [course, courseProgress, courseId, lessons.length]);
 
   // Memoized LazyIframe component for performance
   const LazyIframe = memo(({ src, title, className, onLoad, frameBorder, allowFullScreen }) => {
@@ -867,19 +985,51 @@ export default function LessonView() {
 
   LazyIframe.displayName = 'LazyIframe';
 
-  // Memoized PDF Viewer component with navigation
-  const PDFViewer = memo(({ pdfUrl }) => {
+  // Memoized PDF Viewer component with navigation and time tracking
+  const PDFViewer = memo(({ pdfUrl, onTimeTrack }) => {
     const [isLoaded, setIsLoaded] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(null);
+    const pdfViewStartTime = useRef(null);
+    const lastSaveTime = useRef(null);
 
     useEffect(() => {
       setIsLoaded(false);
       setCurrentPage(1);
-    }, [pdfUrl]);
+      pdfViewStartTime.current = Date.now();
+      lastSaveTime.current = Date.now();
+      
+      // Track time when PDF is viewed
+      const trackPDFTime = () => {
+        if (document.visibilityState === 'visible' && pdfViewStartTime.current && lastSaveTime.current && onTimeTrack) {
+          const now = Date.now();
+          const timeSinceLastSave = Math.floor((now - lastSaveTime.current) / 1000);
+          
+          if (timeSinceLastSave >= 30) {
+            onTimeTrack(timeSinceLastSave);
+            lastSaveTime.current = now;
+          }
+        }
+      };
+      
+      const interval = setInterval(trackPDFTime, 30000); // Check every 30 seconds
+      
+      return () => {
+        clearInterval(interval);
+        // Save final time on unmount
+        if (lastSaveTime.current && document.visibilityState === 'visible' && onTimeTrack) {
+          const finalTime = Math.floor((Date.now() - lastSaveTime.current) / 1000);
+          if (finalTime > 0) {
+            onTimeTrack(finalTime);
+          }
+        }
+      };
+    }, [pdfUrl, onTimeTrack]);
 
     const handleLoad = useCallback(() => {
       setIsLoaded(true);
+      pdfViewStartTime.current = Date.now();
+      lastSaveTime.current = Date.now();
     }, []);
 
     const goToNextPage = useCallback(() => {
@@ -2147,7 +2297,7 @@ export default function LessonView() {
       }
       // Handle PDF rendering
       if (lesson.content_type === 'pdf') {
-        return <PDFViewer pdfUrl={lesson.content_url} />;
+        return <PDFViewer pdfUrl={lesson.content_url} onTimeTrack={saveProgress} />;
       }
       // Handle PPT rendering
       if (lesson.content_type === 'ppt') {
@@ -2293,10 +2443,6 @@ export default function LessonView() {
           onProgress={({ playedSeconds }) => {
             const t = playedSeconds || 0;
             setCurrentTime(t);
-            // Throttle saves to ~30s cadence
-            if (lesson && course && t > 0 && t % 30 < 1) {
-              saveProgress(t);
-            }
           }}
           onEnded={() => {
             if (!isCompleted) {
@@ -2444,6 +2590,15 @@ export default function LessonView() {
             <span>{lesson.moduleTitle}</span>
             <span>/</span>
             <span className="text-text-dark">{lesson.title}</span>
+            {isCourseCompleted && (
+              <>
+                <span className="mx-2">•</span>
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                  <BookOpen className="w-3 h-3" />
+                  Review Mode
+                </span>
+              </>
+            )}
           </div>
           
           {/* Sidebar Toggle Button */}
@@ -2648,29 +2803,95 @@ export default function LessonView() {
 
 
         {/* Resources */}
-        {lesson.content_url && (
+        {(lesson.resources && Array.isArray(lesson.resources) && lesson.resources.length > 0) || lesson.content_url ? (
           <Card className="p-6">
             <h3 className="text-lg font-semibold text-text-dark mb-4">Lesson Resources</h3>
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 border border-background-dark rounded-lg">
-                <div className="flex items-center gap-3">
-                  <FileText className="w-5 h-5 text-text-muted" />
-                  <div>
-                    <h4 className="font-medium text-text-dark">Additional Content</h4>
-                    <p className="text-sm text-text-light">External resource</p>
-                  </div>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => window.open(lesson.content_url, '_blank')}
+              {/* Display resources array if available */}
+              {lesson.resources && Array.isArray(lesson.resources) && lesson.resources.length > 0 ? (
+                lesson.resources.map((resource) => (
+                  resource.type === 'link' ? (
+                    <a
+                      key={resource.id}
+                      href={normalizeUrl(resource.url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-start p-3 border border-background-dark rounded-lg hover:bg-background-light cursor-pointer no-underline"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <ExternalLink className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-text-dark truncate">{resource.title}</h4>
+                          {resource.description && (
+                            <p className="text-sm text-text-light truncate">{resource.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    </a>
+                  ) : (
+                    <div 
+                      key={resource.id} 
+                      onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
+                      className="flex items-center justify-between p-3 border border-background-dark rounded-lg hover:bg-background-light cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <File className="w-5 h-5 text-text-muted flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-text-dark truncate">{resource.title}</h4>
+                          {resource.description && (
+                            <p className="text-sm text-text-light truncate">{resource.description}</p>
+                          )}
+                          {resource.file_size && (
+                            <p className="text-xs text-text-muted">
+                              {resource.file_size < 1024 
+                                ? `${resource.file_size} B`
+                                : resource.file_size < 1024 * 1024
+                                ? `${(resource.file_size / 1024).toFixed(2)} KB`
+                                : `${(resource.file_size / (1024 * 1024)).toFixed(2)} MB`}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          downloadFile(resource.url, resource.file_name || resource.title);
+                        }}
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )
+                ))
+              ) : lesson.content_url ? (
+                <div 
+                  onClick={() => window.open(lesson.content_url, '_blank', 'noopener,noreferrer')}
+                  className="flex items-center justify-between p-3 border border-background-dark rounded-lg hover:bg-background-light cursor-pointer"
                 >
-                  <Download className="w-4 h-4" />
-                </Button>
-              </div>
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-5 h-5 text-text-muted" />
+                    <div>
+                      <h4 className="font-medium text-text-dark">Additional Content</h4>
+                      <p className="text-sm text-text-light">External resource</p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadFile(lesson.content_url, 'additional-content');
+                    }}
+                  >
+                    <Download className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : null}
             </div>
           </Card>
-        )}
+        ) : null}
 
         
       </div>
@@ -2928,6 +3149,56 @@ export default function LessonView() {
             })()}
           </div>
         </Card>
+
+        {/* Course Resources */}
+        {(() => {
+          const courseWithResources = courseFromStore || course;
+          const resources = courseWithResources?.resources;
+          return resources && Array.isArray(resources) && resources.length > 0;
+        })() && (
+          <Card className="p-6">
+            <h3 className="font-semibold text-text-dark mb-4">Course Resources</h3>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {((courseFromStore || course).resources || []).map((resource) => (
+                resource.type === 'link' ? (
+                  <a
+                    key={resource.id}
+                    href={normalizeUrl(resource.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-start p-2 border border-background-dark rounded-lg hover:bg-background-light transition-colors cursor-pointer no-underline"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <ExternalLink className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm text-text-dark truncate">{resource.title}</h4>
+                        {resource.description && (
+                          <p className="text-xs text-text-light truncate">{resource.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  </a>
+                ) : (
+                  <div
+                    key={resource.id}
+                    onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
+                    className="flex items-center justify-start p-2 border border-background-dark rounded-lg hover:bg-background-light transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <File className="w-4 h-4 text-text-muted flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm text-text-dark truncate">{resource.title}</h4>
+                        {resource.description && (
+                          <p className="text-xs text-text-light truncate">{resource.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              ))}
+            </div>
+          </Card>
+        )}
 
         {/* Ask Question */}
         <Card className="p-6">

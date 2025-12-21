@@ -7,6 +7,7 @@ import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui';
+import ResourcesManager from './ResourcesManager';
 
 export default function CourseForm({ course = null, onSuccess, onCancel }) {
   const { user } = useAuth();
@@ -30,7 +31,8 @@ export default function CourseForm({ course = null, onSuccess, onCancel }) {
     learning_objectives: '',
     thumbnail_url: '',
     slug: '',
-    is_public: false
+    is_public: false,
+    resources: []
   });
 
   const [loading, setLoading] = useState(false);
@@ -54,7 +56,8 @@ export default function CourseForm({ course = null, onSuccess, onCancel }) {
           course.learning_objectives || '',
         thumbnail_url: course.thumbnail_url || '',
         slug: course.slug || '',
-        is_public: course.is_public || false
+        is_public: course.is_public || false,
+        resources: course.resources || []
       });
     }
   }, [course]);
@@ -137,7 +140,8 @@ export default function CourseForm({ course = null, onSuccess, onCancel }) {
           [],
         prerequisites: formData.prerequisites ? 
           formData.prerequisites.split('\n').filter(obj => obj.trim()) : 
-          []
+          [],
+        resources: formData.resources || []
       };
 
       let result;
@@ -361,6 +365,16 @@ export default function CourseForm({ course = null, onSuccess, onCancel }) {
               <label className="ml-2 block text-sm text-gray-700">
                 Make this course publicly visible (even when not published)
               </label>
+            </div>
+
+            {/* Course Resources - displayed at the end of course */}
+            <div>
+              <ResourcesManager
+                resources={formData.resources || []}
+                onChange={(resources) => setFormData({ ...formData, resources })}
+                courseId={course?.id}
+                label="Course Resources (Displayed at the end of the course)"
+              />
             </div>
           </div>
 

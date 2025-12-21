@@ -849,6 +849,11 @@ export const useCorporateStore = create((set, get) => ({
       const { currentCompany } = get();
       if (!currentCompany) throw new Error("No current company");
 
+      // Validate UUIDs before proceeding
+      if (!employeeId || !currentCompany.id || employeeId === 'undefined' || currentCompany.id === 'undefined') {
+        throw new Error("Invalid employee ID or organization ID");
+      }
+
       set({ loading: true, error: null });
 
       const { error } = await supabase
@@ -882,6 +887,11 @@ export const useCorporateStore = create((set, get) => ({
     try {
       const { currentCompany } = get();
       if (!currentCompany) throw new Error("No current company");
+
+      // Validate UUIDs before proceeding
+      if (!employeeId || !currentCompany.id || employeeId === 'undefined' || currentCompany.id === 'undefined') {
+        throw new Error("Invalid employee ID or organization ID");
+      }
 
       set({ loading: true, error: null });
 
@@ -1054,9 +1064,25 @@ export const useCorporateStore = create((set, get) => ({
       const { currentCompany } = get();
       if (!currentCompany) throw new Error("No current company");
 
+      // Validate organization ID
+      if (!currentCompany.id || currentCompany.id === 'undefined') {
+        throw new Error("Invalid organization ID");
+      }
+
       set({ loading: true, error: null });
 
-      const updatePromises = updates.map(update =>
+      // Filter out invalid employee IDs
+      const validUpdates = updates.filter(update => 
+        update.employeeId && 
+        update.employeeId !== 'undefined' &&
+        update.role
+      );
+
+      if (validUpdates.length === 0) {
+        throw new Error("No valid employee IDs provided");
+      }
+
+      const updatePromises = validUpdates.map(update =>
         supabase
           .from("organization_members")
           .update({ 

@@ -1,5 +1,5 @@
 // src/components/corporate/EmployeeManagement.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   Users, 
   UserPlus, 
@@ -203,7 +203,7 @@ export default function EmployeeManagement() {
 
       {/* Employee List */}
       <Card>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" style={{ position: 'relative' }}>
           <table className="w-full">
             <thead>
               <tr className="border-b border-background-dark">
@@ -281,17 +281,39 @@ function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIco
   const [showActions, setShowActions] = useState(false)
   const [showRoleEdit, setShowRoleEdit] = useState(false)
   const [newRole, setNewRole] = useState(employee.role)
+  const actionsRef = useRef(null)
+  const buttonRef = useRef(null)
 
   const RoleIcon = getRoleIcon(employee.role)
 
   const handleRoleUpdate = async () => {
     try {
+      // Validate employee ID before updating
+      if (!employee.id || employee.id === 'undefined') {
+        console.error('Invalid employee ID');
+        return;
+      }
       await onUpdateRole(employee.id, newRole)
       setShowRoleEdit(false)
     } catch (error) {
       console.error('Failed to update role:', error)
     }
   }
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (actionsRef.current && !actionsRef.current.contains(event.target) && 
+          buttonRef.current && !buttonRef.current.contains(event.target)) {
+        setShowActions(false)
+      }
+    }
+
+    if (showActions) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showActions])
 
   return (
     <tr className="border-b border-background-light hover:bg-background-light">
@@ -367,6 +389,7 @@ function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIco
       <td className="py-3 px-4 text-right">
         <div className="relative">
           <Button
+            ref={buttonRef}
             variant="ghost"
             size="sm"
             onClick={() => setShowActions(!showActions)}
@@ -375,7 +398,11 @@ function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIco
           </Button>
           
           {showActions && (
-            <div className="absolute right-0 top-8 w-48 bg-white border border-background-dark rounded-lg shadow-lg z-10">
+            <div 
+              ref={actionsRef}
+              className="absolute right-0 top-8 w-48 bg-white border border-background-dark rounded-lg shadow-xl z-[9999]"
+              style={{ position: 'absolute' }}
+            >
               <button
                 onClick={() => {
                   setShowRoleEdit(true)
@@ -396,6 +423,13 @@ function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIco
                 <Trash2 className="w-4 h-4" />
                 Remove Employee
               </button>
+              <a
+                href="/company/departments"
+                className="w-full text-left px-4 py-2 hover:bg-background-light flex items-center gap-2"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                Assign as Manager
+              </a>
             </div>
           )}
         </div>

@@ -428,7 +428,8 @@ const useCourseStore = create((set, get) => ({
               difficulty_level,
               category_id,
               is_published,
-              created_at
+              created_at,
+              resources
             )
           `)
           .eq('user_id', userId)
@@ -538,14 +539,67 @@ const useCourseStore = create((set, get) => ({
     // Update lesson progress
     updateLessonProgress: async (userId, lessonId, courseId, completed = true, metadata = {}) => {
       try {
+        // Validate UUIDs before proceeding
+        if (!userId || !lessonId || !courseId || userId === 'undefined' || lessonId === 'undefined' || courseId === 'undefined') {
+          return { 
+            data: null, 
+            error: { message: 'Missing required IDs: userId, lessonId, or courseId is undefined' },
+            canComplete: false,
+            reviewCompleted: false,
+            timeSpentSeconds: 0,
+            minimumTimeRequired: null
+          };
+        }
+        
+        // Get existing progress to accumulate time
+        const { data: existingProgress } = await supabase
+          .from(TABLES.LESSON_PROGRESS)
+          .select('time_spent_seconds, minimum_time_required')
+          .eq('user_id', userId)
+          .eq('lesson_id', lessonId)
+          .eq('course_id', courseId)
+          .maybeSingle();
+        
+        const existingTimeSpent = existingProgress?.time_spent_seconds || 0;
+        
+        // Calculate additional time spent in this session
+        const additionalTimeSpent = metadata.timeSpent ? Math.floor(metadata.timeSpent) : 0;
+        
+        // Accumulate total time spent (existing + additional)
+        const totalTimeSpentSeconds = existingTimeSpent + additionalTimeSpent;
+        
+        // Get lesson to check for minimum time requirement
+        const { data: lessonData } = await supabase
+          .from(TABLES.LESSONS)
+          .select('duration_minutes')
+          .eq('id', lessonId)
+          .single();
+        
+        // Calculate minimum time required (80% of lesson duration, or minimum 30 seconds)
+        const minimumTimeRequired = lessonData?.duration_minutes 
+          ? Math.max(30, Math.floor(lessonData.duration_minutes * 60 * 0.8))
+          : null;
+        
+        // Check if review is completed (total time spent >= minimum required)
+        const reviewCompleted = minimumTimeRequired 
+          ? totalTimeSpentSeconds >= minimumTimeRequired 
+          : true; // If no minimum time, consider reviewed
+        
+        // Only allow completion if review is completed
+        const canComplete = completed ? reviewCompleted : true;
+        
         const { data, error } = await supabase
           .from(TABLES.LESSON_PROGRESS)
           .upsert({
             user_id: userId,
             lesson_id: lessonId,
             course_id: courseId,
-            completed,
-            completed_at: completed ? new Date().toISOString() : null,
+            completed: canComplete ? completed : false,
+            completed_at: (canComplete && completed) ? new Date().toISOString() : null,
+            time_spent_seconds: totalTimeSpentSeconds,
+            minimum_time_required: minimumTimeRequired,
+            review_completed: reviewCompleted,
+            last_activity_at: new Date().toISOString(),
             metadata: metadata,
           }, { onConflict: 'user_id,lesson_id,course_id' })
           .select()
@@ -560,8 +614,11 @@ const useCourseStore = create((set, get) => ({
             [courseId]: {
               ...state.courseProgress[courseId],
               [lessonId]: { 
-                completed, 
+                completed: canComplete ? completed : false, 
                 completed_at: data.completed_at,
+                time_spent_seconds: totalTimeSpentSeconds,
+                minimum_time_required: minimumTimeRequired,
+                review_completed: reviewCompleted,
                 metadata: metadata,
               },
             },
@@ -571,7 +628,14 @@ const useCourseStore = create((set, get) => ({
         // Calculate and update overall course progress
         await get().actions.calculateCourseProgress(userId, courseId);
 
-        return { data, error: null };
+        return { 
+          data, 
+          error: null,
+          canComplete,
+          reviewCompleted,
+          timeSpentSeconds: totalTimeSpentSeconds,
+          minimumTimeRequired
+        };
       } catch (error) {
         return { data: null, error };
       }
@@ -581,7 +645,7 @@ const useCourseStore = create((set, get) => ({
     calculateCourseProgress: async (userId, courseId) => {
       try {
         // Validate parameters
-        if (!userId || !courseId) {
+        if (!userId || !courseId || userId === 'undefined' || courseId === 'undefined') {
           return 0;
         }
 
@@ -667,7 +731,7 @@ const useCourseStore = create((set, get) => ({
 
       try {
         // Validate parameters
-        if (!userId || !courseId) {
+        if (!userId || !courseId || userId === 'undefined' || courseId === 'undefined') {
           return { data: {}, error: null };
         }
 
@@ -687,6 +751,9 @@ const useCourseStore = create((set, get) => ({
           progressMap[progress.lesson_id] = {
             completed: progress.completed,
             completed_at: progress.completed_at,
+            time_spent_seconds: progress.time_spent_seconds || 0,
+            minimum_time_required: progress.minimum_time_required || null,
+            review_completed: progress.review_completed || false,
             metadata: progress.metadata,
           };
         });

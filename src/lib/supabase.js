@@ -403,7 +403,15 @@ export const uploadFile = async (bucket, path, file, options = {}) => {
       // If no filename or extension, create one from file name
       const originalName = file.name || 'file';
       const fileExt = originalName.split('.').pop() || 'bin';
-      const fileNameWithoutExt = originalName.replace(/\.[^/.]+$/, '') || 'upload';
+      let fileNameWithoutExt = originalName.replace(/\.[^/.]+$/, '') || 'upload';
+      
+      // Sanitize filename: remove special characters, replace spaces with underscores
+      fileNameWithoutExt = fileNameWithoutExt
+        .replace(/[^a-zA-Z0-9\-_]/g, '_')
+        .replace(/\s+/g, '_')
+        .replace(/_{2,}/g, '_')
+        .substring(0, 100); // Limit length
+      
       const uniqueFileName = `${fileNameWithoutExt}_${timestamp}.${fileExt}`;
       const uniquePath = [...pathParts, uniqueFileName].join('/');
       
@@ -429,7 +437,14 @@ export const uploadFile = async (bucket, path, file, options = {}) => {
     }
     
     const fileExt = fileName.split('.').pop();
-    const fileNameWithoutExt = fileName.replace(/\.[^/.]+$/, '');
+    let fileNameWithoutExt = fileName.replace(/\.[^/.]+$/, '');
+    
+    // Sanitize filename: remove special characters, replace spaces with underscores
+    fileNameWithoutExt = fileNameWithoutExt
+      .replace(/[^a-zA-Z0-9\-_]/g, '_')
+      .replace(/\s+/g, '_')
+      .replace(/_{2,}/g, '_')
+      .substring(0, 100); // Limit length
     
     // Create unique filename with timestamp
     const uniqueFileName = `${fileNameWithoutExt}_${timestamp}.${fileExt}`;
