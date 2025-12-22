@@ -27,6 +27,7 @@ import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Modal from '@/components/ui/Modal'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import CreateUserDirectModal from './CreateUserDirectModal'
 
 export default function UserInvitation() {
   const departments = useDepartments()
@@ -35,6 +36,7 @@ export default function UserInvitation() {
     fetchDepartments,
     fetchInvitations,
     inviteEmployee,
+    createUserDirect,
     bulkInviteEmployees,
     resendInvitation,
     deleteInvitation,
@@ -45,6 +47,7 @@ export default function UserInvitation() {
   const [activeTab, setActiveTab] = useState('single')
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterRole, setFilterRole] = useState('all')
@@ -216,9 +219,16 @@ export default function UserInvitation() {
             <Upload className="w-4 h-4 mr-2" />
             Bulk Invite
           </Button>
-          <Button onClick={() => setShowInviteModal(true)}>
+          <Button 
+            variant="outline"
+            onClick={() => setShowCreateUserModal(true)}
+          >
             <UserPlus className="w-4 h-4 mr-2" />
-            Invite User
+            Add User Directly
+          </Button>
+          <Button onClick={() => setShowInviteModal(true)}>
+            <Mail className="w-4 h-4 mr-2" />
+            Invite by Email
           </Button>
         </div>
       </div>
@@ -385,6 +395,15 @@ export default function UserInvitation() {
         isOpen={showBulkModal}
         onClose={() => setShowBulkModal(false)}
         onSubmit={handleBulkInvite}
+        departments={departments}
+        loading={loading}
+      />
+
+      {/* Create User Directly Modal */}
+      <CreateUserDirectModal
+        isOpen={showCreateUserModal}
+        onClose={() => setShowCreateUserModal(false)}
+        onCreate={createUserDirect}
         departments={departments}
         loading={loading}
       />

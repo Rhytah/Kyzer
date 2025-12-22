@@ -325,12 +325,12 @@ export const useCorporate = () => {
     // Emergency timeout to prevent infinite loading
     const emergencyTimeout = setTimeout(() => {
       if (mounted && loading && !initialized) {
-        console.warn('Corporate data loading timeout - this is normal for users without organizations');
+        // Silently handle timeout - don't log warning as it's normal for users without organizations
         setLoading(false);
         setInitialized(true);
         // Don't set error for timeout - it's normal for users without organizations
       }
-    }, 10000); // Reduced to 10 seconds
+    }, 5000); // Reduced to 5 seconds for faster feedback
 
     const initializeCorporateData = async () => {
       if (!mounted) return;

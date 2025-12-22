@@ -174,8 +174,9 @@ export const useCorporateStore = create((set, get) => ({
         .eq("status", "active")
         .single();
       
+      // Reduced timeout to 5 seconds for faster feedback
       const orgTimeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Organization query timeout')), 10000)
+        setTimeout(() => reject(new Error('Organization query timeout')), 5000)
       );
       
       const { data: userOrganization, error: userError } = await Promise.race([orgQuery, orgTimeout]);
@@ -493,6 +494,108 @@ export const useCorporateStore = create((set, get) => ({
     }
   },
 
+  // Create user directly (without email invitation)
+  createUserDirect: async (userData) => {
+    try {
+      set({ loading: true, error: null });
+
+      // Ensure we have a current company
+      let { currentCompany } = get();
+      if (!currentCompany) {
+        await get().fetchCurrentCompany();
+        currentCompany = get().currentCompany;
+        if (!currentCompany) {
+          throw new Error("No current company. Please ensure you're associated with a company.");
+        }
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
+      // Validate required fields
+      if (!userData.email) {
+        throw new Error("Email is required");
+      }
+
+      // Password is only required for new users
+      // If user already exists, we'll add them to organization without password
+
+      // Call Edge Function to create user
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error('Supabase configuration missing');
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const authHeader = session ? `Bearer ${session.access_token}` : supabaseKey;
+
+      let response;
+      try {
+        response = await fetch(`${supabaseUrl}/functions/v1/create-user-direct`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': authHeader,
+            'apikey': supabaseKey
+          },
+          body: JSON.stringify({
+            email: userData.email,
+            password: userData.password,
+            firstName: userData.firstName || '',
+            lastName: userData.lastName || '',
+            role: userData.role || 'employee',
+            departmentId: userData.departmentId || null,
+            organizationId: currentCompany.id,
+            invitedBy: user.id
+          })
+        });
+      } catch (fetchError) {
+        // Network error or Edge Function not deployed
+        if (fetchError.name === 'TypeError' && fetchError.message.includes('Failed to fetch')) {
+          throw new Error('Edge Function not deployed or network error. Please deploy the create-user-direct function to Supabase. See documentation for deployment instructions.');
+        }
+        throw fetchError;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        
+        // Check if Edge Function is not deployed
+        if (response.status === 404 || response.status === 500) {
+          const errorMsg = errorData.error || 'Unknown error';
+          if (errorMsg.includes('function') || errorMsg.includes('not found') || response.status === 404) {
+            throw new Error('Edge Function not deployed. Please deploy the create-user-direct function to Supabase. See documentation for deployment instructions.');
+          }
+        }
+        
+        throw new Error(errorData.error || `HTTP ${response.status}: Failed to create user`);
+      }
+
+      const result = await response.json();
+
+      // Refresh employees list
+      await get().fetchEmployees();
+
+      set({ loading: false });
+      
+      if (result.action === 'added_to_organization') {
+        toast.success(`User ${userData.email} has been added to your organization. Their existing password remains unchanged.`);
+      } else {
+        toast.success(`User ${userData.email} created successfully! They can now log in with the password you set.`);
+      }
+
+      return result;
+    } catch (error) {
+      set({ error: error.message, loading: false });
+      toast.error("Failed to create user: " + error.message);
+      throw error;
+    }
+  },
+
   // Invite employee to company
   inviteEmployee: async (email, role = "learner", departmentId = null, customMessage = null) => {
     try {
@@ -656,8 +759,6 @@ export const useCorporateStore = create((set, get) => ({
       const { currentCompany } = get();
       if (!currentCompany) return [];
 
-      console.log("Fetching invitations for organization:", currentCompany.id);
-      
       const { data: invitations, error } = await supabase
         .from("organization_invitations")
         .select(`
@@ -677,23 +778,11 @@ export const useCorporateStore = create((set, get) => ({
         `)
         .eq("organization_id", currentCompany.id)
         .order("invited_at", { ascending: false });
-        
-      console.log("Database query result:", { invitations: invitations?.length || 0, error });
-      
-      if (invitations && invitations.length > 0) {
-        console.log("Current invitations in DB:", invitations.map(inv => ({ id: inv.id, email: inv.email })));
-      }
 
       if (error) throw error;
-
-      console.log("Fetched invitations:", invitations?.length || 0, "invitations");
-      if (invitations && invitations.length > 0) {
-        console.log("Sample invitation:", invitations[0]);
-      }
       
       // Update state with new invitations
       set({ invitations: invitations || [] });
-      console.log("State updated with invitations:", invitations?.length || 0);
       
       return invitations || [];
     } catch (error) {

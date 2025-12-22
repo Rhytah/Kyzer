@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Download,
   Calendar,
@@ -20,6 +20,117 @@ import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useCorporateStore } from "@/store/corporateStore";
 import { useCorporate } from "@/hooks/corporate/useCorporate";
 import { supabase, TABLES } from "@/lib/supabase";
+
+// Monthly Chart Bars Component with Tooltips
+const MonthlyChartBars = ({ monthlyProgress = [], maxValue = 1 }) => {
+  const [hoveredMonth, setHoveredMonth] = useState(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const chartContainerRef = useRef(null);
+
+  const handleMouseEnter = (event, monthIndex) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const containerRect = chartContainerRef.current?.getBoundingClientRect();
+    if (containerRect) {
+      setTooltipPosition({
+        x: rect.left - containerRect.left + rect.width / 2,
+        y: rect.top - containerRect.top - 10,
+      });
+    }
+    setHoveredMonth(monthIndex);
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredMonth(null);
+  };
+
+  const chartHeight = 200;
+  const progressData = Array.isArray(monthlyProgress) ? monthlyProgress : [];
+
+  if (!progressData || progressData.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full text-text-medium">
+        No data available
+      </div>
+    );
+  }
+
+  return (
+    <div ref={chartContainerRef} className="relative h-full flex items-end justify-between px-4 pb-8">
+      {progressData.map((month, index) => {
+        if (!month || typeof month !== 'object') {
+          return null;
+        }
+        
+        const completions = Number(month.completions) || 0;
+        const hours = Number(month.hours) || 0;
+        const completionsHeight = maxValue > 0 ? (completions / maxValue) * chartHeight : 0;
+        const hoursHeight = maxValue > 0 ? (hours / maxValue) * chartHeight : 0;
+        
+        return (
+          <div 
+            key={index} 
+            className="flex-1 flex flex-col items-center h-full justify-end gap-1 px-1 group"
+            onMouseEnter={(e) => handleMouseEnter(e, index)}
+            onMouseLeave={handleMouseLeave}
+          >
+            <div className="w-full flex items-end justify-center gap-1.5" style={{ height: `${chartHeight}px` }}>
+              {/* Completions bar */}
+              <div 
+                className="bg-primary rounded-t flex-1 max-w-[48%] transition-all group-hover:opacity-90 cursor-pointer"
+                style={{
+                  height: `${completionsHeight}px`,
+                  minHeight: completionsHeight > 0 ? "4px" : "0px",
+                }}
+              />
+              {/* Hours bar */}
+              <div 
+                className="bg-blue-500 rounded-t flex-1 max-w-[48%] transition-all group-hover:opacity-90 cursor-pointer"
+                style={{
+                  height: `${hoursHeight}px`,
+                  minHeight: hoursHeight > 0 ? "4px" : "0px",
+                }}
+              />
+            </div>
+            {/* X-axis label */}
+            <div className="text-xs text-text-medium mt-2 text-center font-medium">
+              {month.month || `Month ${index + 1}`}
+            </div>
+          </div>
+        );
+      })}
+      
+      {/* Tooltip - shows both completions and hours */}
+      {hoveredMonth !== null && progressData[hoveredMonth] && (
+        <div
+          className="absolute z-50 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl pointer-events-none whitespace-nowrap"
+          style={{
+            left: `${tooltipPosition.x}px`,
+            top: `${tooltipPosition.y}px`,
+            transform: 'translateX(-50%) translateY(-100%)',
+          }}
+        >
+          <div className="font-semibold mb-2 text-center border-b border-gray-700 pb-1">
+            {progressData[hoveredMonth]?.month || `Month ${hoveredMonth + 1}`}
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 bg-primary rounded-full"></div>
+              <span>Completions: <strong className="ml-1">{progressData[hoveredMonth]?.completions || 0}</strong></span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 bg-blue-500 rounded-full"></div>
+              <span>Hours: <strong className="ml-1">{progressData[hoveredMonth]?.hours || 0}</strong></span>
+            </div>
+          </div>
+          {/* Arrow pointing down */}
+          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
+            <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Reports = () => {
   const { organization } = useCorporate();
@@ -438,42 +549,75 @@ const Reports = () => {
 
       {/* Monthly Progress Chart */}
       <div className="card">
-        <h3 className="text-lg font-semibold text-text-dark mb-4">
-          Monthly Learning Progress
-        </h3>
-        <div className="h-64 flex items-end justify-between space-x-2 border-b border-background-dark">
-          {reportData?.monthlyProgress?.map((month, index) => (
-            <div key={index} className="flex-1 flex flex-col items-center">
-              <div className="w-full max-w-12 space-y-1">
-                <div
-                  className="bg-primary rounded-t"
-                  style={{
-                    height: `${(month.completions / Math.max(...reportData?.monthlyProgress?.map((m) => m.completions))) * 200}px`,
-                    minHeight: "4px",
-                  }}
-                />
-                <div
-                  className="bg-primary-light rounded-t"
-                  style={{
-                    height: `${(month.hours / Math.max(...reportData?.monthlyProgress?.map((m) => m.hours))) * 100}px`,
-                    minHeight: "2px",
-                  }}
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-text-dark">
+            Monthly Learning Progress
+          </h3>
+        </div>
+        
+        {/* Legend */}
+        <div className="flex items-center gap-6 mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-primary rounded-full" />
+            <span className="text-sm text-text-medium">Completions</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-blue-500 rounded-full" />
+            <span className="text-sm text-text-medium">Hours</span>
+          </div>
+        </div>
+
+        {/* Chart Container */}
+        {(() => {
+          const monthlyData = reportData?.monthlyProgress || [];
+          const completionsValues = monthlyData.length > 0 
+            ? monthlyData.map((m) => m.completions || 0) 
+            : [0];
+          const hoursValues = monthlyData.length > 0 
+            ? monthlyData.map((m) => m.hours || 0) 
+            : [0];
+          const maxCompletions = Math.max(...completionsValues, 1);
+          const maxHours = Math.max(...hoursValues, 1);
+          const maxValue = Math.max(maxCompletions, maxHours);
+          const step = Math.ceil(maxValue / 5);
+          const ticks = [];
+          for (let i = 0; i <= 5; i++) {
+            ticks.push(step * i);
+          }
+          
+          return (
+            <div className="relative">
+              {/* Y-axis labels - max at top, 0 at bottom (standard chart convention) */}
+              <div className="absolute left-0 top-0 bottom-8 w-12 flex flex-col-reverse justify-between pr-2">
+                {ticks.map((tick, idx) => (
+                  <div key={idx} className="text-right">
+                    <span className="text-xs text-text-light">{tick}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Chart area with grid lines */}
+              <div className="ml-12 relative" style={{ height: '240px' }}>
+                {/* Grid lines - aligned with Y-axis labels */}
+                <div className="absolute inset-0 flex flex-col-reverse justify-between">
+                  {ticks.map((_, idx) => (
+                    <div
+                      key={idx}
+                      className="border-t border-background-light border-dashed"
+                      style={{ height: '1px' }}
+                    />
+                  ))}
+                </div>
+
+                {/* Bars with tooltips */}
+                <MonthlyChartBars 
+                  monthlyProgress={Array.isArray(reportData?.monthlyProgress) ? reportData?.monthlyProgress : []}
+                  maxValue={maxValue || 1}
                 />
               </div>
-              <div className="text-xs text-text-medium mt-2">{month.month}</div>
             </div>
-          ))}
-        </div>
-        <div className="flex items-center justify-center space-x-6 mt-4 text-sm">
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-primary rounded mr-2" />
-            <span>Completions</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-primary-light rounded mr-2" />
-            <span>Hours</span>
-          </div>
-        </div>
+          );
+        })()}
       </div>
     </div>
   );

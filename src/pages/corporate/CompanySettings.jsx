@@ -22,6 +22,7 @@ import Button from "../../components/ui/Button";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useAuthStore } from "../../store/authStore";
 import toast from "react-hot-toast";
+import UserManagementDashboard from "../../components/corporate/UserManagementDashboard";
 
 const companySchema = z.object({
   name: z.string().min(2, "Company name must be at least 2 characters"),
@@ -536,17 +537,7 @@ const CompanySettings = () => {
       case "security":
         return renderSecurityTab();
       case "users":
-        return (
-          <div className="text-center py-12">
-            <Users className="h-12 w-12 text-text-light mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-text-dark mb-2">
-              User Management
-            </h3>
-            <p className="text-text-medium">
-              Configure user roles, permissions, and access controls.
-            </p>
-          </div>
-        );
+        return <UserManagementDashboard />;
       case "notifications":
         return (
           <div className="text-center py-12">
@@ -626,15 +617,19 @@ const CompanySettings = () => {
 
         {/* Main Content */}
         <div className="lg:col-span-3">
-          <div className="card">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-text-dark">
-                {tabs.find((tab) => tab.id === activeTab)?.name}
-              </h2>
-            </div>
+          {activeTab === "users" ? (
+            <UserManagementDashboard />
+          ) : (
+            <div className="card">
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold text-text-dark">
+                  {tabs.find((tab) => tab.id === activeTab)?.name}
+                </h2>
+              </div>
 
-            {renderContent()}
-          </div>
+              {renderContent()}
+            </div>
+          )}
         </div>
       </div>
     </div>

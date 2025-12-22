@@ -15,13 +15,16 @@ import {
   XCircle,
   RefreshCw,
   Trash2,
-  Edit
+  Edit,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 import { useCorporateStore, useEmployees, useCurrentCompany, useDepartments, useInvitations } from '@/store/corporateStore'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Modal from '@/components/ui/Modal'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import CreateUserDirectModal from './CreateUserDirectModal'
 
 export default function EmployeeManagement() {
   const currentCompany = useCurrentCompany()
@@ -33,6 +36,7 @@ export default function EmployeeManagement() {
     fetchInvitations,
     fetchDepartments,
     inviteEmployee,
+    createUserDirect,
     updateEmployeeRole,
     removeEmployee,
     resendInvitation,
@@ -42,6 +46,7 @@ export default function EmployeeManagement() {
   } = useCorporateStore()
 
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterRole, setFilterRole] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
@@ -93,10 +98,16 @@ export default function EmployeeManagement() {
           </p>
         </div>
         
-        <Button onClick={() => setShowInviteModal(true)}>
-          <UserPlus className="w-4 h-4 mr-2" />
-          Invite Employee
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowCreateUserModal(true)}>
+            <UserPlus className="w-4 h-4 mr-2" />
+            Add User Directly
+          </Button>
+          <Button onClick={() => setShowInviteModal(true)}>
+            <Mail className="w-4 h-4 mr-2" />
+            Invite by Email
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -270,6 +281,15 @@ export default function EmployeeManagement() {
         isOpen={showInviteModal}
         onClose={() => setShowInviteModal(false)}
         onInvite={inviteEmployee}
+        loading={loading}
+      />
+
+      {/* Create User Directly Modal */}
+      <CreateUserDirectModal
+        isOpen={showCreateUserModal}
+        onClose={() => setShowCreateUserModal(false)}
+        onCreate={createUserDirect}
+        departments={departments}
         loading={loading}
       />
     </div>
