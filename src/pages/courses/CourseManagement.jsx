@@ -21,7 +21,8 @@ import {
   FileText,
   Search,
   Filter,
-  Edit3
+  Edit3,
+  Paperclip
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -30,6 +31,7 @@ import CourseForm from '@/components/course/CourseForm';
 import LessonForm from '@/components/course/LessonForm';
 import ModuleForm from '@/components/course/ModuleForm';
 import QuizForm from '@/components/course/QuizForm';
+import ResourcesQuickEditModal from '@/components/course/ResourcesQuickEditModal';
 import { useToast } from '@/components/ui';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 
@@ -58,10 +60,12 @@ export default function CourseManagement() {
   const [showLessonForm, setShowLessonForm] = useState(false);
   const [showModuleForm, setShowModuleForm] = useState(false);
   const [showQuizForm, setShowQuizForm] = useState(false);
+  const [showResourcesModal, setShowResourcesModal] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
   const [editingLesson, setEditingLesson] = useState(null);
   const [editingModule, setEditingModule] = useState(null);
   const [editingQuiz, setEditingQuiz] = useState(null);
+  const [resourcesCourse, setResourcesCourse] = useState(null);
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [courseLessons, setCourseLessons] = useState({});
   const [courseModules, setCourseModules] = useState({});
@@ -279,6 +283,18 @@ export default function CourseManagement() {
   const handleAddQuiz = (courseId) => {
     setSelectedCourseId(courseId);
     setShowQuizForm(true);
+  };
+
+  const handleManageResources = (course) => {
+    setResourcesCourse(course);
+    setShowResourcesModal(true);
+  };
+
+  const handleResourcesModalClose = async () => {
+    setShowResourcesModal(false);
+    setResourcesCourse(null);
+    // Refresh courses to show updated resources
+    await fetchCourses();
   };
 
   const handleEditQuiz = (quiz, courseId) => {
@@ -613,6 +629,13 @@ export default function CourseManagement() {
         </div>
       )}
 
+      {/* Resources Quick Edit Modal */}
+      <ResourcesQuickEditModal
+        isOpen={showResourcesModal}
+        onClose={handleResourcesModalClose}
+        course={resourcesCourse}
+      />
+
       {/* Error Display */}
       {error && (
         <Card className="p-4 bg-red-50 border border-red-200">
@@ -757,29 +780,38 @@ export default function CourseManagement() {
                         <Edit className="w-4 h-4 mr-1" />
                         Edit
                       </Button>
-                      <Button
+                      {/* <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => handleAddModule(course.id)}
                       >
                         <FolderOpen className="w-4 h-4 mr-1" />
                         Add Module
-                      </Button>
-                      <Button
+                      </Button> */}
+                      {/* <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => handleAddLesson(course.id)}
                       >
                         <Plus className="w-4 h-4 mr-1" />
                         Add Lesson
-                      </Button>
-                      <Button
+                      </Button> */}
+                      {/* <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => handleAddQuiz(course.id)}
                       >
                         <Plus className="w-4 h-4 mr-1" />
                         Add Quiz
+                      </Button> */}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleManageResources(course)}
+                        title="Manage course resources and attachments"
+                      >
+                        <Paperclip className="w-4 h-4 mr-1" />
+                        Resources
                       </Button>
                       <Button
                         variant="ghost"

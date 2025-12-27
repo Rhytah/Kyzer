@@ -24,7 +24,6 @@ import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Modal from '@/components/ui/Modal'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
-import CreateUserDirectModal from './CreateUserDirectModal'
 
 export default function EmployeeManagement() {
   const currentCompany = useCurrentCompany()
@@ -46,7 +45,6 @@ export default function EmployeeManagement() {
   } = useCorporateStore()
 
   const [showInviteModal, setShowInviteModal] = useState(false)
-  const [showCreateUserModal, setShowCreateUserModal] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterRole, setFilterRole] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
@@ -99,13 +97,9 @@ export default function EmployeeManagement() {
         </div>
         
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowCreateUserModal(true)}>
-            <UserPlus className="w-4 h-4 mr-2" />
-            Add User Directly
-          </Button>
           <Button onClick={() => setShowInviteModal(true)}>
-            <Mail className="w-4 h-4 mr-2" />
-            Invite by Email
+            <UserPlus className="w-4 h-4 mr-2" />
+            Add Team Member
           </Button>
         </div>
       </div>
@@ -276,18 +270,11 @@ export default function EmployeeManagement() {
         </Card>
       )}
 
-      {/* Invite Employee Modal */}
+      {/* Unified Invite/Add User Modal */}
       <InviteEmployeeModal
         isOpen={showInviteModal}
         onClose={() => setShowInviteModal(false)}
         onInvite={inviteEmployee}
-        loading={loading}
-      />
-
-      {/* Create User Directly Modal */}
-      <CreateUserDirectModal
-        isOpen={showCreateUserModal}
-        onClose={() => setShowCreateUserModal(false)}
         onCreate={createUserDirect}
         departments={departments}
         loading={loading}
@@ -506,93 +493,367 @@ function InvitationRow({ invitation, onResend, onDelete }) {
   )
 }
 
-// Invite Employee Modal Component
-function InviteEmployeeModal({ isOpen, onClose, onInvite, loading }) {
-  const [formData, setFormData] = useState({
+// Unified Invite/Add User Modal Component with Tabs
+function InviteEmployeeModal({ isOpen, onClose, onInvite, onCreate, departments, loading }) {
+  const [activeTab, setActiveTab] = useState('invite') // 'invite' or 'direct'
+  const { fetchEmployees } = useCorporateStore()
+  
+  // Invite form state
+  const [inviteFormData, setInviteFormData] = useState({
     email: '',
     role: 'employee'
   })
-  const [errors, setErrors] = useState({})
+  const [inviteErrors, setInviteErrors] = useState({})
+  
+  // Direct create form state
+  const [directFormData, setDirectFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    firstName: '',
+    lastName: '',
+    role: 'employee',
+    departmentId: ''
+  })
+  const [directErrors, setDirectErrors] = useState({})
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  const handleSubmit = async (e) => {
+  const handleInviteSubmit = async (e) => {
     e.preventDefault()
     
-    // Basic validation
     const newErrors = {}
-    if (!formData.email) newErrors.email = 'Email is required'
-    if (!formData.email.includes('@')) newErrors.email = 'Valid email is required'
+    if (!inviteFormData.email) newErrors.email = 'Email is required'
+    if (!inviteFormData.email.includes('@')) newErrors.email = 'Valid email is required'
     
     if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors)
+      setInviteErrors(newErrors)
       return
     }
 
     try {
-      await onInvite(formData.email, formData.role)
-      setFormData({ email: '', role: 'employee' })
-      setErrors({})
+      await onInvite(inviteFormData.email, inviteFormData.role)
+      setInviteFormData({ email: '', role: 'employee' })
+      setInviteErrors({})
       onClose()
     } catch (error) {
-      setErrors({ submit: error.message })
+      setInviteErrors({ submit: error.message })
+    }
+  }
+
+  const handleDirectSubmit = async (e) => {
+    e.preventDefault()
+    
+    const newErrors = {}
+    if (!directFormData.email) newErrors.email = 'Email is required'
+    if (!directFormData.email.includes('@')) newErrors.email = 'Valid email is required'
+    
+    if (directFormData.password) {
+      if (directFormData.password.length < 6) {
+        newErrors.password = 'Password must be at least 6 characters'
+      } else if (directFormData.password !== directFormData.confirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match'
+      }
+    }
+    
+    if (!directFormData.firstName) newErrors.firstName = 'First name is required'
+    
+    if (Object.keys(newErrors).length > 0) {
+      setDirectErrors(newErrors)
+      return
+    }
+
+    try {
+      await onCreate({
+        email: directFormData.email,
+        password: directFormData.password || undefined,
+        firstName: directFormData.firstName,
+        lastName: directFormData.lastName,
+        role: directFormData.role,
+        departmentId: directFormData.departmentId || null
+      })
+      await fetchEmployees()
+      setDirectFormData({ 
+        email: '', 
+        password: '', 
+        confirmPassword: '',
+        firstName: '', 
+        lastName: '',
+        role: 'employee',
+        departmentId: ''
+      })
+      setDirectErrors({})
+      onClose()
+    } catch (error) {
+      setDirectErrors({ submit: error.message })
     }
   }
 
   const handleClose = () => {
-    setFormData({ email: '', role: 'employee' })
-    setErrors({})
+    setInviteFormData({ email: '', role: 'employee' })
+    setInviteErrors({})
+    setDirectFormData({ 
+      email: '', 
+      password: '', 
+      confirmPassword: '',
+      firstName: '', 
+      lastName: '',
+      role: 'employee',
+      departmentId: ''
+    })
+    setDirectErrors({})
+    setActiveTab('invite')
     onClose()
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Invite Employee">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-text-dark mb-2">
-            Email Address *
-          </label>
-          <input
-            type="email"
-            required
-            className="w-full p-3 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            placeholder="employee@company.com"
-          />
-          {errors.email && (
-            <p className="text-error-default text-sm mt-1">{errors.email}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-text-dark mb-2">
-            Role
-          </label>
-          <select
-            className="w-full p-3 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default"
-            value={formData.role}
-            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-          >
-            <option value="employee">Employee</option>
-            <option value="manager">Manager</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-
-        {errors.submit && (
-          <div className="p-3 bg-error-light border border-error-default rounded-lg">
-            <p className="text-error-default text-sm">{errors.submit}</p>
+    <Modal isOpen={isOpen} onClose={handleClose} title="Add Team Member">
+      {/* Tab Switcher */}
+      <div className="flex border-b border-background-dark mb-6">
+        <button
+          type="button"
+          onClick={() => setActiveTab('invite')}
+          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === 'invite'
+              ? 'border-primary-default text-primary-default'
+              : 'border-transparent text-text-light hover:text-text-dark'
+          }`}
+        >
+          <div className="flex items-center justify-center gap-2">
+            <Mail className="w-4 h-4" />
+            <span>Invite by Email</span>
           </div>
-        )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('direct')}
+          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === 'direct'
+              ? 'border-primary-default text-primary-default'
+              : 'border-transparent text-text-light hover:text-text-dark'
+          }`}
+        >
+          <div className="flex items-center justify-center gap-2">
+            <UserPlus className="w-4 h-4" />
+            <span>Add User Directly</span>
+          </div>
+        </button>
+      </div>
 
-        <div className="flex justify-end gap-3 pt-4">
-          <Button variant="ghost" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Sending...' : 'Send Invitation'}
-          </Button>
-        </div>
-      </form>
+      {/* Invite Tab Content */}
+      {activeTab === 'invite' && (
+        <form onSubmit={handleInviteSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-text-dark mb-2">
+              Email Address *
+            </label>
+            <input
+              type="email"
+              required
+              className="w-full p-3 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default"
+              value={inviteFormData.email}
+              onChange={(e) => setInviteFormData({ ...inviteFormData, email: e.target.value })}
+              placeholder="employee@company.com"
+            />
+            {inviteErrors.email && (
+              <p className="text-error-default text-sm mt-1">{inviteErrors.email}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-text-dark mb-2">
+              Role
+            </label>
+            <select
+              className="w-full p-3 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default"
+              value={inviteFormData.role}
+              onChange={(e) => setInviteFormData({ ...inviteFormData, role: e.target.value })}
+            >
+              <option value="employee">Employee</option>
+              <option value="manager">Manager</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+
+          {inviteErrors.submit && (
+            <div className="p-3 bg-error-light border border-error-default rounded-lg">
+              <p className="text-error-default text-sm">{inviteErrors.submit}</p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="ghost" onClick={handleClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Sending...' : 'Send Invitation'}
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {/* Direct Add Tab Content */}
+      {activeTab === 'direct' && (
+        <form onSubmit={handleDirectSubmit} className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> If the user doesn't exist, a new account will be created with the password you set. If the user already exists (but isn't in this organization), they will be added to your organization and their existing password will remain unchanged.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-text-dark mb-2">
+                First Name *
+              </label>
+              <input
+                type="text"
+                required
+                className="w-full p-3 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default"
+                value={directFormData.firstName}
+                onChange={(e) => setDirectFormData({ ...directFormData, firstName: e.target.value })}
+                placeholder="John"
+              />
+              {directErrors.firstName && (
+                <p className="text-error-default text-sm mt-1">{directErrors.firstName}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-text-dark mb-2">
+                Last Name
+              </label>
+              <input
+                type="text"
+                className="w-full p-3 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default"
+                value={directFormData.lastName}
+                onChange={(e) => setDirectFormData({ ...directFormData, lastName: e.target.value })}
+                placeholder="Doe"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-text-dark mb-2">
+              Email Address *
+            </label>
+            <input
+              type="email"
+              required
+              className="w-full p-3 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default"
+              value={directFormData.email}
+              onChange={(e) => setDirectFormData({ ...directFormData, email: e.target.value })}
+              placeholder="employee@company.com"
+            />
+            {directErrors.email && (
+              <p className="text-error-default text-sm mt-1">{directErrors.email}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-text-dark mb-2">
+              Password {directFormData.password ? '*' : '(Optional - only for new users)'}
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                className="w-full p-3 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default pr-10"
+                value={directFormData.password}
+                onChange={(e) => setDirectFormData({ ...directFormData, password: e.target.value })}
+                placeholder="Set a password for new users (min 6 characters)"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-light hover:text-text-dark"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-text-light mt-1">
+              Leave blank if user already exists - their existing password will be preserved
+            </p>
+            {directErrors.password && (
+              <p className="text-error-default text-sm mt-1">{directErrors.password}</p>
+            )}
+          </div>
+
+          {directFormData.password && (
+            <div>
+              <label className="block text-sm font-medium text-text-dark mb-2">
+                Confirm Password *
+              </label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  className="w-full p-3 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default pr-10"
+                  value={directFormData.confirmPassword}
+                  onChange={(e) => setDirectFormData({ ...directFormData, confirmPassword: e.target.value })}
+                  placeholder="Confirm password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-text-light hover:text-text-dark"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {directErrors.confirmPassword && (
+                <p className="text-error-default text-sm mt-1">{directErrors.confirmPassword}</p>
+              )}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-text-dark mb-2">
+                Role
+              </label>
+              <select
+                className="w-full p-3 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default"
+                value={directFormData.role}
+                onChange={(e) => setDirectFormData({ ...directFormData, role: e.target.value })}
+              >
+                <option value="employee">Employee</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-text-dark mb-2">
+                Department
+              </label>
+              <select
+                className="w-full p-3 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default"
+                value={directFormData.departmentId}
+                onChange={(e) => setDirectFormData({ ...directFormData, departmentId: e.target.value })}
+              >
+                <option value="">No Department</option>
+                {departments?.map(dept => (
+                  <option key={dept.id} value={dept.id}>{dept.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {directErrors.submit && (
+            <div className="p-3 bg-error-light border border-error-default rounded-lg">
+              <p className="text-error-default text-sm">{directErrors.submit}</p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="ghost" onClick={handleClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Creating...' : 'Create User'}
+            </Button>
+          </div>
+        </form>
+      )}
     </Modal>
   )
 }

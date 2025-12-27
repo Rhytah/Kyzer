@@ -551,76 +551,201 @@ const useCourseStore = create((set, get) => ({
           };
         }
         
-        // Get existing progress to accumulate time
-        const { data: existingProgress } = await supabase
+        // Check if time tracking columns exist by trying to query them
+        // If columns don't exist (PGRST204 error), skip time tracking entirely
+        let existingProgress = null;
+        let hasTimeTrackingColumns = false;
+        
+        // Try to query with time tracking columns
+        const { data: timeTrackingData, error: timeTrackingError } = await supabase
           .from(TABLES.LESSON_PROGRESS)
-          .select('time_spent_seconds, minimum_time_required')
+          .select('time_spent_seconds, minimum_time_required, review_completed')
           .eq('user_id', userId)
           .eq('lesson_id', lessonId)
           .eq('course_id', courseId)
           .maybeSingle();
         
-        const existingTimeSpent = existingProgress?.time_spent_seconds || 0;
+        // Check if error is due to missing columns (PGRST204 = column not found)
+        const isColumnMissingError = timeTrackingError && (
+          timeTrackingError.code === 'PGRST204' || 
+          timeTrackingError.code === '42703' ||
+          timeTrackingError.message?.includes('column') || 
+          timeTrackingError.message?.includes('does not exist') ||
+          timeTrackingError.message?.includes('Could not find') ||
+          (timeTrackingError.hint && timeTrackingError.hint.includes('column'))
+        );
         
-        // Calculate additional time spent in this session
-        const additionalTimeSpent = metadata.timeSpent ? Math.floor(metadata.timeSpent) : 0;
+        if (isColumnMissingError) {
+          // Columns don't exist yet - skip time tracking
+          hasTimeTrackingColumns = false;
+          // Get basic progress without time tracking columns
+          const { data: basicData } = await supabase
+            .from(TABLES.LESSON_PROGRESS)
+            .select('*')
+            .eq('user_id', userId)
+            .eq('lesson_id', lessonId)
+            .eq('course_id', courseId)
+            .maybeSingle();
+          existingProgress = basicData;
+        } else if (!timeTrackingError && timeTrackingData) {
+          // Columns exist and we got data
+          hasTimeTrackingColumns = true;
+          existingProgress = timeTrackingData;
+        } else {
+          // Other error or no data - try basic query
+          const { data: basicData } = await supabase
+            .from(TABLES.LESSON_PROGRESS)
+            .select('*')
+            .eq('user_id', userId)
+            .eq('lesson_id', lessonId)
+            .eq('course_id', courseId)
+            .maybeSingle();
+          existingProgress = basicData;
+          hasTimeTrackingColumns = false;
+        }
         
-        // Accumulate total time spent (existing + additional)
-        const totalTimeSpentSeconds = existingTimeSpent + additionalTimeSpent;
+        // Only calculate time tracking if columns exist
+        let totalTimeSpentSeconds = 0;
+        let minimumTimeRequired = null;
+        let reviewCompleted = true;
+        let canComplete = true;
         
-        // Get lesson to check for minimum time requirement
-        const { data: lessonData } = await supabase
-          .from(TABLES.LESSONS)
-          .select('duration_minutes')
-          .eq('id', lessonId)
-          .single();
+        if (hasTimeTrackingColumns) {
+          const existingTimeSpent = existingProgress?.time_spent_seconds || 0;
+          
+          // Calculate additional time spent in this session
+          const additionalTimeSpent = metadata.timeSpent ? Math.floor(metadata.timeSpent) : 0;
+          
+          // Accumulate total time spent (existing + additional)
+          totalTimeSpentSeconds = existingTimeSpent + additionalTimeSpent;
+          
+          // Get lesson to check for minimum time requirement
+          const { data: lessonData } = await supabase
+            .from(TABLES.LESSONS)
+            .select('duration_minutes')
+            .eq('id', lessonId)
+            .single();
+          
+          // Calculate minimum time required (80% of lesson duration, or minimum 30 seconds)
+          minimumTimeRequired = lessonData?.duration_minutes 
+            ? Math.max(30, Math.floor(lessonData.duration_minutes * 60 * 0.8))
+            : null;
+          
+          // Check if review is completed (total time spent >= minimum required)
+          reviewCompleted = minimumTimeRequired 
+            ? totalTimeSpentSeconds >= minimumTimeRequired 
+            : true; // If no minimum time, consider reviewed
+          
+          // Only allow completion if review is completed
+          canComplete = completed ? reviewCompleted : true;
+        } else {
+          // No time tracking - allow completion normally
+          canComplete = completed;
+        }
         
-        // Calculate minimum time required (80% of lesson duration, or minimum 30 seconds)
-        const minimumTimeRequired = lessonData?.duration_minutes 
-          ? Math.max(30, Math.floor(lessonData.duration_minutes * 60 * 0.8))
-          : null;
+        // Build upsert payload - only include time tracking columns if they exist
+        const upsertPayload = {
+          user_id: userId,
+          lesson_id: lessonId,
+          course_id: courseId,
+          completed: canComplete ? completed : false,
+          completed_at: (canComplete && completed) ? new Date().toISOString() : null,
+          metadata: metadata,
+        };
         
-        // Check if review is completed (total time spent >= minimum required)
-        const reviewCompleted = minimumTimeRequired 
-          ? totalTimeSpentSeconds >= minimumTimeRequired 
-          : true; // If no minimum time, consider reviewed
-        
-        // Only allow completion if review is completed
-        const canComplete = completed ? reviewCompleted : true;
+        // Only add time tracking fields if columns exist
+        if (hasTimeTrackingColumns) {
+          upsertPayload.time_spent_seconds = totalTimeSpentSeconds;
+          upsertPayload.minimum_time_required = minimumTimeRequired;
+          upsertPayload.review_completed = reviewCompleted;
+          upsertPayload.last_activity_at = new Date().toISOString();
+        }
         
         const { data, error } = await supabase
           .from(TABLES.LESSON_PROGRESS)
-          .upsert({
-            user_id: userId,
-            lesson_id: lessonId,
-            course_id: courseId,
-            completed: canComplete ? completed : false,
-            completed_at: (canComplete && completed) ? new Date().toISOString() : null,
-            time_spent_seconds: totalTimeSpentSeconds,
-            minimum_time_required: minimumTimeRequired,
-            review_completed: reviewCompleted,
-            last_activity_at: new Date().toISOString(),
-            metadata: metadata,
-          }, { onConflict: 'user_id,lesson_id,course_id' })
+          .upsert(upsertPayload, { onConflict: 'user_id,lesson_id,course_id' })
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          // If error is due to missing columns, try again without time tracking fields
+          const isColumnMissingError = error && (
+            error.code === 'PGRST204' || 
+            error.code === '42703' ||
+            error.message?.includes('column') || 
+            error.message?.includes('does not exist') ||
+            error.message?.includes('Could not find') ||
+            (error.hint && error.hint.includes('column'))
+          );
+          
+          if (isColumnMissingError && hasTimeTrackingColumns) {
+            // Retry without time tracking columns
+            const basicPayload = {
+              user_id: userId,
+              lesson_id: lessonId,
+              course_id: courseId,
+              completed: canComplete ? completed : false,
+              completed_at: (canComplete && completed) ? new Date().toISOString() : null,
+              metadata: metadata,
+            };
+            
+            const { data: retryData, error: retryError } = await supabase
+              .from(TABLES.LESSON_PROGRESS)
+              .upsert(basicPayload, { onConflict: 'user_id,lesson_id,course_id' })
+              .select()
+              .single();
+            
+            if (retryError) {
+              return { data: null, error: retryError };
+            }
+            
+            // Update local state with basic data
+            set((state) => ({
+              courseProgress: {
+                ...state.courseProgress,
+                [courseId]: {
+                  ...state.courseProgress[courseId],
+                  [lessonId]: {
+                    completed: canComplete ? completed : false,
+                    completed_at: retryData.completed_at,
+                    metadata: metadata,
+                  },
+                },
+              },
+            }));
+            
+            return {
+              data: retryData,
+              error: null,
+              canComplete,
+              reviewCompleted: true,
+              timeSpentSeconds: 0,
+              minimumTimeRequired: null
+            };
+          }
+          return { data: null, error };
+        }
 
         // Update local progress state
+        const progressUpdate = {
+          completed: canComplete ? completed : false, 
+          completed_at: data.completed_at,
+          metadata: metadata,
+        };
+        
+        // Only add time tracking fields if columns exist
+        if (hasTimeTrackingColumns) {
+          progressUpdate.time_spent_seconds = totalTimeSpentSeconds;
+          progressUpdate.minimum_time_required = minimumTimeRequired;
+          progressUpdate.review_completed = reviewCompleted;
+        }
+        
         set((state) => ({
           courseProgress: {
             ...state.courseProgress,
             [courseId]: {
               ...state.courseProgress[courseId],
-              [lessonId]: { 
-                completed: canComplete ? completed : false, 
-                completed_at: data.completed_at,
-                time_spent_seconds: totalTimeSpentSeconds,
-                minimum_time_required: minimumTimeRequired,
-                review_completed: reviewCompleted,
-                metadata: metadata,
-              },
+              [lessonId]: progressUpdate,
             },
           },
         }));
@@ -632,9 +757,9 @@ const useCourseStore = create((set, get) => ({
           data, 
           error: null,
           canComplete,
-          reviewCompleted,
-          timeSpentSeconds: totalTimeSpentSeconds,
-          minimumTimeRequired
+          reviewCompleted: hasTimeTrackingColumns ? reviewCompleted : true,
+          timeSpentSeconds: hasTimeTrackingColumns ? totalTimeSpentSeconds : 0,
+          minimumTimeRequired: hasTimeTrackingColumns ? minimumTimeRequired : null
         };
       } catch (error) {
         return { data: null, error };
@@ -751,9 +876,9 @@ const useCourseStore = create((set, get) => ({
           progressMap[progress.lesson_id] = {
             completed: progress.completed,
             completed_at: progress.completed_at,
-            time_spent_seconds: progress.time_spent_seconds || 0,
-            minimum_time_required: progress.minimum_time_required || null,
-            review_completed: progress.review_completed || false,
+            time_spent_seconds: progress.time_spent_seconds ?? 0,
+            minimum_time_required: progress.minimum_time_required ?? null,
+            review_completed: progress.review_completed ?? false,
             metadata: progress.metadata,
           };
         });

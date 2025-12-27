@@ -1,5 +1,6 @@
 // src/components/course/CourseForm.jsx
 import { useState, useEffect } from 'react';
+import { Paperclip } from 'lucide-react';
 import { useCourseStore } from '@/store/courseStore';
 import { useAuth } from '@/hooks/auth/useAuth';
 import Button from '@/components/ui/Button';
@@ -367,13 +368,22 @@ export default function CourseForm({ course = null, onSuccess, onCancel }) {
               </label>
             </div>
 
-            {/* Course Resources - displayed at the end of course */}
-            <div>
+            {/* Course Resources Section - More Prominent */}
+            <div className="mt-8 pt-6 border-t-2 border-primary-light bg-blue-50 -mx-6 px-6 py-6 rounded-lg">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary-default rounded-lg">
+                  <Paperclip className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-text-dark">Course Resources</h3>
+                  <p className="text-sm text-text-light">Add links, PDFs, and other materials (displayed at the end of the course)</p>
+                </div>
+              </div>
               <ResourcesManager
                 resources={formData.resources || []}
                 onChange={(resources) => setFormData({ ...formData, resources })}
                 courseId={course?.id}
-                label="Course Resources (Displayed at the end of the course)"
+                label=""
               />
             </div>
           </div>

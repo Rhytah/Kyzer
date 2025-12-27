@@ -239,9 +239,29 @@ export default function ResourcesManager({ resources = [], onChange, courseId, l
             </div>
           ))}
         </div>
-      ) : (
-        <p className="text-sm text-gray-500 italic">No resources added yet</p>
-      )}
+      ) : !showAddForm ? (
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-white">
+          <div className="flex flex-col items-center gap-3">
+            <div className="p-3 bg-gray-100 rounded-full">
+              <Link className="w-8 h-8 text-gray-400" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-700">No resources added yet</p>
+              <p className="text-xs text-gray-500 mt-1">Add links, PDFs, videos, or other helpful materials</p>
+            </div>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={() => setShowAddForm(true)}
+              className="mt-2"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add Your First Resource
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

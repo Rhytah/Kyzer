@@ -1,5 +1,6 @@
 // src/components/course/LessonForm.jsx
 import { useState, useEffect, useRef } from 'react';
+import { Paperclip } from 'lucide-react';
 import { useCourseStore } from '@/store/courseStore';
 import { useAuth } from '@/hooks/auth/useAuth';
 import Button from '@/components/ui/Button';
@@ -2481,13 +2482,22 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
               </div>
             </div>
 
-            {/* Resources Section */}
-            <div className="md:col-span-2">
+            {/* Resources Section - More Prominent */}
+            <div className="md:col-span-2 mt-8 pt-6 border-t-2 border-primary-light bg-blue-50 -mx-6 px-6 py-6 rounded-lg">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary-default rounded-lg">
+                  <Paperclip className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-text-dark">Lesson Resources</h3>
+                  <p className="text-sm text-text-light">Add helpful links, PDFs, and supplementary materials for this lesson</p>
+                </div>
+              </div>
               <ResourcesManager
                 resources={formData.resources || []}
                 onChange={(resources) => setFormData({ ...formData, resources })}
                 courseId={courseId}
-                label="Lesson Resources"
+                label=""
               />
             </div>
           </div>

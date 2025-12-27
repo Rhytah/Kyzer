@@ -23,5 +23,5 @@ ON lesson_progress(user_id, lesson_id, review_completed);
 UPDATE lesson_progress
 SET time_spent_seconds = COALESCE((metadata->>'timeSpent')::INTEGER, 0),
     review_completed = COALESCE(completed, FALSE),
-    last_activity_at = COALESCE(updated_at, created_at)
+    last_activity_at = COALESCE(updated_at, NOW())
 WHERE time_spent_seconds = 0 OR review_completed = FALSE;

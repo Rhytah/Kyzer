@@ -201,6 +201,44 @@ export default function LessonView() {
     return courseProgressData.percentage >= 100;
   }, [courseId, user?.id, enrolledCourses, courseProgressData.percentage]);
 
+  // Check if minimum time requirement is met for current lesson
+  const timeRequirementMet = useMemo(() => {
+    if (isCourseCompleted) return true; // Allow navigation in review mode
+    if (!user?.id || !lesson || !course) return false;
+    
+    const progress = courseProgress[course.id]?.[lesson.id];
+    if (!progress) return false;
+    
+    // If no minimum time required, allow progression
+    if (!progress.minimum_time_required) return true;
+    
+    // Check if review is completed (time spent >= minimum required)
+    return progress.review_completed === true;
+  }, [isCourseCompleted, user?.id, lesson, course, courseProgress, courseId]);
+
+  // Calculate time remaining for display
+  const timeRemainingInfo = useMemo(() => {
+    if (isCourseCompleted || timeRequirementMet) return null;
+    if (!user?.id || !lesson || !course) return null;
+    
+    const progress = courseProgress[course.id]?.[lesson.id];
+    if (!progress || !progress.minimum_time_required) return null;
+    
+    const timeSpent = progress.time_spent_seconds || 0;
+    const timeRequired = progress.minimum_time_required;
+    const timeRemaining = Math.max(0, timeRequired - timeSpent);
+    const minutesRemaining = Math.ceil(timeRemaining / 60);
+    const totalMinutesRequired = Math.ceil(timeRequired / 60);
+    
+    return {
+      timeRemaining,
+      minutesRemaining,
+      totalMinutesRequired,
+      timeSpent,
+      timeRequired
+    };
+  }, [isCourseCompleted, timeRequirementMet, user?.id, lesson, course, courseProgress, courseId]);
+
   const goToNextLesson = useCallback(async (shouldBypassKnowledgeChecks = false) => {
     // For completed courses, allow free navigation (review mode)
     if (isCourseCompleted) {
@@ -621,7 +659,11 @@ export default function LessonView() {
     
     try {
       const completedFlag = completedOverride !== null ? completedOverride : isCompleted;
-      await actions.updateLessonProgress(
+      // Get current review status before update
+      const currentProgress = courseProgress[course.id]?.[lesson.id];
+      const wasReviewCompleted = currentProgress?.review_completed || false;
+      
+      const result = await actions.updateLessonProgress(
         user.id,
         lesson.id,
         course.id,
@@ -631,10 +673,16 @@ export default function LessonView() {
           lastAccessed: new Date().toISOString()
         }
       )
+      
+      // If review_completed just transitioned from false to true, refresh progress to ensure UI updates
+      if (result?.reviewCompleted && !wasReviewCompleted) {
+        // Refresh progress to ensure UI reflects the change
+        await actions.fetchCourseProgress(user.id, course.id)
+      }
     } catch (_) {
       // Handle error silently or set error state if needed
     }
-  }, [user?.id, lesson?.id, course?.id, isCompleted, actions])
+  }, [user?.id, lesson?.id, course?.id, isCompleted, actions, courseProgress, courseId])
 
   // Track time for all content types (videos, PDFs, text, etc.)
   useEffect(() => {
@@ -992,6 +1040,12 @@ export default function LessonView() {
     const [totalPages, setTotalPages] = useState(null);
     const pdfViewStartTime = useRef(null);
     const lastSaveTime = useRef(null);
+    const onTimeTrackRef = useRef(onTimeTrack);
+
+    // Update ref when onTimeTrack changes, but don't trigger effect
+    useEffect(() => {
+      onTimeTrackRef.current = onTimeTrack;
+    }, [onTimeTrack]);
 
     useEffect(() => {
       setIsLoaded(false);
@@ -1001,12 +1055,12 @@ export default function LessonView() {
       
       // Track time when PDF is viewed
       const trackPDFTime = () => {
-        if (document.visibilityState === 'visible' && pdfViewStartTime.current && lastSaveTime.current && onTimeTrack) {
+        if (document.visibilityState === 'visible' && pdfViewStartTime.current && lastSaveTime.current && onTimeTrackRef.current) {
           const now = Date.now();
           const timeSinceLastSave = Math.floor((now - lastSaveTime.current) / 1000);
           
           if (timeSinceLastSave >= 30) {
-            onTimeTrack(timeSinceLastSave);
+            onTimeTrackRef.current(timeSinceLastSave);
             lastSaveTime.current = now;
           }
         }
@@ -1017,14 +1071,14 @@ export default function LessonView() {
       return () => {
         clearInterval(interval);
         // Save final time on unmount
-        if (lastSaveTime.current && document.visibilityState === 'visible' && onTimeTrack) {
+        if (lastSaveTime.current && document.visibilityState === 'visible' && onTimeTrackRef.current) {
           const finalTime = Math.floor((Date.now() - lastSaveTime.current) / 1000);
           if (finalTime > 0) {
-            onTimeTrack(finalTime);
+            onTimeTrackRef.current(finalTime);
           }
         }
       };
-    }, [pdfUrl, onTimeTrack]);
+    }, [pdfUrl]); // Only depend on pdfUrl, not onTimeTrack
 
     const handleLoad = useCallback(() => {
       setIsLoaded(true);
@@ -2693,7 +2747,17 @@ export default function LessonView() {
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           ) : (
-            <Button onClick={() => goToNextLesson(false)}>
+            <Button 
+              onClick={() => goToNextLesson(false)} 
+              disabled={!timeRequirementMet || !!firstIncompleteKnowledgeCheck}
+              title={
+                !timeRequirementMet && timeRemainingInfo
+                  ? `Please review this lesson for at least ${timeRemainingInfo.totalMinutesRequired} minute${timeRemainingInfo.totalMinutesRequired !== 1 ? 's' : ''} before proceeding. You need ${timeRemainingInfo.minutesRemaining} more minute${timeRemainingInfo.minutesRemaining !== 1 ? 's' : ''}.`
+                  : firstIncompleteKnowledgeCheck
+                  ? 'Complete the knowledge check before moving on.'
+                  : 'Continue to next lesson'
+              }
+            >
               Next Lesson
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
@@ -2726,7 +2790,17 @@ export default function LessonView() {
                 </Button>
               )}
               {!isCompleted ? (
-                <Button onClick={markAsCompleted} disabled={isCompleting}>
+                <Button 
+                  onClick={markAsCompleted} 
+                  disabled={isCompleting || !timeRequirementMet || !!firstIncompleteKnowledgeCheck}
+                  title={
+                    !timeRequirementMet && timeRemainingInfo
+                      ? `Please review this lesson for at least ${timeRemainingInfo.totalMinutesRequired} minute${timeRemainingInfo.totalMinutesRequired !== 1 ? 's' : ''} before completing. You need ${timeRemainingInfo.minutesRemaining} more minute${timeRemainingInfo.minutesRemaining !== 1 ? 's' : ''}.`
+                      : firstIncompleteKnowledgeCheck
+                      ? 'Please complete the knowledge check for this lesson before marking it as complete.'
+                      : 'Mark this lesson as complete'
+                  }
+                >
                   <CheckCircle className="w-4 h-4 mr-2" />
                   {isCompleting ? 'Completing...' : 'Mark Complete'}
                 </Button>
@@ -2749,6 +2823,14 @@ export default function LessonView() {
               <BookOpen className="w-4 h-4" />
               <span>Lesson {lesson.order_index || 1} of {lessons.length}</span>
             </div>
+            {timeRemainingInfo && !timeRequirementMet && (
+              <div className="flex items-center gap-2 text-warning-default">
+                <Clock className="w-4 h-4" />
+                <span>
+                  {timeRemainingInfo.minutesRemaining} minute{timeRemainingInfo.minutesRemaining !== 1 ? 's' : ''} remaining
+                </span>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -3003,12 +3085,34 @@ export default function LessonView() {
                   return (
                     <button
                       key={courseLesson.id}
-                      onClick={() => navigate(`/app/courses/${courseId}/lesson/${courseLesson.id}`)}
+                      onClick={() => {
+                        // Prevent navigation to future lessons if current lesson time requirement not met
+                        const currentLessonIndex = lessons.findIndex(l => l.id === lessonId);
+                        const targetLessonIndex = lessons.findIndex(l => l.id === courseLesson.id);
+                        
+                        if (!isCourseCompleted && targetLessonIndex > currentLessonIndex && !timeRequirementMet) {
+                          if (timeRemainingInfo) {
+                            showError(`Please review the current lesson for at least ${timeRemainingInfo.totalMinutesRequired} minute${timeRemainingInfo.totalMinutesRequired !== 1 ? 's' : ''} before proceeding. You need ${timeRemainingInfo.minutesRemaining} more minute${timeRemainingInfo.minutesRemaining !== 1 ? 's' : ''}.`);
+                          } else {
+                            showError('Please complete the current lesson before proceeding to the next one.');
+                          }
+                          return;
+                        }
+                        navigate(`/app/courses/${courseId}/lesson/${courseLesson.id}`);
+                      }}
+                      disabled={!isCourseCompleted && lessons.findIndex(l => l.id === courseLesson.id) > lessons.findIndex(l => l.id === lessonId) && !timeRequirementMet}
                       className={`w-full text-left p-3 rounded-lg transition-colors ${
                         isCurrentLesson
                           ? 'bg-primary-light text-primary-default'
+                          : !isCourseCompleted && lessons.findIndex(l => l.id === courseLesson.id) > lessons.findIndex(l => l.id === lessonId) && !timeRequirementMet
+                          ? 'opacity-50 cursor-not-allowed'
                           : 'hover:bg-background-light'
                       }`}
+                      title={
+                        !isCourseCompleted && lessons.findIndex(l => l.id === courseLesson.id) > lessons.findIndex(l => l.id === lessonId) && !timeRequirementMet && timeRemainingInfo
+                          ? `Please review the current lesson for at least ${timeRemainingInfo.totalMinutesRequired} minute${timeRemainingInfo.totalMinutesRequired !== 1 ? 's' : ''} before proceeding. You need ${timeRemainingInfo.minutesRemaining} more minute${timeRemainingInfo.minutesRemaining !== 1 ? 's' : ''}.`
+                          : undefined
+                      }
                     >
                       <div className="flex items-center gap-3">
                         <div className="flex-shrink-0">
