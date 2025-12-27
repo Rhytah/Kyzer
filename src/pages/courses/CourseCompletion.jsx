@@ -22,6 +22,7 @@ import {
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import { useToast } from '@/components/ui'
 import { useCourseStore } from '@/store/courseStore'
 import { useAuth } from '@/hooks/auth/useAuth'
 import CertificatePreviewModal from '@/components/course/CertificatePreviewModal'
@@ -52,6 +53,7 @@ const downloadFile = (url, filename) => {
 export default function CourseCompletion() {
   const { courseId } = useParams()
   const { user } = useAuth()
+  const { success, error: showError } = useToast()
   const courses = useCourseStore(state => state.courses)
   const actions = useCourseStore(state => state.actions)
   const certificates = useCourseStore(state => state.certificates)
@@ -62,6 +64,8 @@ export default function CourseCompletion() {
   const [rating, setRating] = useState(0)
   const [review, setReview] = useState('')
   const [showReviewForm, setShowReviewForm] = useState(false)
+  const [submittingReview, setSubmittingReview] = useState(false)
+  const [userReview, setUserReview] = useState(null)
   const [recommendedCourses, setRecommendedCourses] = useState([])
   const [showCertificateModal, setShowCertificateModal] = useState(false)
 
@@ -286,6 +290,16 @@ export default function CourseCompletion() {
           }
           setRecommendedCourses(rec.slice(0, 3))
         } catch {}
+
+        // Fetch user's existing review if any
+        if (user?.id) {
+          const { data: existingReview } = await actions.getUserReview(courseId, user.id)
+          if (existingReview) {
+            setUserReview(existingReview)
+            setRating(existingReview.rating)
+            setReview(existingReview.comment || '')
+          }
+        }
       } catch {
         setLoading(false)
       }
@@ -343,12 +357,37 @@ export default function CourseCompletion() {
   }
 
   const submitReview = async () => {
-    if (rating === 0) return
-    
-    // Submit review to backend
-    setShowReviewForm(false)
-    
-    // Show success message
+    if (rating === 0) {
+      showError('Please select a rating')
+      return
+    }
+
+    if (!user?.id || !courseId) {
+      showError('You must be logged in to submit a review')
+      return
+    }
+
+    setSubmittingReview(true)
+
+    try {
+      const result = await actions.createOrUpdateReview(courseId, user.id, {
+        rating,
+        comment: review.trim() || null
+      })
+
+      if (result.error) {
+        showError(result.error)
+        return
+      }
+
+      setUserReview(result.data)
+      setShowReviewForm(false)
+      success('Thank you for your review!')
+    } catch (err) {
+      showError(err.message || 'Failed to submit review')
+    } finally {
+      setSubmittingReview(false)
+    }
   }
 
   if (loading) {
@@ -509,7 +548,33 @@ export default function CourseCompletion() {
       {/* Course Review */}
       <Card className="p-6">
         <h3 className="text-xl font-semibold text-text-dark mb-4">Rate This Course</h3>
-        {!showReviewForm ? (
+        {userReview && !showReviewForm ? (
+          <div className="max-w-md mx-auto">
+            <div className="text-center mb-4">
+              <p className="text-text-light mb-4">Your Review</p>
+              <div className="flex justify-center gap-1 mb-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    className={`w-6 h-6 ${
+                      star <= userReview.rating
+                        ? 'fill-warning-default text-warning-default'
+                        : 'text-background-dark'
+                    }`}
+                  />
+                ))}
+              </div>
+              {userReview.comment && (
+                <p className="text-text-medium mt-4">{userReview.comment}</p>
+              )}
+            </div>
+            <div className="flex justify-center">
+              <Button variant="secondary" onClick={() => setShowReviewForm(true)}>
+                Edit Review
+              </Button>
+            </div>
+          </div>
+        ) : !showReviewForm ? (
           <div className="text-center">
             <p className="text-text-light mb-4">
               Help other students by sharing your experience with this course.
@@ -558,10 +623,19 @@ export default function CourseCompletion() {
             </div>
             
             <div className="flex gap-3">
-              <Button onClick={submitReview} disabled={rating === 0}>
-                Submit Review
+              <Button onClick={submitReview} disabled={rating === 0 || submittingReview}>
+                {submittingReview ? 'Submitting...' : userReview ? 'Update Review' : 'Submit Review'}
               </Button>
-              <Button variant="ghost" onClick={() => setShowReviewForm(false)}>
+              <Button variant="ghost" onClick={() => {
+                setShowReviewForm(false)
+                if (userReview) {
+                  setRating(userReview.rating)
+                  setReview(userReview.comment || '')
+                } else {
+                  setRating(0)
+                  setReview('')
+                }
+              }}>
                 Cancel
               </Button>
             </div>

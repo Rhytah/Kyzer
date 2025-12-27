@@ -112,6 +112,9 @@ export const TABLES = {
   // Profile views
   USER_PROFILES: 'user_profiles',
   COMPANY_MEMBERSHIPS: 'company_memberships',
+  
+  // Reviews
+  COURSE_REVIEWS: 'course_reviews',
 };
 
 // ==========================================

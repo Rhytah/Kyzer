@@ -2921,6 +2921,210 @@ const useCourseStore = create((set, get) => ({
         };
       }
     },
+
+    // Review Management: Fetch reviews for a course
+    fetchCourseReviews: async (courseId) => {
+      try {
+        const { data: reviews, error: reviewsError } = await supabase
+          .from(TABLES.COURSE_REVIEWS)
+          .select('*')
+          .eq('course_id', courseId)
+          .order('created_at', { ascending: false });
+
+        if (reviewsError) throw reviewsError;
+
+        if (!reviews || reviews.length === 0) {
+          return { data: [], error: null };
+        }
+
+        // Fetch user profiles for all reviews
+        const userIds = [...new Set(reviews.map(r => r.user_id))];
+        const { data: profiles, error: profilesError } = await supabase
+          .from(TABLES.PROFILES)
+          .select('id, first_name, last_name, avatar_url')
+          .in('id', userIds);
+
+        if (profilesError) {
+          // If profiles fetch fails, return reviews without user data
+          return { data: reviews, error: null };
+        }
+
+        // Merge user data with reviews
+        const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
+        const reviewsWithUsers = reviews.map(review => ({
+          ...review,
+          user: profilesMap.get(review.user_id) || null
+        }));
+
+        return { data: reviewsWithUsers, error: null };
+      } catch (error) {
+        return { data: [], error: error.message };
+      }
+    },
+
+    // Review Management: Get user's review for a course
+    getUserReview: async (courseId, userId) => {
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.COURSE_REVIEWS)
+          .select('*')
+          .eq('course_id', courseId)
+          .eq('user_id', userId)
+          .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        return { data: data || null, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    // Review Management: Create or update review
+    createOrUpdateReview: async (courseId, userId, reviewData) => {
+      try {
+        if (!reviewData.rating || reviewData.rating < 1 || reviewData.rating > 5) {
+          return { data: null, error: 'Rating must be between 1 and 5' };
+        }
+
+        // Check if review already exists
+        const { data: existing } = await supabase
+          .from(TABLES.COURSE_REVIEWS)
+          .select('id')
+          .eq('course_id', courseId)
+          .eq('user_id', userId)
+          .single();
+
+        let result;
+        if (existing) {
+          // Update existing review
+          const { data, error } = await supabase
+            .from(TABLES.COURSE_REVIEWS)
+            .update({
+              rating: reviewData.rating,
+              comment: reviewData.comment || null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existing.id)
+            .select()
+            .single();
+
+          if (error) throw error;
+          result = data;
+        } else {
+          // Create new review
+          const { data, error } = await supabase
+            .from(TABLES.COURSE_REVIEWS)
+            .insert({
+              course_id: courseId,
+              user_id: userId,
+              rating: reviewData.rating,
+              comment: reviewData.comment || null
+            })
+            .select()
+            .single();
+
+          if (error) throw error;
+          result = data;
+        }
+
+        return { data: result, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    // Review Management: Update review
+    updateReview: async (reviewId, reviewData) => {
+      try {
+        if (reviewData.rating && (reviewData.rating < 1 || reviewData.rating > 5)) {
+          return { data: null, error: 'Rating must be between 1 and 5' };
+        }
+
+        const updateData = {
+          updated_at: new Date().toISOString()
+        };
+
+        if (reviewData.rating !== undefined) {
+          updateData.rating = reviewData.rating;
+        }
+        if (reviewData.comment !== undefined) {
+          updateData.comment = reviewData.comment || null;
+        }
+
+        const { data, error } = await supabase
+          .from(TABLES.COURSE_REVIEWS)
+          .update(updateData)
+          .eq('id', reviewId)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        return { data, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    // Review Management: Delete review
+    deleteReview: async (reviewId) => {
+      try {
+        const { error } = await supabase
+          .from(TABLES.COURSE_REVIEWS)
+          .delete()
+          .eq('id', reviewId);
+
+        if (error) throw error;
+
+        return { data: true, error: null };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
+
+    // Review Management: Get course rating statistics
+    getCourseRatingStats: async (courseId) => {
+      try {
+        const { data: reviews, error } = await supabase
+          .from(TABLES.COURSE_REVIEWS)
+          .select('rating')
+          .eq('course_id', courseId);
+
+        if (error) throw error;
+
+        if (!reviews || reviews.length === 0) {
+          return {
+            data: {
+              averageRating: 0,
+              totalReviews: 0,
+              ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+            },
+            error: null
+          };
+        }
+
+        const totalReviews = reviews.length;
+        const sumRatings = reviews.reduce((sum, r) => sum + r.rating, 0);
+        const averageRating = totalReviews > 0 ? sumRatings / totalReviews : 0;
+
+        const ratingDistribution = reviews.reduce((acc, r) => {
+          acc[r.rating] = (acc[r.rating] || 0) + 1;
+          return acc;
+        }, { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
+
+        return {
+          data: {
+            averageRating: Math.round(averageRating * 10) / 10,
+            totalReviews,
+            ratingDistribution
+          },
+          error: null
+        };
+      } catch (error) {
+        return { data: null, error: error.message };
+      }
+    },
   },
 }));
 

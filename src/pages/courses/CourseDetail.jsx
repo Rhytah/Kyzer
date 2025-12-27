@@ -66,12 +66,17 @@ export default function CourseDetail() {
   const fetchCourseModules = useCourseStore(state => state.actions.fetchCourseModules);
   const fetchCourseProgress = useCourseStore(state => state.actions.fetchCourseProgress);
   const fetchEnrolledCourses = useCourseStore(state => state.actions.fetchEnrolledCourses);
+  const fetchCourseReviews = useCourseStore(state => state.actions.fetchCourseReviews);
+  const getCourseRatingStats = useCourseStore(state => state.actions.getCourseRatingStats);
   
   const [activeTab, setActiveTab] = useState('overview')
   const [expandedModule, setExpandedModule] = useState(null)
   const [lessons, setLessons] = useState([])
   const [modules, setModules] = useState([])
   const [courseStructure, setCourseStructure] = useState({})
+  const [reviews, setReviews] = useState([])
+  const [ratingStats, setRatingStats] = useState(null)
+  const [loadingReviews, setLoadingReviews] = useState(false)
 
   // Function to fetch lessons for the course
   const loadCourseLessons = async () => {
@@ -256,6 +261,34 @@ export default function CourseDetail() {
       }
     }
   }, [courses, courseId, fetchCourses, user?.id])
+
+  // Fetch reviews when reviews tab is active
+  useEffect(() => {
+    if (activeTab === 'reviews' && courseId) {
+      const loadReviews = async () => {
+        setLoadingReviews(true)
+        try {
+          const [reviewsResult, statsResult] = await Promise.all([
+            fetchCourseReviews(courseId),
+            getCourseRatingStats(courseId)
+          ])
+          
+          if (reviewsResult.data) {
+            setReviews(reviewsResult.data)
+          }
+          
+          if (statsResult.data) {
+            setRatingStats(statsResult.data)
+          }
+        } catch (error) {
+          // Handle error silently
+        } finally {
+          setLoadingReviews(false)
+        }
+      }
+      loadReviews()
+    }
+  }, [activeTab, courseId, fetchCourseReviews, getCourseRatingStats])
 
   // Handle course enrollment
   const handleEnroll = async () => {
@@ -742,42 +775,119 @@ export default function CourseDetail() {
             <Card className="p-6">
               <h2 className="text-2xl font-bold text-text-dark mb-6">Student Reviews</h2>
               
-              {course.reviews ? (
+              {loadingReviews ? (
+                <div className="flex justify-center items-center py-12">
+                  <LoadingSpinner />
+                </div>
+              ) : reviews.length > 0 ? (
                 <>
-                  <div className="mb-8">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="text-4xl font-bold text-text-dark">{course.rating || '4.5'}</div>
-                      <div>
-                        <div className="flex items-center gap-1 mb-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} className="w-5 h-5 fill-warning-default text-warning-default" />
-                          ))}
+                  {ratingStats && (
+                    <div className="mb-8">
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="text-4xl font-bold text-text-dark">
+                          {ratingStats.averageRating.toFixed(1)}
                         </div>
-                        <p className="text-text-light">Based on {(course.totalRatings || 0).toLocaleString()} reviews</p>
+                        <div>
+                          <div className="flex items-center gap-1 mb-1">
+                            {[1, 2, 3, 4, 5].map((star) => {
+                              const filled = star <= Math.round(ratingStats.averageRating)
+                              return (
+                                <Star
+                                  key={star}
+                                  className={`w-5 h-5 ${
+                                    filled
+                                      ? 'fill-warning-default text-warning-default'
+                                      : 'text-background-dark'
+                                  }`}
+                                />
+                              )
+                            })}
+                          </div>
+                          <p className="text-text-light">
+                            Based on {ratingStats.totalReviews.toLocaleString()} review{ratingStats.totalReviews !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Rating Distribution */}
+                      <div className="space-y-2 mt-6">
+                        {[5, 4, 3, 2, 1].map((rating) => {
+                          const count = ratingStats.ratingDistribution[rating] || 0
+                          const percentage = ratingStats.totalReviews > 0
+                            ? (count / ratingStats.totalReviews) * 100
+                            : 0
+                          return (
+                            <div key={rating} className="flex items-center gap-3">
+                              <div className="flex items-center gap-1 w-20">
+                                <span className="text-sm text-text-dark">{rating}</span>
+                                <Star className="w-4 h-4 fill-warning-default text-warning-default" />
+                              </div>
+                              <div className="flex-1 h-2 bg-background-light rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-warning-default transition-all duration-300"
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                              <span className="text-sm text-text-light w-12 text-right">
+                                {count}
+                              </span>
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="space-y-6">
-                    {course.reviews.map((review) => (
-                      <div key={review.id} className="border-b border-background-light pb-6 last:border-b-0">
-                        <div className="flex items-start gap-4">
-                          <div className="text-2xl">{review.avatar}</div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h4 className="font-medium text-text-dark">{review.user}</h4>
-                              <div className="flex items-center gap-1">
-                                {[...Array(review.rating)].map((_, i) => (
-                                  <Star key={i} className="w-4 h-4 fill-warning-default text-warning-default" />
-                                ))}
-                              </div>
-                              <span className="text-sm text-text-light">{new Date(review.date).toLocaleDateString()}</span>
+                    {reviews.map((review) => {
+                      const userName = review.user
+                        ? `${review.user.first_name || ''} ${review.user.last_name || ''}`.trim() || 'Anonymous'
+                        : 'Anonymous'
+                      const userAvatar = review.user?.avatar_url
+                        ? (
+                            <img
+                              src={review.user.avatar_url}
+                              alt={userName}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                          )
+                        : (
+                            <div className="w-10 h-10 rounded-full bg-primary-light flex items-center justify-center text-primary-default font-semibold">
+                              {userName.charAt(0).toUpperCase()}
                             </div>
-                            <p className="text-text-medium">{review.comment}</p>
+                          )
+                      
+                      return (
+                        <div key={review.id} className="border-b border-background-light pb-6 last:border-b-0">
+                          <div className="flex items-start gap-4">
+                            {userAvatar}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h4 className="font-medium text-text-dark">{userName}</h4>
+                                <div className="flex items-center gap-1">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <Star
+                                      key={star}
+                                      className={`w-4 h-4 ${
+                                        star <= review.rating
+                                          ? 'fill-warning-default text-warning-default'
+                                          : 'text-background-dark'
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                                <span className="text-sm text-text-light">
+                                  {new Date(review.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                              {review.comment && (
+                                <p className="text-text-medium">{review.comment}</p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </>
               ) : (
