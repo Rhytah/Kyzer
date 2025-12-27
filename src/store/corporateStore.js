@@ -494,6 +494,44 @@ export const useCorporateStore = create((set, get) => ({
     }
   },
 
+  // Update company/organization settings
+  updateCompany: async (updates) => {
+    try {
+      const { currentCompany } = get();
+      if (!currentCompany) throw new Error("No current company");
+
+      set({ loading: true, error: null });
+
+      const { data: organization, error } = await supabase
+        .from("organizations")
+        .update({
+          name: updates.name,
+          industry: updates.industry,
+          size: updates.size,
+          website: updates.website,
+          description: updates.description,
+          address: updates.address,
+          phone: updates.phone,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", currentCompany.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      set({ currentCompany: organization, loading: false });
+      toast.success("Company settings updated successfully");
+
+      return organization;
+    } catch (error) {
+      console.error("Error updating company:", error);
+      set({ error: error.message, loading: false });
+      toast.error("Failed to update company settings");
+      throw error;
+    }
+  },
+
   // Create user directly (without email invitation)
   createUserDirect: async (userData) => {
     try {

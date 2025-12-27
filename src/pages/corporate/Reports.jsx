@@ -21,10 +21,86 @@ import { useCorporateStore } from "@/store/corporateStore";
 import { useCorporate } from "@/hooks/corporate/useCorporate";
 import { supabase, TABLES } from "@/lib/supabase";
 
+// Course Completion Item Component
+const CourseCompletionItem = ({ course }) => {
+  const [showLearners, setShowLearners] = useState(false);
+
+  return (
+    <div className="border border-background-dark rounded-lg p-4">
+      <div className="flex justify-between items-center mb-2">
+        <h4 className="font-medium text-text-dark">{course.course}</h4>
+        <span className="text-sm font-medium text-primary">
+          {course.rate}%
+        </span>
+      </div>
+      <div className="flex justify-between text-sm text-text-medium mb-2">
+        <span>
+          {course.completed} of {course.assigned} completed
+        </span>
+        <span>{course.assigned - course.completed} remaining</span>
+      </div>
+      <div className="progress-bar mb-3">
+        <div
+          className="progress-fill"
+          style={{ width: `${course.rate}%` }}
+        />
+      </div>
+      {course.completedLearners && course.completedLearners.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-background-light">
+          <button
+            type="button"
+            onClick={() => setShowLearners(!showLearners)}
+            className="flex items-center gap-2 text-sm text-primary-default hover:text-primary-dark font-medium"
+          >
+            <Users className="w-4 h-4" />
+            <span>
+              {showLearners ? 'Hide' : 'Show'} Completed Learners ({course.completedLearners.length})
+            </span>
+          </button>
+          {showLearners && (
+            <div className="mt-3 space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {course.completedLearners.map((learner, learnerIndex) => (
+                  <div
+                    key={learnerIndex}
+                    className="flex items-center gap-2 p-2 bg-background-light rounded text-sm"
+                  >
+                    <div className="w-6 h-6 bg-primary-light rounded-full flex items-center justify-center">
+                      <span className="text-primary-default text-xs font-medium">
+                        {(learner.name?.[0] || learner.email?.[0] || 'L').toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-text-dark truncate">
+                        {learner.name}
+                      </div>
+                      {learner.email && (
+                        <div className="text-xs text-text-light truncate">
+                          {learner.email}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {course.completed > course.completedLearners.length && (
+                <p className="text-xs text-text-light mt-2">
+                  + {course.completed - course.completedLearners.length} more learner{course.completed - course.completedLearners.length !== 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Monthly Chart Bars Component with Tooltips
 const MonthlyChartBars = ({ monthlyProgress = [], maxValue = 1 }) => {
   const [hoveredMonth, setHoveredMonth] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const [showLearners, setShowLearners] = useState(null);
   const chartContainerRef = useRef(null);
 
   const handleMouseEnter = (event, monthIndex) => {
@@ -41,6 +117,12 @@ const MonthlyChartBars = ({ monthlyProgress = [], maxValue = 1 }) => {
 
   const handleMouseLeave = () => {
     setHoveredMonth(null);
+    setShowLearners(null);
+  };
+  
+  const handleLearnerToggle = (e, monthIndex) => {
+    e.stopPropagation();
+    setShowLearners(showLearners === monthIndex ? null : monthIndex);
   };
 
   const chartHeight = 200;
@@ -99,20 +181,22 @@ const MonthlyChartBars = ({ monthlyProgress = [], maxValue = 1 }) => {
         );
       })}
       
-      {/* Tooltip - shows both completions and hours */}
+      {/* Tooltip - shows both completions and hours, with learner details */}
       {hoveredMonth !== null && progressData[hoveredMonth] && (
         <div
-          className="absolute z-50 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl pointer-events-none whitespace-nowrap"
+          className="absolute z-50 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl pointer-events-auto"
           style={{
             left: `${tooltipPosition.x}px`,
             top: `${tooltipPosition.y}px`,
             transform: 'translateX(-50%) translateY(-100%)',
+            maxWidth: '300px',
+            minWidth: '200px',
           }}
         >
           <div className="font-semibold mb-2 text-center border-b border-gray-700 pb-1">
             {progressData[hoveredMonth]?.month || `Month ${hoveredMonth + 1}`}
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 mb-2">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 bg-primary rounded-full"></div>
               <span>Completions: <strong className="ml-1">{progressData[hoveredMonth]?.completions || 0}</strong></span>
@@ -122,6 +206,42 @@ const MonthlyChartBars = ({ monthlyProgress = [], maxValue = 1 }) => {
               <span>Hours: <strong className="ml-1">{progressData[hoveredMonth]?.hours || 0}</strong></span>
             </div>
           </div>
+          
+          {/* Learners section */}
+          {progressData[hoveredMonth]?.learners && progressData[hoveredMonth].learners.length > 0 && (
+            <div className="border-t border-gray-700 pt-2 mt-2">
+              <button
+                type="button"
+                onClick={(e) => handleLearnerToggle(e, hoveredMonth)}
+                className="w-full text-left text-xs text-blue-300 hover:text-blue-200 font-medium mb-1 transition-colors"
+              >
+                {showLearners === hoveredMonth ? 'Hide' : 'Show'} Learners ({progressData[hoveredMonth].learners.length})
+              </button>
+              {showLearners === hoveredMonth && (
+                <div className="mt-2 max-h-48 overflow-y-auto space-y-1">
+                  {progressData[hoveredMonth].learners.map((learner, idx) => (
+                    <div key={idx} className="flex items-center gap-2 py-1 border-b border-gray-800 last:border-0">
+                      <div className="w-5 h-5 bg-primary-light rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-primary-default text-[10px] font-medium">
+                          {(learner.name?.[0] || learner.email?.[0] || 'L').toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{learner.name}</div>
+                        {learner.email && (
+                          <div className="text-[10px] text-gray-400 truncate">{learner.email}</div>
+                        )}
+                        {learner.count > 1 && (
+                          <div className="text-[10px] text-gray-500">{learner.count} courses</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          
           {/* Arrow pointing down */}
           <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
             <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
@@ -185,38 +305,191 @@ const Reports = () => {
           fetchCompanyStats()
         ]);
 
+        // Get employee user IDs for filtering
+        // Employees have user_id from profile_id, but we should also check for id
+        const employeeIds = employees
+          .map(emp => {
+            // Try user_id first (which is profile_id from cached members)
+            if (emp.user_id) return emp.user_id;
+            // Fallback to id if user_id doesn't exist
+            if (emp.id) return emp.id;
+            return null;
+          })
+          .filter(Boolean)
+          .filter(id => id && id !== 'undefined' && typeof id === 'string');
+
         // Fetch real enrollment and progress data
-        const { data: enrollments } = await supabase
+        // Filter by employee user IDs if available, otherwise fetch all (will be filtered later by matching employees)
+        let enrollmentsQuery = supabase
           .from(TABLES.COURSE_ENROLLMENTS)
           .select(`
             *,
             course:${TABLES.COURSES}(id, title),
             user:profiles(id, first_name, last_name, email)
-          `)
+          `);
+
+        // Only filter by employee IDs if we have them
+        if (employeeIds.length > 0) {
+          enrollmentsQuery = enrollmentsQuery.in('user_id', employeeIds);
+        }
+        // If no employeeIds, fetch all enrollments - we'll filter them later by matching with employees
+
+        const { data: enrollments, error: enrollmentsError } = await enrollmentsQuery
           .order('enrolled_at', { ascending: false });
 
+        // If we got enrollments but no employeeIds, filter them to only include those from our employees
+        let filteredEnrollments = enrollments || [];
+        if (filteredEnrollments.length > 0 && employeeIds.length > 0) {
+          // Already filtered by employeeIds in query
+        } else if (filteredEnrollments.length > 0 && employees.length > 0) {
+          // Filter enrollments to only those belonging to our employees
+          const employeeUserIds = new Set(employees.map(emp => emp.user_id || emp.id).filter(Boolean));
+          filteredEnrollments = filteredEnrollments.filter(e => employeeUserIds.has(e.user_id));
+        }
+
         // Fetch lesson progress for all employees
-        const employeeIds = employees.map(emp => emp.user_id || emp.id).filter(Boolean).filter(id => id && id !== 'undefined');
-        const { data: lessonProgress } = employeeIds.length > 0 ? await supabase
+        let lessonProgressQuery = supabase
           .from(TABLES.LESSON_PROGRESS)
           .select(`
             *,
             lesson:${TABLES.LESSONS}(id, title, course_id),
             course:${TABLES.COURSES}(id, title)
-          `)
-          .in('user_id', employeeIds) : { data: [] };
+          `);
+
+        if (employeeIds.length > 0) {
+          lessonProgressQuery = lessonProgressQuery.in('user_id', employeeIds);
+        }
+
+        const { data: lessonProgress, error: lessonProgressError } = await lessonProgressQuery;
+
+        // Filter lesson progress if needed
+        let filteredLessonProgress = lessonProgress || [];
+        if (filteredLessonProgress.length > 0 && employeeIds.length === 0 && employees.length > 0) {
+          const employeeUserIds = new Set(employees.map(emp => emp.user_id || emp.id).filter(Boolean));
+          filteredLessonProgress = filteredLessonProgress.filter(p => employeeUserIds.has(p.user_id));
+        }
+
+        // Use filtered data (reassign to the variables we'll use)
+        const finalEnrollments = filteredEnrollments;
+        const finalLessonProgress = filteredLessonProgress;
 
         // Calculate real metrics
         const totalEmployees = employees.length;
         const activeEmployees = employees.filter(e => e.status === 'active').length;
-        const totalEnrollments = enrollments?.length || 0;
-        const completedEnrollments = enrollments?.filter(e => e.status === 'completed' || e.progress_percentage === 100).length || 0;
+        const totalEnrollments = (finalEnrollments && Array.isArray(finalEnrollments)) ? finalEnrollments.length : 0;
+        const completedEnrollments = (finalEnrollments && Array.isArray(finalEnrollments)) 
+          ? finalEnrollments.filter(e => e.status === 'completed' || e.progress_percentage === 100).length 
+          : 0;
         
         // Calculate total hours from lesson progress
-        const totalHours = lessonProgress?.reduce((sum, progress) => {
+        const totalHours = finalLessonProgress?.reduce((sum, progress) => {
           const timeSpent = progress.time_spent_seconds || progress.metadata?.timeSpent || 0;
           return sum + (timeSpent / 3600); // Convert seconds to hours
         }, 0) || 0;
+
+        // Calculate learner performance stats (for top performers)
+        const learnerStats = {};
+        if (finalEnrollments && Array.isArray(finalEnrollments)) {
+          finalEnrollments.forEach(enrollment => {
+          const userId = enrollment.user_id;
+          const user = enrollment.user;
+          if (!user) return;
+          
+          const learnerName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'Unknown';
+          const employee = employees.find(emp => (emp.user_id || emp.id) === userId);
+          const department = employee?.department?.name || 'Unassigned';
+          
+          if (!learnerStats[userId]) {
+            learnerStats[userId] = {
+              userId,
+              name: learnerName,
+              email: user.email,
+              department,
+              completed: 0,
+              hours: 0
+            };
+          }
+          
+          // Count completed courses
+          if (enrollment.status === 'completed' || enrollment.progress_percentage === 100) {
+            learnerStats[userId].completed++;
+          }
+          });
+        }
+
+        // Calculate hours per learner from lesson progress
+        if (finalLessonProgress && Array.isArray(finalLessonProgress)) {
+          finalLessonProgress.forEach(progress => {
+          const userId = progress.user_id;
+          if (learnerStats[userId]) {
+            const timeSpent = progress.time_spent_seconds || progress.metadata?.timeSpent || 0;
+            learnerStats[userId].hours += timeSpent / 3600; // Convert to hours
+          }
+          });
+        }
+
+        // Get top performers (sorted by completed courses, then hours)
+        const topPerformers = Object.values(learnerStats)
+          .sort((a, b) => {
+            if (b.completed !== a.completed) {
+              return b.completed - a.completed;
+            }
+            return b.hours - a.hours;
+          })
+          .slice(0, 5)
+          .map(learner => ({
+            name: learner.name,
+            email: learner.email,
+            department: learner.department,
+            completed: learner.completed,
+            hours: Math.round(learner.hours)
+          }));
+
+        // Calculate completion trends with learner names
+        const courseCompletionMap = {};
+        if (finalEnrollments && Array.isArray(finalEnrollments)) {
+          finalEnrollments.forEach(enrollment => {
+          const courseId = enrollment.course_id;
+          const courseTitle = enrollment.course?.title || 'Unknown Course';
+          const user = enrollment.user;
+          
+          if (!courseCompletionMap[courseId]) {
+            courseCompletionMap[courseId] = {
+              course: courseTitle,
+              courseId,
+              assigned: new Set(),
+              completed: new Set(),
+              completedLearners: []
+            };
+          }
+          
+          const userId = enrollment.user_id;
+          courseCompletionMap[courseId].assigned.add(userId);
+          
+          if (enrollment.status === 'completed' || enrollment.progress_percentage === 100) {
+            courseCompletionMap[courseId].completed.add(userId);
+            if (user) {
+              const learnerName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'Unknown';
+              courseCompletionMap[courseId].completedLearners.push({
+                name: learnerName,
+                email: user.email
+              });
+            }
+          }
+          });
+        }
+
+        const completionTrends = Object.values(courseCompletionMap)
+          .map(course => ({
+            course: course.course,
+            courseId: course.courseId,
+            assigned: course.assigned.size,
+            completed: course.completed.size,
+            rate: course.assigned.size > 0 ? Math.round((course.completed.size / course.assigned.size) * 100) : 0,
+            completedLearners: course.completedLearners.slice(0, 10) // Limit to first 10 learners
+          }))
+          .sort((a, b) => b.rate - a.rate)
+          .slice(0, 5);
 
         // Calculate department stats
         const departmentStats = employees.reduce((acc, emp) => {
@@ -228,16 +501,58 @@ const Reports = () => {
           return acc;
         }, {});
 
-        // Calculate monthly progress
+        // Calculate monthly progress with learner details
         const monthlyProgress = [];
         const months = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'];
         months.forEach(month => {
-          const completions = enrollments?.filter(e => {
+          const monthCompletions = (finalEnrollments && Array.isArray(finalEnrollments)) 
+            ? finalEnrollments.filter(e => {
             const date = new Date(e.completed_at || e.enrolled_at);
             return date.toLocaleString('default', { month: 'short' }) === month;
-          }).length || 0;
-          monthlyProgress.push({ month, completions, hours: Math.round(completions * 2.5) });
+          })
+            : [];
+          
+          // Get unique learners who completed courses this month
+          const learnersThisMonth = new Map();
+          monthCompletions.forEach(enrollment => {
+            if (enrollment.status === 'completed' || enrollment.progress_percentage === 100) {
+              const user = enrollment.user;
+              if (user) {
+                const userId = enrollment.user_id;
+                const learnerName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'Unknown';
+                if (!learnersThisMonth.has(userId)) {
+                  learnersThisMonth.set(userId, {
+                    name: learnerName,
+                    email: user.email,
+                    count: 0
+                  });
+                }
+                learnersThisMonth.get(userId).count++;
+              }
+            }
+          });
+
+          // Calculate hours for this month (estimate based on completions)
+          const hours = Math.round(monthCompletions.length * 2.5);
+          
+          monthlyProgress.push({ 
+            month, 
+            completions: monthCompletions.length,
+            hours,
+            learners: Array.from(learnersThisMonth.values()).slice(0, 10) // Limit to first 10 for tooltip
+          });
         });
+
+        // Get all learners list (sorted alphabetically)
+        const allLearners = Object.values(learnerStats)
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map(learner => ({
+            name: learner.name,
+            email: learner.email,
+            department: learner.department,
+            completed: learner.completed,
+            hours: Math.round(learner.hours)
+          }));
 
         const realData = {
           overview: {
@@ -252,14 +567,19 @@ const Reports = () => {
               employees: stats.employees,
               completed: Math.round(stats.employees * 0.6), // Estimate
               hours: Math.round(stats.employees * 15), // Estimate
-              completion: Math.round((stats.completed / stats.employees) * 100) || 0
+              completion: stats.employees > 0 ? Math.round((stats.completed / stats.employees) * 100) : 0
             })),
-            monthlyProgress
+            monthlyProgress,
+            learners: allLearners
           },
           progress: {
-            inProgress: enrollments?.filter(e => e.status === 'in_progress' || (e.progress_percentage > 0 && e.progress_percentage < 100)).length || 0,
+            inProgress: (finalEnrollments && Array.isArray(finalEnrollments)) 
+              ? finalEnrollments.filter(e => e.status === 'in_progress' || (e.progress_percentage > 0 && e.progress_percentage < 100)).length 
+              : 0,
             completed: completedEnrollments,
-            notStarted: enrollments?.filter(e => e.progress_percentage === 0).length || 0,
+            notStarted: (finalEnrollments && Array.isArray(finalEnrollments)) 
+              ? finalEnrollments.filter(e => e.progress_percentage === 0).length 
+              : 0,
             overdue: 0, // Would need due dates to calculate
             progressByWeek: [
               { week: "Week 1", started: Math.round(totalEnrollments * 0.1), completed: Math.round(totalEnrollments * 0.08) },
@@ -267,24 +587,14 @@ const Reports = () => {
               { week: "Week 3", started: Math.round(totalEnrollments * 0.13), completed: Math.round(totalEnrollments * 0.1) },
               { week: "Week 4", started: Math.round(totalEnrollments * 0.11), completed: Math.round(totalEnrollments * 0.085) },
             ],
-            topPerformers: employees.slice(0, 3).map(emp => ({
-              name: `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || emp.email || 'Unknown',
-              department: emp.department?.name || 'Unassigned',
-              completed: Math.round(Math.random() * 10) + 1,
-              hours: Math.round(Math.random() * 50) + 20
-            }))
+            topPerformers: topPerformers
           },
           completion: {
             totalAssignments: totalEnrollments,
             completed: completedEnrollments,
             completionRate: totalEnrollments > 0 ? Math.round((completedEnrollments / totalEnrollments) * 100) : 0,
             averageTimeToComplete: 14.2, // Would need to calculate from actual data
-            completionTrends: enrollments?.slice(0, 5).map(e => ({
-              course: e.course?.title || 'Unknown Course',
-              assigned: employees.length,
-              completed: Math.round(employees.length * 0.7),
-              rate: Math.round((Math.round(employees.length * 0.7) / employees.length) * 100)
-            })) || []
+            completionTrends: completionTrends
           }
         };
 
@@ -619,6 +929,46 @@ const Reports = () => {
           );
         })()}
       </div>
+
+      {/* Learners List */}
+      <div className="card">
+        <h3 className="text-lg font-semibold text-text-dark mb-4">
+          All Learners
+        </h3>
+        {reportData?.learners && reportData.learners.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-background-dark">
+                  <th className="text-left py-2">Name</th>
+                  <th className="text-left py-2">Email</th>
+                  <th className="text-left py-2">Department</th>
+                  <th className="text-left py-2">Courses Completed</th>
+                  <th className="text-left py-2">Hours</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reportData.learners.map((learner, index) => (
+                  <tr key={index} className="border-b border-background-light">
+                    <td className="py-3 font-medium text-text-dark">
+                      {learner.name}
+                    </td>
+                    <td className="py-3 text-text-medium">{learner.email || '-'}</td>
+                    <td className="py-3 text-text-medium">{learner.department}</td>
+                    <td className="py-3 text-text-medium">{learner.completed}</td>
+                    <td className="py-3 text-text-medium">{learner.hours}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-text-medium">
+            <Users className="w-12 h-12 mx-auto mb-3 text-text-light" />
+            <p>No learners found</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -675,7 +1025,9 @@ const Reports = () => {
                   <td className="py-3">{week.completed}</td>
                   <td className="py-3">
                     <span className="text-green-600 font-medium">
-                      {Math.round((week.completed / week.started) * 100)}%
+                      {week.started > 0 
+                        ? `${Math.round((week.completed / week.started) * 100)}%`
+                        : '0%'}
                     </span>
                   </td>
                 </tr>
@@ -701,6 +1053,9 @@ const Reports = () => {
                   {performer.name}
                 </div>
                 <div className="text-sm text-text-medium">
+                  {performer.email && (
+                    <span className="mr-2">{performer.email}</span>
+                  )}
                   {performer.department}
                 </div>
               </div>
@@ -756,29 +1111,7 @@ const Reports = () => {
         </h3>
         <div className="space-y-4">
           {reportData?.completionTrends?.map((course, index) => (
-            <div
-              key={index}
-              className="border border-background-dark rounded-lg p-4"
-            >
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="font-medium text-text-dark">{course.course}</h4>
-                <span className="text-sm font-medium text-primary">
-                  {course.rate}%
-                </span>
-              </div>
-              <div className="flex justify-between text-sm text-text-medium mb-2">
-                <span>
-                  {course.completed} of {course.assigned} completed
-                </span>
-                <span>{course.assigned - course.completed} remaining</span>
-              </div>
-              <div className="progress-bar">
-                <div
-                  className="progress-fill"
-                  style={{ width: `${course.rate}%` }}
-                />
-              </div>
-            </div>
+            <CourseCompletionItem key={index} course={course} />
           ))}
         </div>
       </div>

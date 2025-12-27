@@ -21,6 +21,7 @@ import {
 import Button from "../../components/ui/Button";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useAuthStore } from "../../store/authStore";
+import { useCorporateStore } from "../../store/corporateStore";
 import toast from "react-hot-toast";
 import UserManagementDashboard from "../../components/corporate/UserManagementDashboard";
 
@@ -40,6 +41,12 @@ const companySchema = z.object({
 
 const CompanySettings = () => {
   const { profile } = useAuthStore();
+  const currentCompany = useCorporateStore(state => state.currentCompany);
+  const updateCompany = useCorporateStore(state => state.updateCompany);
+  const fetchCurrentCompany = useCorporateStore(state => state.fetchCurrentCompany);
+  const companyStats = useCorporateStore(state => state.companyStats);
+  const fetchCompanyStats = useCorporateStore(state => state.fetchCompanyStats);
+
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("general");
   const [companyData, setCompanyData] = useState(null);
@@ -89,52 +96,70 @@ const CompanySettings = () => {
 
   useEffect(() => {
     const loadSettings = async () => {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      try {
+        // Fetch current company data
+        if (!currentCompany) {
+          await fetchCurrentCompany();
+        }
 
-      const mockCompanyData = {
-        name: profile?.organization?.name || "Acme Corporation",
-        industry: "Technology",
-        size: "51-200 employees",
-        website: "https://acme.com",
-        description:
-          "Leading technology company focused on innovation and growth.",
-        address: "123 Business St, Suite 100, City, State 12345",
-        phone: "+1 (555) 123-4567",
-        logo: "/company-logo.png",
-      };
+        // Fetch company stats
+        await fetchCompanyStats();
 
-      const mockBillingData = {
-        plan: "Corporate Pro",
-        price: 2999,
-        billingCycle: "annual",
-        nextBilling: "2024-12-15",
-        employeeLimit: 200,
-        currentEmployees: 156,
-        paymentMethod: "**** **** **** 4567",
-        billingEmail: "billing@acme.com",
-      };
+        if (currentCompany) {
+          const companyFormData = {
+            name: currentCompany.name || "",
+            industry: currentCompany.industry || "",
+            size: currentCompany.size || "",
+            website: currentCompany.website || "",
+            description: currentCompany.description || "",
+            address: currentCompany.address || "",
+            phone: currentCompany.phone || "",
+            logo: currentCompany.logo || "",
+          };
 
-      setCompanyData(mockCompanyData);
-      setBillingData(mockBillingData);
-      setCustomDomains(["acme.com", "acme-corp.com"]);
+          setCompanyData(companyFormData);
 
-      reset(mockCompanyData);
-      setLoading(false);
+          // Build billing data from company stats
+          const mockBillingData = {
+            plan: currentCompany.plan || "Corporate Pro",
+            price: currentCompany.price || 2999,
+            billingCycle: currentCompany.billing_cycle || "annual",
+            nextBilling: currentCompany.next_billing || "2024-12-15",
+            employeeLimit: currentCompany.employee_limit || 200,
+            currentEmployees: companyStats?.memberCount || 0,
+            paymentMethod: currentCompany.payment_method || "**** **** **** 4567",
+            billingEmail: currentCompany.billing_email || currentCompany.email || "",
+          };
+
+          setBillingData(mockBillingData);
+
+          // Parse custom domains if stored in company data
+          const domains = currentCompany.custom_domains || [];
+          setCustomDomains(Array.isArray(domains) ? domains : []);
+
+          reset(companyFormData);
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error('Error loading settings:', error);
+        setLoading(false);
+      }
     };
 
     loadSettings();
-  }, [reset, profile]);
+  }, [currentCompany?.id, reset]);
 
   const handleSaveGeneral = async (data) => {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Update company data via Supabase
+      await updateCompany(data);
 
+      // Update local state
       setCompanyData((prev) => ({ ...prev, ...data }));
-      toast.success("Company settings updated successfully");
     } catch (error) {
-      toast.error("Failed to update settings");
+      console.error('Error updating company settings:', error);
+      // Error toast already shown by updateCompany function
     }
   };
 

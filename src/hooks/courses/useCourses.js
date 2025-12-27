@@ -1,53 +1,47 @@
 import { useState, useEffect } from 'react';
+import { useCourseStore } from '@/store/courseStore';
+import { useAuth } from '@/hooks/auth/useAuth';
 
-const mockCourses = [
-  {
-    id: 1,
-    title: 'React Fundamentals',
-    description: 'Learn the basics of React including components, props, and state management.',
-    duration: '8 hours',
-    level: 'Beginner',
-    instructor: 'John Smith',
-    enrolled: 156,
-    rating: 4.8,
-    price: 99,
-    tags: ['React', 'JavaScript', 'Frontend'],
-    isEnrolled: false
-  },
-  {
-    id: 2,
-    title: 'JavaScript ES6+',
-    description: 'Modern JavaScript features and best practices for web development.',
-    duration: '6 hours',
-    level: 'Intermediate',
-    instructor: 'Sarah Johnson',
-    enrolled: 203,
-    rating: 4.9,
-    price: 79,
-    tags: ['JavaScript', 'ES6', 'Programming'],
-    isEnrolled: true
-  }
-];
+/**
+ * Hook to fetch and manage courses from the database
+ * Replaces mock data with real Supabase queries via courseStore
+ */
+export const useCourses = (filters = {}) => {
+  const { user } = useAuth();
+  const courses = useCourseStore(state => state.courses);
+  const loading = useCourseStore(state => state.loading);
+  const error = useCourseStore(state => state.error);
+  const fetchCourses = useCourseStore(state => state.actions.fetchCourses);
+  const fetchEnrolledCourses = useCourseStore(state => state.actions.fetchEnrolledCourses);
 
-export const useCourses = () => {
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [localLoading, setLocalLoading] = useState(true);
 
   useEffect(() => {
-    const fetchCourses = async () => {
+    const loadCourses = async () => {
       try {
-        setLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setCourses(mockCourses);
+        setLocalLoading(true);
+
+        // Fetch courses based on filters
+        if (filters.enrolled && user?.id) {
+          // Fetch only enrolled courses for this user
+          await fetchEnrolledCourses(user.id);
+        } else {
+          // Fetch all published courses (or filtered)
+          await fetchCourses(filters, user?.id);
+        }
       } catch (err) {
-        setError('Failed to fetch courses');
+        console.error('Error loading courses:', err);
       } finally {
-        setLoading(false);
+        setLocalLoading(false);
       }
     };
-    fetchCourses();
-  }, []);
 
-  return { courses, loading, error };
+    loadCourses();
+  }, [filters.enrolled, filters.category, filters.search, user?.id, fetchCourses, fetchEnrolledCourses]);
+
+  return {
+    courses,
+    loading: loading || localLoading,
+    error
+  };
 };

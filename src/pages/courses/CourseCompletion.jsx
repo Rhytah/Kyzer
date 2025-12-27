@@ -65,44 +65,6 @@ export default function CourseCompletion() {
   const [recommendedCourses, setRecommendedCourses] = useState([])
   const [showCertificateModal, setShowCertificateModal] = useState(false)
 
-  // Mock completion data
-  const mockCompletionData = {
-    completedAt: new Date().toISOString(),
-    totalTimeSpent: 1650, // minutes
-    finalScore: 92,
-    lessonsCompleted: 45,
-    totalLessons: 45,
-    quizzesPassed: 8,
-    totalQuizzes: 8,
-    projectsCompleted: 3,
-    certificate: {
-      id: 'cert-react-001',
-      downloadUrl: '/certificates/react-completion.pdf',
-      shareUrl: 'https://kyzer.com/certificates/cert-react-001'
-    },
-    badges: [
-      { id: 1, name: 'React Master', icon: '⚛️', description: 'Completed all React lessons' },
-      { id: 2, name: 'Project Builder', icon: '🏗️', description: 'Built 3+ projects' },
-      { id: 3, name: 'Quick Learner', icon: '⚡', description: 'Completed course in record time' }
-    ],
-    skills: [
-      { name: 'React Development', level: 'Advanced' },
-      { name: 'JavaScript ES6+', level: 'Advanced' },
-      { name: 'State Management', level: 'Intermediate' },
-      { name: 'Testing', level: 'Intermediate' }
-    ]
-  }
-
-  const mockCourse = {
-    id: courseId,
-    title: 'Complete React Development Bootcamp',
-    instructor: 'Sarah Chen',
-    category: 'Technology',
-    level: 'Intermediate',
-    rating: 4.8,
-    students: 12500,
-    description: 'Master React from basics to advanced concepts including hooks, context, and testing.'
-  }
 
   // recommendedCourses are computed from actual courses
   useEffect(() => {
@@ -147,30 +109,39 @@ export default function CourseCompletion() {
           return ct > latest ? ct : latest
         }, 0)
 
-        // Calculate quiz completion stats
+        // Calculate quiz completion stats and average score
         let quizzesPassed = 0
         let totalQuizzes = 0
+        let totalScore = 0
+        let scoreCount = 0
+
         if (courseQuizzes && courseQuizzes.length > 0) {
           totalQuizzes = courseQuizzes.length
-          
+
           // Fetch quiz attempts for all quizzes
-          const quizAttemptsPromises = courseQuizzes.map(quiz => 
+          const quizAttemptsPromises = courseQuizzes.map(quiz =>
             actions.fetchQuizAttempts(user.id, quiz.id)
           )
-          
+
           try {
             const quizAttemptsResults = await Promise.all(quizAttemptsPromises)
-            
+
             courseQuizzes.forEach((quiz, index) => {
               const attempts = quizAttemptsResults[index]?.data || []
               if (attempts.length > 0) {
                 // Find the most recent attempt
-                const latestAttempt = attempts.sort((a, b) => 
+                const latestAttempt = attempts.sort((a, b) =>
                   new Date(b.completed_at) - new Date(a.completed_at)
                 )[0]
-                
+
                 if (latestAttempt.passed) {
                   quizzesPassed++
+                }
+
+                // Add to average score calculation
+                if (latestAttempt.score !== null && latestAttempt.score !== undefined) {
+                  totalScore += latestAttempt.score
+                  scoreCount++
                 }
               }
             })
@@ -179,19 +150,102 @@ export default function CourseCompletion() {
           }
         }
 
+        // Calculate final score (average of all quiz scores)
+        const finalScore = scoreCount > 0 ? Math.round(totalScore / scoreCount) : null;
+
+        // Generate badges based on real achievements
+        const badges = [];
+
+        if (totalLessons > 0 && lessonsCompleted === totalLessons) {
+          badges.push({
+            id: 1,
+            name: 'Course Master',
+            icon: '🎓',
+            description: 'Completed all lessons'
+          });
+        }
+
+        if (quizzesPassed === totalQuizzes && totalQuizzes > 0) {
+          badges.push({
+            id: 2,
+            name: 'Quiz Champion',
+            icon: '🏆',
+            description: 'Passed all quizzes'
+          });
+        }
+
+        if (finalScore && finalScore >= 90) {
+          badges.push({
+            id: 3,
+            name: 'Top Performer',
+            icon: '⭐',
+            description: 'Achieved 90%+ average score'
+          });
+        }
+
+        if (totalTimeSpent > 0 && totalLessons > 0) {
+          const avgTimePerLesson = totalTimeSpent / lessonsCompleted;
+          const expectedTimePerLesson = (found?.duration_minutes || 60) / totalLessons;
+
+          if (avgTimePerLesson < expectedTimePerLesson * 0.8) {
+            badges.push({
+              id: 4,
+              name: 'Quick Learner',
+              icon: '⚡',
+              description: 'Completed course efficiently'
+            });
+          }
+        }
+
+        // Generate skills from course category and performance
+        const skills = [];
+
+        if (found?.category) {
+          const categoryName = typeof found.category === 'string' ? found.category : found.category.name;
+          let level = 'Beginner';
+
+          if (finalScore >= 90) {
+            level = 'Advanced';
+          } else if (finalScore >= 75) {
+            level = 'Intermediate';
+          } else if (lessonsCompleted === totalLessons) {
+            level = 'Intermediate';
+          }
+
+          skills.push({
+            name: categoryName,
+            level: level
+          });
+        }
+
+        // Add general skills based on completion
+        if (lessonsCompleted === totalLessons && totalQuizzes > 0 && quizzesPassed === totalQuizzes) {
+          skills.push({
+            name: 'Problem Solving',
+            level: finalScore >= 85 ? 'Advanced' : 'Intermediate'
+          });
+        }
+
+        if (totalTimeSpent > 180) { // More than 3 hours
+          skills.push({
+            name: 'Continuous Learning',
+            level: 'Advanced'
+          });
+        }
+
         const computed = {
           completedAt: latestCompletedAt ? new Date(latestCompletedAt).toISOString() : null,
           totalTimeSpent,
-          finalScore: null,
+          finalScore,
           lessonsCompleted,
           totalLessons,
           quizzesPassed,
           totalQuizzes,
           quizCompletionPercentage: totalQuizzes > 0 ? Math.round((quizzesPassed / totalQuizzes) * 100) : 0,
-          projectsCompleted: null,
+          projectsCompleted: 0, // Projects are not tracked in current database schema
           certificate: null,
-          badges: [],
-          skills: [],
+          badges,
+          skills,
         }
 
         setCompletionData(computed)
@@ -431,15 +485,17 @@ export default function CourseCompletion() {
               <div className="text-sm text-text-light">Quizzes Passed</div>
             </div>
           )}
-          
-          <div className="text-center">
-            <div className="w-16 h-16 bg-warning-light rounded-full flex items-center justify-center mx-auto mb-3">
-              <BookOpen className="w-8 h-8 text-warning-default" />
+
+          {completionData.finalScore !== null && (
+            <div className="text-center">
+              <div className="w-16 h-16 bg-success-light rounded-full flex items-center justify-center mx-auto mb-3">
+                <Star className="w-8 h-8 text-success-default" />
+              </div>
+              <div className="text-2xl font-bold text-text-dark">{completionData.finalScore}%</div>
+              <div className="text-sm text-text-light">Average Score</div>
             </div>
-            <div className="text-2xl font-bold text-text-dark">{completionData.projectsCompleted}</div>
-            <div className="text-sm text-text-light">Projects Built</div>
-          </div>
-          
+          )}
+
           <div className="text-center">
             <div className="w-16 h-16 bg-error-light rounded-full flex items-center justify-center mx-auto mb-3">
               <Clock className="w-8 h-8 text-error-default" />

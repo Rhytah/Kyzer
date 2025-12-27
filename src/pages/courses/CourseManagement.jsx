@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCourseStore } from '@/store/courseStore';
 import { useAuth } from '@/hooks/auth/useAuth';
+import { PERMISSIONS } from '@/constants/permissions';
+import { hasPermission, canManageThisCourse } from '@/utils/permissions';
 import {
   Plus,
   Edit,
@@ -735,7 +737,14 @@ export default function CourseManagement() {
                   </div>
                 </div>
                 
-                {(() => { const isCreator = course.created_by === user?.id; return (
+                {(() => {
+                  const canManage = canManageThisCourse(user, course);
+                  const canPublish = hasPermission(user, PERMISSIONS.PUBLISH_COURSES);
+                  const canEdit = hasPermission(user, PERMISSIONS.EDIT_COURSES);
+                  const canDelete = hasPermission(user, PERMISSIONS.DELETE_COURSES);
+                  const canManageResources = hasPermission(user, PERMISSIONS.MANAGE_RESOURCES);
+
+                  return (
                 <div className="flex items-center gap-2 ml-4">
                   <Button
                     variant="secondary"
@@ -744,42 +753,39 @@ export default function CourseManagement() {
                   >
                     {courseLessons[course.id] ? 'Hide' : 'Show'} Structure
                   </Button>
-                  {isCreator && (
+                  {canManage && (
                     <>
-                      {/* <Link to={`/app/editor/${course.id}`}>
+                      {canPublish && (
                         <Button
-                          variant="primary"
+                          variant="secondary"
                           size="sm"
+                          onClick={() => handleTogglePublish(course.id, course.status)}
+                          title={course.status === 'published' ? 'Unpublish course' : 'Publish course'}
                         >
-                          <Edit3 className="w-4 h-4 mr-1" />
-                          Open Editor
+                          {course.status === 'published' ? (
+                            <>
+                              <EyeOff className="w-4 h-4 mr-1" />
+                              Unpublish
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="w-4 h-4 mr-1" />
+                              Publish
+                            </>
+                          )}
                         </Button>
-                      </Link> */}
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleTogglePublish(course.id, course.status)}
-                      >
-                        {course.status === 'published' ? (
-                          <>
-                            <EyeOff className="w-4 h-4 mr-1" />
-                            Unpublish
-                          </>
-                        ) : (
-                          <>
-                            <Eye className="w-4 h-4 mr-1" />
-                            Publish
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleEditCourse(course)}
-                      >
-                        <Edit className="w-4 h-4 mr-1" />
-                        Edit
-                      </Button>
+                      )}
+                      {canEdit && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleEditCourse(course)}
+                          title="Edit course details"
+                        >
+                          <Edit className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
+                      )}
                       {/* <Button
                         variant="secondary"
                         size="sm"
@@ -796,42 +802,38 @@ export default function CourseManagement() {
                         <Plus className="w-4 h-4 mr-1" />
                         Add Lesson
                       </Button> */}
-                      {/* <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleAddQuiz(course.id)}
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Add Quiz
-                      </Button> */}
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleManageResources(course)}
-                        title="Manage course resources and attachments"
-                      >
-                        <Paperclip className="w-4 h-4 mr-1" />
-                        Resources
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (course?.id) {
-                            handleDeleteCourse(course.id);
-                          } else {
-                            showError('Unable to delete: Course ID not found');
-                          }
-                        }}
-                        className="text-red-600 hover:text-red-700"
-                        title="Delete Course"
-                        aria-label="Delete Course"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {canManageResources && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleManageResources(course)}
+                          title="Manage course resources and attachments"
+                        >
+                          <Paperclip className="w-4 h-4 mr-1" />
+                          Resources
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (course?.id) {
+                              handleDeleteCourse(course.id);
+                            } else {
+                              showError('Unable to delete: Course ID not found');
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-700"
+                          title="Delete Course"
+                          aria-label="Delete Course"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </>
                   )}
                 </div>

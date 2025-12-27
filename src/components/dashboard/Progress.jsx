@@ -17,9 +17,12 @@ import {
 import Button from "../../components/ui/Button";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { useAuthStore } from "../../store/authStore";
+import { useCourseStore } from "../../store/courseStore";
+import { supabase } from "../../lib/supabase";
 
 const Progress = () => {
-  const { profile } = useAuthStore();
+  const { profile, user } = useAuthStore();
+  const { certificates, actions: courseActions } = useCourseStore();
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState("30days");
   const [progressData, setProgressData] = useState(null);
@@ -34,105 +37,343 @@ const Progress = () => {
 
   useEffect(() => {
     const loadProgressData = async () => {
-      setLoading(true);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (!user?.id) return;
 
-      setProgressData({
-        overview: {
-          totalHours: 156,
-          coursesCompleted: 12,
-          coursesInProgress: 3,
-          certificates: 8,
-          currentStreak: 14,
-          longestStreak: 28,
-          averageScore: 87,
-          rank: "Advanced Learner",
-        },
-        weeklyActivity: [
-          { day: "Mon", hours: 2.5, courses: 1 },
-          { day: "Tue", hours: 1.8, courses: 0 },
-          { day: "Wed", hours: 3.2, courses: 2 },
-          { day: "Thu", hours: 2.1, courses: 1 },
-          { day: "Fri", hours: 4.0, courses: 1 },
-          { day: "Sat", hours: 1.5, courses: 0 },
-          { day: "Sun", hours: 2.8, courses: 1 },
-        ],
-        monthlyProgress: [
-          { month: "Aug", completed: 2, hours: 24 },
-          { month: "Sep", completed: 3, hours: 31 },
-          { month: "Oct", completed: 2, hours: 28 },
-          { month: "Nov", completed: 4, hours: 42 },
-          { month: "Dec", completed: 1, hours: 18 },
-          { month: "Jan", completed: 0, hours: 13 },
-        ],
-        skillProgress: [
-          { skill: "React Development", level: 85, courses: 4, hours: 32 },
-          { skill: "JavaScript", level: 92, courses: 3, hours: 28 },
-          { skill: "UI/UX Design", level: 68, courses: 2, hours: 24 },
-          { skill: "Node.js", level: 45, courses: 1, hours: 16 },
-          { skill: "Data Analysis", level: 30, courses: 1, hours: 12 },
-          { skill: "Project Management", level: 75, courses: 1, hours: 18 },
-        ],
-        recentActivity: [
-          {
-            type: "completion",
-            title: 'Completed "Advanced React Hooks"',
-            date: "2024-01-20",
-            points: 150,
-          },
-          {
-            type: "certificate",
-            title: "Earned JavaScript Fundamentals Certificate",
-            date: "2024-01-18",
-            points: 200,
-          },
-          {
-            type: "milestone",
-            title: "Reached 100 hours of learning",
-            date: "2024-01-15",
-            points: 500,
-          },
-          {
-            type: "streak",
-            title: "14-day learning streak",
-            date: "2024-01-14",
-            points: 100,
-          },
-        ],
-        goals: [
-          {
+      setLoading(true);
+      try {
+        // Fetch certificates first
+        await courseActions.fetchCertificates(user.id);
+
+        // Calculate date range
+        const now = new Date();
+        let startDate;
+        switch (timeRange) {
+          case '7days':
+            startDate = new Date(now - 7 * 24 * 60 * 60 * 1000);
+            break;
+          case '30days':
+            startDate = new Date(now - 30 * 24 * 60 * 60 * 1000);
+            break;
+          case '90days':
+            startDate = new Date(now - 90 * 24 * 60 * 60 * 1000);
+            break;
+          case 'year':
+            startDate = new Date(now.getFullYear(), 0, 1);
+            break;
+          case 'all':
+          default:
+            startDate = new Date(0);
+            break;
+        }
+
+        // Fetch course enrollments with completion status
+        const { data: enrollments, error: enrollmentError } = await supabase
+          .from('course_enrollments')
+          .select(`
+            id,
+            course_id,
+            status,
+            progress_percentage,
+            completed_at,
+            created_at,
+            courses (
+              id,
+              title,
+              category,
+              duration_minutes
+            )
+          `)
+          .eq('user_id', user.id);
+
+        if (enrollmentError) throw enrollmentError;
+
+        // Fetch lesson progress for time tracking
+        const { data: lessonProgress, error: progressError } = await supabase
+          .from('lesson_progress')
+          .select('time_spent_seconds, completed, last_activity_at, lesson_id')
+          .eq('user_id', user.id);
+
+        if (progressError) throw progressError;
+
+        // Fetch quiz attempts for average score
+        const { data: quizAttempts, error: quizError } = await supabase
+          .from('quiz_attempts')
+          .select('score')
+          .eq('user_id', user.id)
+          .gte('created_at', startDate.toISOString());
+
+        if (quizError) throw quizError;
+
+        // Calculate overview metrics
+        const totalTimeSeconds = (lessonProgress || []).reduce((sum, p) => sum + (p.time_spent_seconds || 0), 0);
+        const totalHours = Math.round(totalTimeSeconds / 3600);
+
+        const coursesCompleted = (enrollments || []).filter(e => e.status === 'completed').length;
+        const coursesInProgress = (enrollments || []).filter(e => e.status === 'in_progress').length;
+        const certificatesCount = certificates.length;
+
+        const averageScore = (quizAttempts && quizAttempts.length > 0)
+          ? Math.round(quizAttempts.reduce((sum, a) => sum + (a.score || 0), 0) / quizAttempts.length)
+          : 0;
+
+        // Calculate learning streak
+        const sortedActivity = [...(lessonProgress || [])]
+          .filter(p => p.last_activity_at)
+          .sort((a, b) => new Date(b.last_activity_at) - new Date(a.last_activity_at));
+
+        let currentStreak = 0;
+        let longestStreak = 0;
+        let tempStreak = 0;
+        let lastDate = null;
+
+        sortedActivity.forEach(activity => {
+          const activityDate = new Date(activity.last_activity_at);
+          const dayStart = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
+
+          if (!lastDate) {
+            tempStreak = 1;
+            lastDate = dayStart;
+          } else {
+            const diffDays = Math.floor((lastDate - dayStart) / (1000 * 60 * 60 * 24));
+            if (diffDays === 1) {
+              tempStreak++;
+            } else if (diffDays > 1) {
+              longestStreak = Math.max(longestStreak, tempStreak);
+              tempStreak = 1;
+            }
+            lastDate = dayStart;
+          }
+        });
+
+        if (sortedActivity.length > 0) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const lastActivityDate = new Date(sortedActivity[0].last_activity_at);
+          lastActivityDate.setHours(0, 0, 0, 0);
+          const daysSinceLastActivity = Math.floor((today - lastActivityDate) / (1000 * 60 * 60 * 24));
+
+          if (daysSinceLastActivity <= 1) {
+            currentStreak = tempStreak;
+          }
+          longestStreak = Math.max(longestStreak, tempStreak);
+        }
+
+        // Calculate weekly activity (last 7 days)
+        const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+          const date = new Date(now);
+          date.setDate(date.getDate() - (6 - i));
+          return date;
+        });
+
+        const weeklyActivity = last7Days.map(date => {
+          const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+          const dayEnd = new Date(dayStart);
+          dayEnd.setDate(dayEnd.getDate() + 1);
+
+          const dayProgress = (lessonProgress || []).filter(p => {
+            const activityDate = new Date(p.last_activity_at);
+            return activityDate >= dayStart && activityDate < dayEnd;
+          });
+
+          const dayEnrollments = (enrollments || []).filter(e => {
+            const completedDate = e.completed_at ? new Date(e.completed_at) : null;
+            return completedDate && completedDate >= dayStart && completedDate < dayEnd;
+          });
+
+          const hours = dayProgress.reduce((sum, p) => sum + (p.time_spent_seconds || 0), 0) / 3600;
+          const courses = dayEnrollments.length;
+
+          return {
+            day: weekDays[date.getDay()],
+            hours: Math.round(hours * 10) / 10,
+            courses
+          };
+        });
+
+        // Calculate monthly progress (last 6 months)
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const last6Months = Array.from({ length: 6 }, (_, i) => {
+          const date = new Date(now);
+          date.setMonth(date.getMonth() - (5 - i));
+          return date;
+        });
+
+        const monthlyProgress = last6Months.map(date => {
+          const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+          const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+          const monthEnrollments = (enrollments || []).filter(e => {
+            const completedDate = e.completed_at ? new Date(e.completed_at) : null;
+            return completedDate && completedDate >= monthStart && completedDate <= monthEnd;
+          });
+
+          const monthProgress = (lessonProgress || []).filter(p => {
+            const activityDate = new Date(p.last_activity_at);
+            return activityDate >= monthStart && activityDate <= monthEnd;
+          });
+
+          const hours = Math.round(monthProgress.reduce((sum, p) => sum + (p.time_spent_seconds || 0), 0) / 3600);
+
+          return {
+            month: monthNames[date.getMonth()],
+            completed: monthEnrollments.length,
+            hours
+          };
+        });
+
+        // Calculate skill progress by category
+        const categoryMap = {};
+        (enrollments || []).forEach(e => {
+          if (!e.courses || !e.courses.category) return;
+
+          const category = e.courses.category;
+          if (!categoryMap[category]) {
+            categoryMap[category] = {
+              skill: category,
+              courses: 0,
+              completedCourses: 0,
+              hours: 0,
+              level: 0
+            };
+          }
+
+          categoryMap[category].courses++;
+          if (e.status === 'completed') {
+            categoryMap[category].completedCourses++;
+          }
+        });
+
+        // Calculate hours per category from lesson progress
+        for (const category in categoryMap) {
+          const categoryEnrollments = (enrollments || []).filter(e => e.courses?.category === category);
+          const categoryLessons = categoryEnrollments.map(e => e.course_id);
+
+          const { data: categoryLessonProgress } = await supabase
+            .from('lesson_progress')
+            .select('time_spent_seconds, lessons!inner(course_id)')
+            .eq('user_id', user.id)
+            .in('lessons.course_id', categoryLessons);
+
+          const categoryHours = Math.round(
+            ((categoryLessonProgress || []).reduce((sum, p) => sum + (p.time_spent_seconds || 0), 0) / 3600)
+          );
+
+          categoryMap[category].hours = categoryHours;
+          categoryMap[category].level = Math.min(
+            100,
+            Math.round((categoryMap[category].completedCourses / categoryMap[category].courses) * 100)
+          );
+        }
+
+        const skillProgress = Object.values(categoryMap).slice(0, 6);
+
+        // Calculate recent activity
+        const recentCompletions = (enrollments || [])
+          .filter(e => e.status === 'completed' && e.completed_at)
+          .sort((a, b) => new Date(b.completed_at) - new Date(a.completed_at))
+          .slice(0, 2)
+          .map(e => ({
+            type: 'completion',
+            title: `Completed "${e.courses?.title || 'Course'}"`,
+            date: e.completed_at,
+            points: 150
+          }));
+
+        const recentCertificates = [...certificates]
+          .sort((a, b) => new Date(b.issued_at) - new Date(a.issued_at))
+          .slice(0, 2)
+          .map(cert => ({
+            type: 'certificate',
+            title: `Earned ${cert.course_title || 'Course'} Certificate`,
+            date: cert.issued_at,
+            points: 200
+          }));
+
+        const recentActivity = [...recentCompletions, ...recentCertificates]
+          .sort((a, b) => new Date(b.date) - new Date(a.date))
+          .slice(0, 4);
+
+        // Build goals from actual data
+        const goals = [];
+
+        if (coursesInProgress > 0) {
+          goals.push({
             id: 1,
-            title: "Complete React Mastery Path",
-            target: 8,
-            current: 6,
-            deadline: "2024-03-01",
-            type: "courses",
-          },
-          {
+            title: "Complete courses in progress",
+            target: coursesInProgress + coursesCompleted,
+            current: coursesCompleted,
+            deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            type: "courses"
+          });
+        }
+
+        if (totalHours < 100) {
+          goals.push({
             id: 2,
-            title: "Study 200 hours this year",
-            target: 200,
-            current: 156,
-            deadline: "2024-12-31",
-            type: "hours",
-          },
-          {
+            title: "Reach 100 hours of learning",
+            target: 100,
+            current: totalHours,
+            deadline: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+            type: "hours"
+          });
+        }
+
+        if (certificatesCount < 10) {
+          goals.push({
             id: 3,
             title: "Earn 10 certificates",
             target: 10,
-            current: 8,
-            deadline: "2024-06-30",
-            type: "certificates",
-          },
-        ],
-      });
+            current: certificatesCount,
+            deadline: new Date(now.getFullYear(), 11, 31).toISOString(),
+            type: "certificates"
+          });
+        }
 
-      setLoading(false);
+        setProgressData({
+          overview: {
+            totalHours,
+            coursesCompleted,
+            coursesInProgress,
+            certificates: certificatesCount,
+            currentStreak,
+            longestStreak,
+            averageScore,
+            rank: totalHours >= 100 ? "Advanced Learner" : totalHours >= 50 ? "Intermediate Learner" : "Beginner"
+          },
+          weeklyActivity,
+          monthlyProgress,
+          skillProgress,
+          recentActivity,
+          goals
+        });
+      } catch (error) {
+        console.error('Error loading progress data:', error);
+        // Set empty data on error
+        setProgressData({
+          overview: {
+            totalHours: 0,
+            coursesCompleted: 0,
+            coursesInProgress: 0,
+            certificates: 0,
+            currentStreak: 0,
+            longestStreak: 0,
+            averageScore: 0,
+            rank: "New Learner"
+          },
+          weeklyActivity: [],
+          monthlyProgress: [],
+          skillProgress: [],
+          recentActivity: [],
+          goals: []
+        });
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadProgressData();
-  }, [timeRange]);
+  }, [timeRange, user?.id]);
 
   const getActivityIcon = (type) => {
     switch (type) {
