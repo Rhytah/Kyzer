@@ -85,8 +85,11 @@ const CorporateRoute = ({
     return <Navigate to="/corporate/create" state={{ from: location }} replace />;
   }
 
-  // Check subscription status
-  if (!isSubscriptionActive || isTrialExpired) {
+  // Owner bypasses subscription checks - has full access even with expired subscription
+  const isOwner = userRole === 'owner';
+
+  // Check subscription status (owner bypasses)
+  if (!isOwner && (!isSubscriptionActive || isTrialExpired)) {
     if (showUpgradePrompt) {
       return (
         <SubscriptionExpiredPrompt
@@ -108,8 +111,11 @@ const CorporateRoute = ({
     }
   }
 
-  // Check permission requirements
-  if (requiredPermission && !hasPermission(requiredPermission)) {
+  // Owner bypasses all permission, feature, and slot checks
+  const isOwner = userRole === 'owner';
+
+  // Check permission requirements (owner bypasses)
+  if (requiredPermission && !isOwner && !hasPermission(requiredPermission)) {
     return (
       <PermissionDeniedPrompt
         requiredPermission={requiredPermission}
@@ -120,8 +126,8 @@ const CorporateRoute = ({
     );
   }
 
-  // Check feature requirements
-  if (requiredFeature && !isFeatureEnabled(requiredFeature)) {
+  // Check feature requirements (owner bypasses)
+  if (requiredFeature && !isOwner && !isFeatureEnabled(requiredFeature)) {
     return (
       <FeatureUnavailablePrompt
         requiredFeature={requiredFeature}
@@ -131,8 +137,8 @@ const CorporateRoute = ({
     );
   }
 
-  // Check employee slot requirements
-  if (requiresEmployeeSlots && !canAddMoreEmployees) {
+  // Check employee slot requirements (owner bypasses)
+  if (requiresEmployeeSlots && !isOwner && !canAddMoreEmployees) {
     return (
       <EmployeeLimitPrompt
         organization={organization}

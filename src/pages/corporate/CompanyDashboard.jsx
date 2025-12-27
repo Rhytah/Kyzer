@@ -107,12 +107,13 @@ const CompanyDashboard = () => {
 
     try {
       // Fetch recent course enrollments and completions
-      // Use a simple query that works with the current database structure
+      // Include user profile information to show names instead of IDs
       const { data: enrollments, error } = await supabase
         .from('course_enrollments')
         .select(`
           *,
-          course:courses(title)
+          course:courses(title),
+          user:profiles(id, first_name, last_name, email)
         `)
         .order('enrolled_at', { ascending: false })
         .limit(5);
@@ -124,14 +125,24 @@ const CompanyDashboard = () => {
       }
 
       // Transform the data into activity items
-      const activityItems = enrollments?.map(enrollment => ({
-        id: enrollment.id,
-        type: enrollment.status === 'completed' ? 'completion' : 'enrollment',
-        title: enrollment.course?.title || 'Unknown Course',
-        timestamp: enrollment.enrolled_at,
-        user: `User ${enrollment.user_id?.slice(0, 8) || 'Unknown'}`,
-        status: enrollment.status
-      })) || [];
+      const activityItems = enrollments?.map(enrollment => {
+        // Get user name from profile, fallback to email, then to "Unknown User"
+        const user = enrollment.user;
+        let userName = 'Unknown User';
+        if (user) {
+          const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+          userName = fullName || user.email || 'Unknown User';
+        }
+        
+        return {
+          id: enrollment.id,
+          type: enrollment.status === 'completed' ? 'completion' : 'enrollment',
+          title: enrollment.course?.title || 'Unknown Course',
+          timestamp: enrollment.enrolled_at,
+          user: userName,
+          status: enrollment.status
+        };
+      }) || [];
 
       setRecentActivity(activityItems);
     } catch (error) {

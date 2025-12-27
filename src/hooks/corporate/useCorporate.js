@@ -20,7 +20,33 @@ export const useCorporate = () => {
 
   // Helper function to get default permissions based on role
   const getDefaultPermissions = useCallback((userRole) => {
+    // Owner has all permissions
+    const ownerPermissions = {
+      invite_employees: true,
+      manage_employees: true,
+      view_reports: true,
+      generate_reports: true,
+      manage_settings: true,
+      manage_billing: true,
+      manage_integrations: true,
+      assign_courses: true,
+      view_all_progress: true,
+      manage_departments: true,
+      view_analytics: true,
+      delete_company: true,
+      transfer_ownership: true,
+      manage_permissions: true,
+      bulk_manage_users: true,
+      create_departments: true,
+      edit_departments: true,
+      delete_departments: true,
+      assign_department_managers: true,
+      bulk_assign_courses: true,
+      export_reports: true
+    };
+
     const rolePermissions = {
+      'owner': ownerPermissions, // Owner has all permissions
       'admin': {
         invite_employees: true,
         manage_employees: true,
@@ -152,8 +178,16 @@ export const useCorporate = () => {
         return existingMembership;
       }
 
-      // Create new membership - determine role from metadata
-      const userRole = user.user_metadata?.role || 'admin'; // Default first user to admin
+      // Check if user is the creator of this organization
+      const { data: orgData } = await supabase
+        .from('organizations')
+        .select('created_by')
+        .eq('id', organizationId)
+        .single();
+      
+      // If user created the organization, they should be owner; otherwise use metadata or default to admin
+      const isCreator = orgData?.created_by === user.id;
+      const userRole = isCreator ? 'owner' : (user.user_metadata?.role || 'admin');
       
       const membershipData = {
         user_id: user.id,
@@ -378,8 +412,12 @@ export const useCorporate = () => {
 
   // Helper functions - memoized to prevent re-renders
   const hasPermission = useCallback((permission) => {
+    // Owner has all permissions - bypass all checks
+    if (role === 'owner') {
+      return true;
+    }
     return Boolean(permissions[permission]);
-  }, [permissions]);
+  }, [permissions, role]);
 
   const isAdmin = useCallback(() => {
     return role === 'admin';

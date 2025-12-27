@@ -506,13 +506,13 @@ const signup = useCallback(async (userData) => {
         })
         .eq('id', userId);
 
-      // Add user as organization admin
+      // Add user as organization owner (creator)
       await supabase
         .from('organization_members')
         .insert([{
           organization_id: orgResult.id,
           user_id: userId,
-          role: 'admin',
+          role: 'owner',
           status: 'active',
           joined_at: new Date().toISOString()
         }]);

@@ -120,12 +120,25 @@ export function useCorporatePermissions() {
   const userRole = useMemo(() => {
     if (!currentCompany || !user) return null
     
-    // Check if user is company admin
+    // Check if user is organization owner (creator)
+    if (currentCompany.created_by === user.id) {
+      // Verify they have the owner role in members table
+      const employeeRecord = employees.find(emp => emp.user_id === user.id)
+      if (employeeRecord?.role === 'owner') {
+        return 'owner'
+      }
+      // If created_by matches but role isn't set, still consider them owner
+      if (currentCompany.created_by === user.id) {
+        return 'owner'
+      }
+    }
+    
+    // Check if user is company admin (legacy)
     if (currentCompany.admin_user_id === user.id) {
       return 'admin'
     }
     
-    // Check user's role in company_employees
+    // Check user's role in organization_members
     const employeeRecord = employees.find(emp => emp.user_id === user.id)
     return employeeRecord?.role || null
   }, [currentCompany, user, employees])
@@ -165,7 +178,8 @@ export function useCorporatePermissions() {
     let rolePermissions = { ...basePermissions }
     
     switch (userRole) {
-      case 'admin':
+      case 'owner':
+        // Organization owner has all permissions, including ability to delete organization
         rolePermissions = {
           ...rolePermissions,
           canInviteEmployees: true,
@@ -174,6 +188,23 @@ export function useCorporatePermissions() {
           canManageCompany: true,
           canViewBilling: true,
           canDeleteCompany: true,
+          canManagePermissions: true,
+          canTransferOwnership: true, // Only owner can transfer ownership
+          canChangeOwnerRole: false // Owner role cannot be changed
+        }
+        break
+      
+      case 'admin':
+      case 'corporate_admin':
+      case 'system_admin':
+        rolePermissions = {
+          ...rolePermissions,
+          canInviteEmployees: true,
+          canManageEmployees: true,
+          canAssignCourses: true,
+          canManageCompany: true,
+          canViewBilling: true,
+          canDeleteCompany: false, // Only owner can delete
           canManagePermissions: true
         }
         break
@@ -188,6 +219,7 @@ export function useCorporatePermissions() {
         break
       
       case 'employee':
+      case 'learner':
         // Keep base permissions only
         break
     }
@@ -243,24 +275,40 @@ export function useCorporatePermissions() {
     }
   }, [currentCompany, employees])
 
-  // Enhanced permission checking
+  // Enhanced permission checking (owner bypasses all checks)
   const hasPermission = (permission) => {
+    // Owner has all permissions - always return true
+    if (userRole === 'owner') {
+      return true;
+    }
     return permissions[permission] || false
   }
 
-  // Feature availability checking
+  // Feature availability checking (owner bypasses)
   const isFeatureAvailable = (feature) => {
+    // Owner has access to all features regardless of subscription
+    if (userRole === 'owner') {
+      return true;
+    }
     if (!subscriptionStatus?.isActive) return false
     return subscriptionStatus.limits.features.includes(feature)
   }
 
-  // Employee limit checking
+  // Employee limit checking (owner bypasses)
   const canPerformEmployeeAction = () => {
+    // Owner can always add employees regardless of subscription limits
+    if (userRole === 'owner') {
+      return true;
+    }
     return subscriptionStatus?.canAddMoreEmployees || false
   }
 
-  // Permission requirement with detailed error
+  // Permission requirement with detailed error (owner bypasses)
   const requirePermission = (permission) => {
+    // Owner bypasses all permission checks
+    if (userRole === 'owner') {
+      return;
+    }
     if (!hasPermission(permission)) {
       const errorDetails = {
         permission,
@@ -274,10 +322,11 @@ export function useCorporatePermissions() {
 
   // Enhanced role checks
   const roleChecks = useMemo(() => ({
-    isAdmin: userRole === 'admin',
+    isOwner: userRole === 'owner',
+    isAdmin: userRole === 'admin' || userRole === 'corporate_admin',
     isManager: userRole === 'manager',
-    isEmployee: userRole === 'employee',
-    canManage: ['admin', 'manager'].includes(userRole),
+    isEmployee: userRole === 'employee' || userRole === 'learner',
+    canManage: ['owner', 'admin', 'corporate_admin', 'manager'].includes(userRole),
     hasAnyRole: Boolean(userRole)
   }), [userRole])
 
@@ -299,12 +348,12 @@ export function useCorporatePermissions() {
     // Company information
     company: currentCompany,
     
-    // Quick access helpers
-    canInviteEmployees: hasPermission('canInviteEmployees') && canPerformEmployeeAction(),
-    canManageEmployees: hasPermission('canManageEmployees'),
-    canAssignCourses: hasPermission('canAssignCourses'),
-    canViewAdvancedReports: hasPermission('canUseAdvancedReporting'),
-    canCustomizeBranding: hasPermission('canCustomizeBranding'),
+    // Quick access helpers (owner bypasses all checks)
+    canInviteEmployees: (userRole === 'owner') || (hasPermission('canInviteEmployees') && canPerformEmployeeAction()),
+    canManageEmployees: (userRole === 'owner') || hasPermission('canManageEmployees'),
+    canAssignCourses: (userRole === 'owner') || hasPermission('canAssignCourses'),
+    canViewAdvancedReports: (userRole === 'owner') || hasPermission('canUseAdvancedReporting'),
+    canCustomizeBranding: (userRole === 'owner') || hasPermission('canCustomizeBranding'),
     
     // Warning flags
     shouldShowEmployeeLimitWarning: subscriptionStatus?.remainingEmployeeSlots <= 5,

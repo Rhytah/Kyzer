@@ -2,10 +2,15 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCorporate } from "@/hooks/corporate/useCorporate";
+import { useCorporatePermissions } from "@/hooks/corporate/useCorporatePermissions";
 
-const AdminGuard = ({ children, requirePermission, fallbackComponent = null }) => {
+const AdminGuard = ({ children, requirePermission, requiredPermission, fallbackComponent = null }) => {
   const { user, loading } = useAuth();
   const { permissions, loading: corpLoading } = useCorporate();
+  const { isOwner } = useCorporatePermissions();
+
+  // Support both prop names for compatibility
+  const permission = requirePermission || requiredPermission;
 
   // Show loading spinner while checking auth
   if (loading || corpLoading) {
@@ -21,8 +26,13 @@ const AdminGuard = ({ children, requirePermission, fallbackComponent = null }) =
     return <Navigate to="/login" replace />;
   }
 
+  // Owner bypasses all permission checks - has full access to all company routes
+  if (isOwner) {
+    return children;
+  }
+
   // Check if user has the required permission
-  if (requirePermission && !permissions?.[requirePermission]) {
+  if (permission && !permissions?.[permission]) {
     if (fallbackComponent) {
       return fallbackComponent;
     }

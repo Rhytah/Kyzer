@@ -20,10 +20,13 @@ import {
   EyeOff
 } from 'lucide-react'
 import { useCorporateStore, useEmployees, useCurrentCompany, useDepartments, useInvitations } from '@/store/corporateStore'
+import { useCorporatePermissions } from '@/hooks/corporate/useCorporatePermissions'
+import { useAuthStore } from '@/store/authStore'
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import Modal from '@/components/ui/Modal'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import toast from 'react-hot-toast'
 
 export default function EmployeeManagement() {
   const currentCompany = useCurrentCompany()
@@ -70,9 +73,14 @@ export default function EmployeeManagement() {
 
   const getRoleIcon = (role) => {
     switch (role) {
+      case 'owner': return Crown
+      case 'corporate_admin': return UserCog
+      case 'instructor': return BookOpen
+      case 'system_admin': return Settings
+      case 'learner': return GraduationCap
       case 'admin': return Crown
       case 'manager': return ShieldCheck
-      default: return Shield
+      default: return Users
     }
   }
 
@@ -290,11 +298,54 @@ function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIco
   const [newRole, setNewRole] = useState(employee.role)
   const actionsRef = useRef(null)
   const buttonRef = useRef(null)
+  const { user } = useAuthStore()
+  const { canManageEmployees, userRole } = useCorporatePermissions()
 
   const RoleIcon = getRoleIcon(employee.role)
+  
+  // Check if current user can change roles
+  // Allow owner, corporate_admin, admin, manager, or system_admin to change roles
+  // But prevent changing the owner's role
+  const canChangeRole = canManageEmployees && userRole && [
+    'owner',
+    'corporate_admin', 
+    'admin', 
+    'manager',
+    'system_admin'
+  ].includes(userRole)
+  
+  // Check if this employee is the organization owner
+  const isOrganizationOwner = employee.role === 'owner'
+  
+  // Check if this is the current user
+  const isCurrentUser = user?.id && (employee.user_id === user.id || employee.id === user.id)
 
   const handleRoleUpdate = async () => {
     try {
+      // Check permissions
+      if (!canChangeRole) {
+        toast.error('You do not have permission to change roles')
+        return
+      }
+      
+      // Prevent changing organization owner's role
+      if (isOrganizationOwner) {
+        toast.error('Cannot change the organization owner\'s role. The owner role is permanent.')
+        setShowRoleEdit(false)
+        return
+      }
+      
+      // Prevent users from changing their own role (security measure)
+      if (isCurrentUser) {
+        const confirm = window.confirm(
+          'You are about to change your own role. This may affect your access to the platform. Are you sure you want to continue?'
+        )
+        if (!confirm) {
+          setShowRoleEdit(false)
+          return
+        }
+      }
+      
       // Validate employee ID before updating
       if (!employee.id || employee.id === 'undefined') {
         console.error('Invalid employee ID');
@@ -302,8 +353,10 @@ function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIco
       }
       await onUpdateRole(employee.id, newRole)
       setShowRoleEdit(false)
+      toast.success('Role updated successfully')
     } catch (error) {
       console.error('Failed to update role:', error)
+      toast.error('Failed to update role: ' + (error.message || 'Unknown error'))
     }
   }
 
@@ -367,8 +420,14 @@ function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIco
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <RoleIcon className="w-4 h-4 text-text-medium" />
-            <span className="capitalize text-text-dark">{employee.role}</span>
+            {isOrganizationOwner ? (
+              <Crown className="w-4 h-4 text-yellow-600" />
+            ) : (
+              <RoleIcon className="w-4 h-4 text-text-medium" />
+            )}
+            <span className="capitalize text-text-dark">
+              {isOrganizationOwner ? 'Owner' : employee.role}
+            </span>
           </div>
         )}
       </td>
@@ -410,33 +469,41 @@ function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIco
               className="absolute right-0 top-8 w-48 bg-white border border-background-dark rounded-lg shadow-xl z-[9999]"
               style={{ position: 'absolute' }}
             >
-              <button
-                onClick={() => {
-                  setShowRoleEdit(true)
-                  setShowActions(false)
-                }}
-                className="w-full text-left px-4 py-2 hover:bg-background-light flex items-center gap-2"
-              >
-                <Edit className="w-4 h-4" />
-                Change Role
-              </button>
-              <button
-                onClick={() => {
-                  onRemove(employee.id)
-                  setShowActions(false)
-                }}
-                className="w-full text-left px-4 py-2 hover:bg-background-light text-error-default flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                Remove Employee
-              </button>
-              <a
-                href="/company/departments"
-                className="w-full text-left px-4 py-2 hover:bg-background-light flex items-center gap-2"
-              >
-                <ShieldCheck className="w-4 h-4" />
-                Assign as Manager
-              </a>
+              {canChangeRole && !isOrganizationOwner && (
+                <button
+                  onClick={() => {
+                    setShowRoleEdit(true)
+                    setShowActions(false)
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-background-light flex items-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  Change Role
+                </button>
+              )}
+              {isOrganizationOwner && (
+                <div className="px-4 py-2 text-xs text-text-light border-b border-background-light">
+                  <Crown className="w-3 h-3 inline mr-1" />
+                  Organization Owner
+                </div>
+              )}
+              {canManageEmployees && !isCurrentUser && !isOrganizationOwner && (
+                <button
+                  onClick={() => {
+                    onRemove(employee.id)
+                    setShowActions(false)
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-background-light text-error-default flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Remove Employee
+                </button>
+              )}
+              {!canChangeRole && !canManageEmployees && (
+                <div className="px-4 py-2 text-xs text-text-light">
+                  No actions available
+                </div>
+              )}
             </div>
           )}
         </div>

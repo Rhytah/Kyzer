@@ -92,6 +92,7 @@ export const ROLES = {
   CORPORATE_ADMIN: 'corporate_admin',
   INSTRUCTOR: 'instructor',
   SYSTEM_ADMIN: 'system_admin',
+  OWNER: 'owner',
 
   // Legacy roles (for backwards compatibility)
   ADMIN: 'admin',
@@ -184,6 +185,14 @@ export const ROLE_PERMISSIONS = {
     // Assessment Grading
     PERMISSIONS.GRADE_SUBMISSIONS,
     PERMISSIONS.VIEW_STUDENT_PROGRESS,
+  ],
+
+  // Owner (creator of the organization)
+  [ROLES.OWNER]: [
+    // Has ALL permissions including organization deletion and ownership transfer
+    ...Object.values(PERMISSIONS),
+    // Additional owner-specific permissions
+    PERMISSIONS.MANAGE_PLATFORM_SETTINGS, // Can manage organization at platform level
   ],
 
   // System Administrator

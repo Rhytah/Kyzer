@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import { supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
+import { useAuthStore } from "./authStore";
 
 // Email service helper function using Supabase Edge Function
 const sendInvitationEmail = async (email, data) => {
@@ -469,13 +470,13 @@ export const useCorporateStore = create((set, get) => ({
 
       if (organizationError) throw organizationError;
 
-      // Add user as organization owner
+      // Add user as organization owner (creator)
       const { error: memberError } = await supabase
         .from("organization_members")
         .insert({
           organization_id: organization.id,
           user_id: user.id,
-          role: "corporate_admin",
+          role: "owner",
           status: "active",
           joined_at: new Date().toISOString(),
         });
@@ -973,12 +974,53 @@ export const useCorporateStore = create((set, get) => ({
   // Update employee role
   updateEmployeeRole: async (employeeId, newRole) => {
     try {
-      const { currentCompany } = get();
+      const { currentCompany, employees } = get();
       if (!currentCompany) throw new Error("No current company");
 
       // Validate UUIDs before proceeding
       if (!employeeId || !currentCompany.id || employeeId === 'undefined' || currentCompany.id === 'undefined') {
         throw new Error("Invalid employee ID or organization ID");
+      }
+
+      // Get current user from auth store
+      const authState = useAuthStore.getState();
+      const user = authState?.user;
+      if (!user) throw new Error("User not authenticated");
+
+      // Check if current user has permission to change roles
+      const currentUserEmployee = employees.find(emp => emp.user_id === user.id || emp.id === user.id);
+      const currentUserRole = currentUserEmployee?.role;
+      
+      // Only owner, corporate_admin, admin, manager, or system_admin can change roles
+      const canChangeRoles = currentUserRole && [
+        'owner',
+        'corporate_admin', 
+        'admin', 
+        'manager',
+        'system_admin'
+      ].includes(currentUserRole);
+      
+      if (!canChangeRoles) {
+        throw new Error("You do not have permission to change employee roles. Only Organization Owners, Corporate Admins, Admins, and Managers can change roles.");
+      }
+      
+      // Check if target employee is organization owner
+      const targetEmployee = employees.find(emp => emp.id === employeeId);
+      const isTargetOwner = targetEmployee?.role === 'owner';
+      
+      // Prevent changing organization owner's role
+      if (isTargetOwner && currentUserRole !== 'owner') {
+        throw new Error("Only the organization owner can manage their own role, and the owner role cannot be changed.");
+      }
+      
+      // Prevent non-owners from assigning owner role
+      if (newRole === 'owner' && currentUserRole !== 'owner') {
+        throw new Error("Only the current organization owner can assign the owner role.");
+      }
+      
+      // Prevent users from changing their own role to a lower privilege (security measure)
+      if (targetEmployee && (targetEmployee.user_id === user.id || targetEmployee.id === user.id)) {
+        // Allow self-role change but warn (handled in UI)
       }
 
       set({ loading: true, error: null });

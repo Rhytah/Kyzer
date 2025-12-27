@@ -31,7 +31,8 @@ export default function CompanySettings() {
   const [hasChanges, setHasChanges] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
-  const isAdmin = currentCompany?.admin_user_id === user?.id
+  const { isOwner, isAdmin: isCorporateAdmin } = useCorporatePermissions()
+  const isAdmin = isOwner || isCorporateAdmin || currentCompany?.admin_user_id === user?.id
 
   const tabs = [
     { id: 'general', label: 'General', icon: Building2 },

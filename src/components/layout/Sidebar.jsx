@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useCorporate } from "@/hooks/corporate/useCorporate";
+import { useCorporatePermissions } from "@/hooks/corporate/useCorporatePermissions";
 import { useCoursePermissions } from "@/hooks/courses/useCoursePermissions";
 import OrganizationNav from "./OrganizationNav";
 import leadwiseLogo from "../../assets/images/leadwise.png";
@@ -37,6 +38,7 @@ export default function Sidebar({ mobile = false, onClose, collapsed = false, on
     companyName, // NEW: Fallback company name from metadata
     error: corporateError
   } = useCorporate();
+  const { isOwner } = useCorporatePermissions();
   const { canViewCourseManagement } = useCoursePermissions();
   
   const location = useLocation();
@@ -126,9 +128,10 @@ export default function Sidebar({ mobile = false, onClose, collapsed = false, on
     }
   ];
 
-  // Filter corporate navigation based on permissions
+  // Filter corporate navigation based on permissions (owner sees all)
   const availableCorporateNavigation = corporateNavigation.filter(item => {
     if (!item.permission) return true; // Always show items without permission requirements
+    if (isOwner) return true; // Owner has access to all routes
     return hasPermission(item.permission);
   });
 
