@@ -26,6 +26,8 @@ import {
 import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
+import ShareCourseModal from '@/components/course/ShareCourseModal'
+import { useToast } from '@/components/ui'
 
 // Normalize URL to ensure it has a protocol (for existing data that might not have it)
 const normalizeUrl = (url) => {
@@ -77,6 +79,8 @@ export default function CourseDetail() {
   const [reviews, setReviews] = useState([])
   const [ratingStats, setRatingStats] = useState(null)
   const [loadingReviews, setLoadingReviews] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
+  const { success } = useToast()
 
   // Function to fetch lessons for the course
   const loadCourseLessons = async () => {
@@ -396,6 +400,15 @@ export default function CourseDetail() {
             <p className="text-xl text-white/90 mb-6">{course.subtitle || course.description?.substring(0, 100) + '...'}</p>
             
             <div className="flex flex-wrap items-center gap-6 text-sm">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowShareModal(true)}
+                className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+              >
+                <Share2 className="w-4 h-4 mr-2" />
+                Share
+              </Button>
               <div className="flex items-center gap-2">
                 <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                 <span className="font-medium">{course.rating || '4.5'}</span>
@@ -988,16 +1001,24 @@ export default function CourseDetail() {
           <Card className="p-6">
             <h3 className="text-lg font-semibold text-text-dark mb-4">Share this course</h3>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" className="flex-1">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex-1"
+                onClick={() => setShowShareModal(true)}
+              >
                 <Share2 className="w-4 h-4 mr-2" />
                 Share
               </Button>
-              <Button variant="ghost" size="sm" className="flex-1">
-                <Download className="w-4 h-4 mr-2" />
-                Save
-              </Button>
             </div>
           </Card>
+
+          {/* Share Course Modal */}
+          <ShareCourseModal
+            isOpen={showShareModal}
+            onClose={() => setShowShareModal(false)}
+            course={course}
+          />
         </div>
       </div>
     </div>
