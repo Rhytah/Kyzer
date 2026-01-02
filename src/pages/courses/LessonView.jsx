@@ -23,7 +23,14 @@ import {
   PanelLeftOpen,
   Award,
   ExternalLink,
-  File
+  File,
+  Sparkles,
+  Lightbulb,
+  ThumbsUp,
+  ThumbsDown,
+  Send,
+  List,
+  Brain
 } from 'lucide-react'
 import { ScormPlayer } from '@/components/course'
 import PresentationViewer from '@/components/course/PresentationViewer'
@@ -128,6 +135,9 @@ export default function LessonView() {
   const [haltVideo, setHaltVideo] = useState(false)
   const [playerKey, setPlayerKey] = useState(0)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarView, setSidebarView] = useState('lessonInfo') // 'lessonInfo' or 'courseOutline'
+  const [lessonFeedback, setLessonFeedback] = useState(null) // 'up' or 'down'
+  const [questionInput, setQuestionInput] = useState('')
   const [quizzesByLesson, setQuizzesByLesson] = useState({})
   const [quizCompletionStatus, setQuizCompletionStatus] = useState({})
   const [quizQuestionsById, setQuizQuestionsById] = useState({})
@@ -2626,17 +2636,16 @@ export default function LessonView() {
   const isLastLesson = currentLessonIndex !== -1 && currentLessonIndex === lessons.length - 1;
 
   return (
-    <div className={`grid grid-cols-1 gap-6 transition-all duration-300 ${
-      sidebarCollapsed ? 'lg:grid-cols-1' : 'lg:grid-cols-4'
-    }`}>
-      {/* Main Content */}
-      <div className={`space-y-6 ${sidebarCollapsed ? 'lg:col-span-1' : 'lg:col-span-3'}`}>
+    <div className="min-h-screen bg-background-default">
+      {/* Top Navigation Bar */}
+      <div className="border-b border-background-dark bg-white sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
         {/* Breadcrumb */}
-        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-text-light">
             <button 
               onClick={() => navigate(`/app/courses/${courseId}`)}
-              className="hover:text-primary-default"
+                className="hover:text-primary-default transition-colors"
             >
               {course.title}
             </button>
@@ -2655,76 +2664,32 @@ export default function LessonView() {
             )}
           </div>
           
-          {/* Sidebar Toggle Button */}
+            {/* Navigation Controls */}
+            <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+                onClick={goToPreviousLesson}
+                disabled={lessons.findIndex(l => l.id === lessonId) === 0}
+                className="flex items-center gap-2"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Previous</span>
+          </Button>
+              
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="hidden lg:flex items-center gap-2"
-          >
-            {sidebarCollapsed ? (
-              <>
-                <PanelLeftOpen className="w-4 h-4" />
-                <span className="text-sm">Show Sidebar</span>
-              </>
-            ) : (
-              <>
-                <PanelLeftClose className="w-4 h-4" />
-                <span className="text-sm">Hide Sidebar</span>
-              </>
-            )}
-          </Button>
-        </div>
-
-        {/* Content Player */}
-        <Card className="p-0 overflow-hidden">
-          {lesson.content_type === 'scorm' ? (
-            <ScormPlayer
-              scormUrl={lesson.content_url}
-              lessonId={lesson.id}
-              courseId={courseId}
-              onProgress={() => {}}
-              onComplete={() => {
-                setIsCompleted(true);
-              }}
-              onError={() => {
-                showError('Failed to load SCORM content');
-              }}
-            />
-          ) : (
-            <VideoPlayer />
-          )}
-        </Card>
-
-        {/* Audio Attachment Display */}
-        {lesson.audio_attachment_url && (
-          <Card className="p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <span className="text-blue-600 text-lg">🎵</span>
-              </div>
-              <div>
-                <h3 className="text-lg font-medium text-gray-900">Audio Narration</h3>
-                <p className="text-sm text-gray-600">Listen to the audio explanation or narration</p>
-              </div>
-            </div>
-            <AudioPlayer audioUrl={lesson.audio_attachment_url} />
-          </Card>
-        )}
-
-        {/* Navigation */}
-        <div className="flex justify-between items-center gap-4">
-          <Button
-            variant="outline"
-            onClick={goToPreviousLesson}
-            disabled={lessons.findIndex(l => l.id === lessonId) === 0}
-          >
-            <ChevronLeft className="w-4 h-4 mr-2" />
-            Previous Lesson
+                className="flex items-center gap-2"
+              >
+                <List className="w-4 h-4" />
+                <span className="hidden sm:inline">Course Outline</span>
           </Button>
           
           {isLastLesson ? (
-            <Button onClick={async () => {
+                <Button 
+                  onClick={async () => {
               const allLessonsCompleted = lessons.every(lessonEntry => (
                 courseProgress[courseId]?.[lessonEntry.id]?.completed
               ));
@@ -2734,17 +2699,18 @@ export default function LessonView() {
                 return;
               }
               
-              // Check if there's a course-level final assessment that hasn't been completed
               if (courseFinalAssessment && !finalAssessmentCompleted) {
                 navigate(`/app/courses/${courseId}/quiz/${courseFinalAssessment.id}`);
               } else {
                 navigate(`/app/courses/${courseId}/completion`);
               }
-            }}>
+                  }}
+                  className="flex items-center gap-2"
+                >
               {courseFinalAssessment && !finalAssessmentCompleted 
                 ? 'Take Final Assessment' 
                 : 'Complete Course'}
-              <ChevronRight className="w-4 h-4 ml-2" />
+                  <ChevronRight className="w-4 h-4" />
             </Button>
           ) : (
             <Button 
@@ -2757,242 +2723,150 @@ export default function LessonView() {
                   ? 'Complete the knowledge check before moving on.'
                   : 'Continue to next lesson'
               }
+                  className="flex items-center gap-2"
             >
-              Next Lesson
-              <ChevronRight className="w-4 h-4 ml-2" />
+                  <span className="hidden sm:inline">Next</span>
+                  <ChevronRight className="w-4 h-4" />
             </Button>
           )}
         </div>
-
-        {/* Video Error Display */}
-        <VideoErrorDisplay />
-
-        {/* Lesson Info */}
-        <Card className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-text-dark mb-2">{lesson.title}</h1>
-              {/* Render formatted content preview (respect stored format marker) */}
-              {lessonDescriptionHtml}
             </div>
-            
-            <div className="flex items-center gap-2">
-              {canManageCourse && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate(`/app/courses/${courseId}/lesson/${lessonId}/presentation`)}
-                  className="text-primary-default hover:text-primary-dark"
-                  title="Manage Presentation Content"
-                >
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </Button>
-              )}
-              {!isCompleted ? (
-                <Button 
-                  onClick={markAsCompleted} 
-                  disabled={isCompleting || !timeRequirementMet || !!firstIncompleteKnowledgeCheck}
-                  title={
-                    !timeRequirementMet && timeRemainingInfo
-                      ? `Please review this lesson for at least ${timeRemainingInfo.totalMinutesRequired} minute${timeRemainingInfo.totalMinutesRequired !== 1 ? 's' : ''} before completing. You need ${timeRemainingInfo.minutesRemaining} more minute${timeRemainingInfo.minutesRemaining !== 1 ? 's' : ''}.`
-                      : firstIncompleteKnowledgeCheck
-                      ? 'Please complete the knowledge check for this lesson before marking it as complete.'
-                      : 'Mark this lesson as complete'
-                  }
-                >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  {isCompleting ? 'Completing...' : 'Mark Complete'}
-                </Button>
-              ) : (
-                <div className="flex items-center gap-2 text-success-default">
-                  <CheckCircle className="w-5 h-5" />
-                  <span className="font-medium">Completed</span>
-                </div>
-              )}
-              
             </div>
           </div>
 
-          <div className="flex items-center gap-6 text-sm text-text-muted">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              <span>{formatTime(lesson.duration_minutes * 60 || 0)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4" />
-              <span>Lesson {lesson.order_index || 1} of {lessons.length}</span>
-            </div>
-            {timeRemainingInfo && !timeRequirementMet && (
-              <div className="flex items-center gap-2 text-warning-default">
-                <Clock className="w-4 h-4" />
-                <span>
-                  {timeRemainingInfo.minutesRemaining} minute{timeRemainingInfo.minutesRemaining !== 1 ? 's' : ''} remaining
-                </span>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        {/* Lesson Content Tabs */}
-        {/* <Card className="p-6">
-          <div className="border-b border-background-dark mb-6">
-            <nav className="flex space-x-8">
-              {[
-                { id: 'transcript', label: 'Transcript' },
-                { id: 'notes', label: 'Notes' },
-                { id: 'resources', label: 'Resources' }
-              ].map((tab) => (
+      {/* Main Content Area - Two Column Layout */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className={`grid grid-cols-1 gap-6 transition-all duration-300 ${
+          sidebarCollapsed ? 'lg:grid-cols-1' : 'lg:grid-cols-12'
+        }`}>
+          {/* Left Sidebar */}
+          {!sidebarCollapsed && (
+            <div className="lg:col-span-4 space-y-6">
+              {/* Toggle Buttons */}
+              <div className="flex gap-2 border-b border-background-dark pb-2">
                 <button
-                  key={tab.id}
-                  onClick={() => setShowNotes(tab.id === 'notes')}
-                  className={`py-3 px-1 border-b-2 font-medium text-sm ${
-                    (tab.id === 'notes' && showNotes) || (tab.id === 'transcript' && !showNotes)
-                      ? 'border-primary-default text-primary-default'
-                      : 'border-transparent text-text-light hover:text-text-medium'
+                  onClick={() => setSidebarView('lessonInfo')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                    sidebarView === 'lessonInfo'
+                      ? 'bg-primary-light text-primary-default font-medium'
+                      : 'text-text-light hover:text-text-dark hover:bg-background-light'
                   }`}
                 >
-                  {tab.label}
+                  <Sparkles className="w-4 h-4" />
+                  <span className="text-sm">Lesson Info</span>
                 </button>
-              ))}
-            </nav>
+                <button
+                  onClick={() => setSidebarView('courseOutline')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                    sidebarView === 'courseOutline'
+                      ? 'bg-primary-light text-primary-default font-medium'
+                      : 'text-text-light hover:text-text-dark hover:bg-background-light'
+                  }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  <span className="text-sm">Course Outline</span>
+                </button>
           </div>
 
-          {!showNotes ? (
-            // Transcript
+              {/* Lesson Info View */}
+              {sidebarView === 'lessonInfo' && (
+                <>
+                  {/* Lesson Description */}
             <div>
-              <h3 className="text-lg font-semibold text-text-dark mb-4">Lesson Content</h3>
-              <div className="prose max-w-none text-text-medium">
-                {lessonContentParagraphs}
+                    <h2 className="text-xl font-bold text-text-dark mb-3">{lesson.title}</h2>
+                    <div className="text-sm text-text-medium leading-relaxed">
+                      {lessonDescriptionHtml || (
+                        <p>{lesson.description || lesson.content_text || 'No description available.'}</p>
+                      )}
               </div>
             </div>
-          ) : (
-            // Notes
-            <div>
-              <h3 className="text-lg font-semibold text-text-dark mb-4">My Notes</h3>
-              <textarea
-                className="w-full h-64 p-4 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default"
-                placeholder="Take notes about this lesson..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-              <div className="mt-4 flex justify-end">
-                <Button variant="secondary">Save Notes</Button>
-              </div>
-            </div>
-          )}
-        </Card> */}
-
-
-        {/* Resources */}
-        {(lesson.resources && Array.isArray(lesson.resources) && lesson.resources.length > 0) || lesson.content_url ? (
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold text-text-dark mb-4">Lesson Resources</h3>
-            <div className="space-y-3">
-              {/* Display resources array if available */}
-              {lesson.resources && Array.isArray(lesson.resources) && lesson.resources.length > 0 ? (
-                lesson.resources.map((resource) => (
-                  resource.type === 'link' ? (
-                    <a
-                      key={resource.id}
-                      href={normalizeUrl(resource.url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-start p-3 border border-background-dark rounded-lg hover:bg-background-light cursor-pointer no-underline"
+            
+                  {/* Feedback Buttons */}
+                  <div className="flex items-center gap-4 pt-4 border-t border-background-dark">
+                    <button
+                      onClick={() => setLessonFeedback(lessonFeedback === 'up' ? null : 'up')}
+                      className={`p-2 rounded-lg transition-colors ${
+                        lessonFeedback === 'up'
+                          ? 'bg-green-100 text-green-700'
+                          : 'text-text-light hover:text-text-dark hover:bg-background-light'
+                      }`}
                     >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <ExternalLink className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-text-dark truncate">{resource.title}</h4>
-                          {resource.description && (
-                            <p className="text-sm text-text-light truncate">{resource.description}</p>
-                          )}
-                        </div>
-                      </div>
-                    </a>
-                  ) : (
-                    <div 
-                      key={resource.id} 
-                      onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
-                      className="flex items-center justify-between p-3 border border-background-dark rounded-lg hover:bg-background-light cursor-pointer"
+                      <ThumbsUp className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => setLessonFeedback(lessonFeedback === 'down' ? null : 'down')}
+                      className={`p-2 rounded-lg transition-colors ${
+                        lessonFeedback === 'down'
+                          ? 'bg-red-100 text-red-700'
+                          : 'text-text-light hover:text-text-dark hover:bg-background-light'
+                      }`}
                     >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <File className="w-5 h-5 text-text-muted flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-text-dark truncate">{resource.title}</h4>
-                          {resource.description && (
-                            <p className="text-sm text-text-light truncate">{resource.description}</p>
-                          )}
-                          {resource.file_size && (
-                            <p className="text-xs text-text-muted">
-                              {resource.file_size < 1024 
-                                ? `${resource.file_size} B`
-                                : resource.file_size < 1024 * 1024
-                                ? `${(resource.file_size / 1024).toFixed(2)} KB`
-                                : `${(resource.file_size / (1024 * 1024)).toFixed(2)} MB`}
-                            </p>
-                          )}
+                      <ThumbsDown className="w-5 h-5" />
+                    </button>
                         </div>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          downloadFile(resource.url, resource.file_name || resource.title);
+
+                  {/* Action Buttons */}
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setShowNotes(!showNotes)}
+                      className="w-full flex items-center gap-3 p-3 rounded-lg border border-background-dark hover:bg-background-light transition-colors text-left"
+                    >
+                      <Lightbulb className="w-5 h-5 text-primary-default" />
+                      <span className="text-sm font-medium text-text-dark">My Notes</span>
+                    </button>
+                    {(lesson.resources && Array.isArray(lesson.resources) && lesson.resources.length > 0) || lesson.content_url ? (
+                      <button
+                        onClick={() => {
+                          const resourcesSection = document.getElementById('lesson-resources');
+                          if (resourcesSection) {
+                            resourcesSection.scrollIntoView({ behavior: 'smooth' });
+                          }
                         }}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-background-dark hover:bg-background-light transition-colors text-left"
                       >
-                        <Download className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  )
-                ))
-              ) : lesson.content_url ? (
-                <div 
-                  onClick={() => window.open(lesson.content_url, '_blank', 'noopener,noreferrer')}
-                  className="flex items-center justify-between p-3 border border-background-dark rounded-lg hover:bg-background-light cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-text-muted" />
-                    <div>
-                      <h4 className="font-medium text-text-dark">Additional Content</h4>
-                      <p className="text-sm text-text-light">External resource</p>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      downloadFile(lesson.content_url, 'additional-content');
-                    }}
-                  >
-                    <Download className="w-4 h-4" />
-                  </Button>
-                </div>
+                        <FileText className="w-5 h-5 text-primary-default" />
+                        <span className="text-sm font-medium text-text-dark">Resources</span>
+                      </button>
               ) : null}
             </div>
-          </Card>
-        ) : null}
 
-        
-      </div>
-
-      {/* Sidebar */}
-      {!sidebarCollapsed && (
-        <div className="space-y-6">
-          {/* Mobile Sidebar Close Button */}
-          <div className="lg:hidden flex justify-end mb-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSidebarCollapsed(true)}
-              className="flex items-center gap-2"
-            >
-              <PanelLeftClose className="w-4 h-4" />
-              <span className="text-sm">Hide Sidebar</span>
-            </Button>
+                  {/* Question Input */}
+                  <div className="pt-4 border-t border-background-dark">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={questionInput}
+                        onChange={(e) => setQuestionInput(e.target.value)}
+                        placeholder="Ask or write anything here..."
+                        className="w-full px-4 py-3 pr-12 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default outline-none text-sm"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && questionInput.trim()) {
+                            // Handle question submission
+                            setQuestionInput('');
+                            success('Question submitted!');
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          if (questionInput.trim()) {
+                            // Handle question submission
+                            setQuestionInput('');
+                            success('Question submitted!');
+                          }
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-primary-default hover:bg-primary-light rounded-lg transition-colors"
+                      >
+                        <Send className="w-4 h-4" />
+                      </button>
           </div>
+                  </div>
+              </>
+            )}
+
+              {/* Course Outline View */}
+              {sidebarView === 'courseOutline' && (
+                <div className="space-y-6 max-h-[calc(100vh-300px)] overflow-y-auto">
         {/* Course Progress */}
         <Card className="p-6">
           <h3 className="font-semibold text-text-dark mb-4">Course Progress</h3>
@@ -3003,7 +2877,7 @@ export default function LessonView() {
             </div>
             <div className="w-full bg-background-medium rounded-full h-2">
               <div 
-                className="bg-primary-default h-2 rounded-full" 
+                          className="bg-primary-default h-2 rounded-full transition-all" 
                 style={{ width: `${courseProgressData.percentage}%` }}
               ></div>
             </div>
@@ -3011,8 +2885,6 @@ export default function LessonView() {
           <p className="text-sm text-text-light">
             {courseProgressData.completedCount} of {courseProgressData.totalCount} lessons completed
           </p>
-
-          {/* View Certificate button when course is 100% complete */}
           {courseProgressData.percentage === 100 && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <Button
@@ -3044,21 +2916,18 @@ export default function LessonView() {
           </div>
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {(() => {
-              // Create a combined list of lessons and quizzes in order
               const combinedItems = [];
               let itemIndex = 0;
               
               lessons.forEach((courseLesson) => {
-                // Add the lesson
                 combinedItems.push({
                   type: 'lesson',
                   data: courseLesson,
                   index: itemIndex++
                 });
                 
-                // Add quizzes for this lesson immediately after
                 if (Array.isArray(quizzesByLesson[courseLesson.id]) && quizzesByLesson[courseLesson.id].length > 0) {
-                  quizzesByLesson[courseLesson.id].forEach((qz, qi) => {
+                            quizzesByLesson[courseLesson.id].forEach((qz) => {
                     combinedItems.push({
                       type: 'quiz',
                       data: qz,
@@ -3069,7 +2938,6 @@ export default function LessonView() {
                 }
               });
               
-              // Add course-level final assessment at the end if it exists
               if (courseFinalAssessment) {
                 combinedItems.push({
                   type: 'finalAssessment',
@@ -3086,7 +2954,6 @@ export default function LessonView() {
                     <button
                       key={courseLesson.id}
                       onClick={() => {
-                        // Prevent navigation to future lessons if current lesson time requirement not met
                         const currentLessonIndex = lessons.findIndex(l => l.id === lessonId);
                         const targetLessonIndex = lessons.findIndex(l => l.id === courseLesson.id);
                         
@@ -3108,11 +2975,6 @@ export default function LessonView() {
                           ? 'opacity-50 cursor-not-allowed'
                           : 'hover:bg-background-light'
                       }`}
-                      title={
-                        !isCourseCompleted && lessons.findIndex(l => l.id === courseLesson.id) > lessons.findIndex(l => l.id === lessonId) && !timeRequirementMet && timeRemainingInfo
-                          ? `Please review the current lesson for at least ${timeRemainingInfo.totalMinutesRequired} minute${timeRemainingInfo.totalMinutesRequired !== 1 ? 's' : ''} before proceeding. You need ${timeRemainingInfo.minutesRemaining} more minute${timeRemainingInfo.minutesRemaining !== 1 ? 's' : ''}.`
-                          : undefined
-                      }
                     >
                       <div className="flex items-center gap-3">
                         <div className="flex-shrink-0">
@@ -3134,14 +2996,11 @@ export default function LessonView() {
                     </button>
                   );
                 } else if (item.type === 'quiz') {
-                  // Quiz item
                   const qz = item.data;
                   const isKnowledgeCheck = qz.quiz_type === 'non_graded';
                   const isCompleted = quizCompletionStatus[qz.id] || false;
-                  const isCurrentQuiz =
-                    !isKnowledgeCheck && location.pathname.includes(`/quiz/${qz.id}`);
-                  const isActiveKnowledgeCheck =
-                    isKnowledgeCheck && lessonId === item.lessonId && activeKnowledgeCheckId === qz.id;
+                            const isCurrentQuiz = !isKnowledgeCheck && location.pathname.includes(`/quiz/${qz.id}`);
+                            const isActiveKnowledgeCheck = isKnowledgeCheck && lessonId === item.lessonId && activeKnowledgeCheckId === qz.id;
 
                   const handleQuizClick = () => {
                     if (isKnowledgeCheck) {
@@ -3153,15 +3012,8 @@ export default function LessonView() {
                       nextParams.set('knowledgeCheck', qz.id);
                       setSearchParams(nextParams, { replace: true });
                       setActiveKnowledgeCheckId(qz.id);
-                      if (typeof document !== 'undefined') {
-                        const element = document.getElementById(`knowledge-check-${qz.id}`);
-                        if (element) {
-                          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
-                      }
                       return;
                     }
-
                     navigate(`/app/courses/${courseId}/quiz/${qz.id}`);
                   };
 
@@ -3208,7 +3060,6 @@ export default function LessonView() {
                     </button>
                   );
                 } else if (item.type === 'finalAssessment') {
-                  // Final Assessment item
                   const finalAssessment = item.data;
                   const isCompleted = finalAssessmentCompleted || false;
                   const isCurrentQuiz = location.pathname.includes(`/quiz/${finalAssessment.id}`);
@@ -3253,31 +3104,131 @@ export default function LessonView() {
             })()}
           </div>
         </Card>
+                </div>
+              )}
+            </div>
+          )}
 
-        {/* Course Resources */}
-        {(() => {
-          const courseWithResources = courseFromStore || course;
-          const resources = courseWithResources?.resources;
-          return resources && Array.isArray(resources) && resources.length > 0;
-        })() && (
-          <Card className="p-6">
-            <h3 className="font-semibold text-text-dark mb-4">Course Resources</h3>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {((courseFromStore || course).resources || []).map((resource) => (
+          {/* Right Content Area */}
+          <div className={`${sidebarCollapsed ? 'lg:col-span-12' : 'lg:col-span-8'}`}>
+            <div className="flex flex-col h-full">
+              {/* Title Section */}
+              <div className="mb-6">
+                <div className="text-xs uppercase tracking-wider text-text-light mb-2">
+                  {course.title?.toUpperCase() || 'COURSE'}
+                </div>
+                <h1 className="text-3xl font-bold text-text-dark">{lesson.title}</h1>
+              </div>
+
+              {/* Content Player */}
+              <div className="flex-1 flex flex-col items-center justify-center bg-background-light rounded-lg p-8 mb-6 relative min-h-[500px]">
+                {lesson.content_type === 'scorm' ? (
+                  <div className="w-full h-full">
+                    <ScormPlayer
+                      scormUrl={lesson.content_url}
+                      lessonId={lesson.id}
+                      courseId={courseId}
+                      onProgress={() => {}}
+                      onComplete={() => {
+                        setIsCompleted(true);
+                      }}
+                      onError={() => {
+                        showError('Failed to load SCORM content');
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-full max-w-4xl">
+                    <VideoPlayer />
+                  </div>
+                )}
+                
+                {/* Icon/Visual Element - Only show for video content */}
+                {lesson.content_type === 'video' && (
+                  <div className="absolute bottom-8 left-8 opacity-20">
+                    <Brain className="w-24 h-24 text-primary-default" />
+                  </div>
+                )}
+
+                {/* Got It / Mark Complete Button */}
+                <div className="absolute bottom-8 right-8">
+                  {!isCompleted ? (
+                    <Button 
+                      onClick={markAsCompleted} 
+                      disabled={isCompleting || !timeRequirementMet || !!firstIncompleteKnowledgeCheck}
+                      title={
+                        !timeRequirementMet && timeRemainingInfo
+                          ? `Please review this lesson for at least ${timeRemainingInfo.totalMinutesRequired} minute${timeRemainingInfo.totalMinutesRequired !== 1 ? 's' : ''} before completing. You need ${timeRemainingInfo.minutesRemaining} more minute${timeRemainingInfo.minutesRemaining !== 1 ? 's' : ''}.`
+                          : firstIncompleteKnowledgeCheck
+                          ? 'Please complete the knowledge check for this lesson before marking it as complete.'
+                          : 'Mark this lesson as complete'
+                      }
+                      className="bg-primary-default hover:bg-primary-dark text-white px-6 py-3 rounded-lg font-medium shadow-lg transition-colors"
+                    >
+                      {isCompleting ? 'Completing...' : 'Got It!'}
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-2 text-success-default bg-success-light px-6 py-3 rounded-lg font-medium">
+                      <CheckCircle className="w-5 h-5" />
+                      <span>Completed</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="w-full bg-background-medium rounded-full h-1 mb-4">
+                <div 
+                  className="bg-primary-default h-1 rounded-full transition-all" 
+                  style={{ width: `${courseProgressData.percentage}%` }}
+                ></div>
+            </div>
+              <div className="flex justify-between text-xs text-text-light mb-6">
+              <span>Lesson {lesson.order_index || 1} of {lessons.length}</span>
+                <span>{formatTime(lesson.duration_minutes * 60 || 0)}</span>
+            </div>
+
+              {/* Audio Attachment Display */}
+              {lesson.audio_attachment_url && (
+                <Card className="p-6 mb-6">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 text-lg">🎵</span>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">Audio Narration</h3>
+                      <p className="text-sm text-gray-600">Listen to the audio explanation or narration</p>
+                    </div>
+                  </div>
+                  <AudioPlayer audioUrl={lesson.audio_attachment_url} />
+                </Card>
+              )}
+
+              {/* Video Error Display */}
+              <VideoErrorDisplay />
+
+              {/* Resources Section */}
+              <div id="lesson-resources">
+                {(lesson.resources && Array.isArray(lesson.resources) && lesson.resources.length > 0) || lesson.content_url ? (
+                  <Card className="p-6 mb-6">
+                    <h3 className="text-lg font-semibold text-text-dark mb-4">Lesson Resources</h3>
+                    <div className="space-y-3">
+                      {lesson.resources && Array.isArray(lesson.resources) && lesson.resources.length > 0 ? (
+                        lesson.resources.map((resource) => (
                 resource.type === 'link' ? (
                   <a
                     key={resource.id}
                     href={normalizeUrl(resource.url)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-start p-2 border border-background-dark rounded-lg hover:bg-background-light transition-colors cursor-pointer no-underline"
+                              className="flex items-center justify-start p-3 border border-background-dark rounded-lg hover:bg-background-light cursor-pointer no-underline"
                   >
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <ExternalLink className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <ExternalLink className="w-5 h-5 text-blue-600 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm text-text-dark truncate">{resource.title}</h4>
+                                  <h4 className="font-medium text-text-dark truncate">{resource.title}</h4>
                         {resource.description && (
-                          <p className="text-xs text-text-light truncate">{resource.description}</p>
+                                    <p className="text-sm text-text-light truncate">{resource.description}</p>
                         )}
                       </div>
                     </div>
@@ -3286,64 +3237,130 @@ export default function LessonView() {
                   <div
                     key={resource.id}
                     onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
-                    className="flex items-center justify-start p-2 border border-background-dark rounded-lg hover:bg-background-light transition-colors cursor-pointer"
+                              className="flex items-center justify-between p-3 border border-background-dark rounded-lg hover:bg-background-light cursor-pointer"
                   >
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <File className="w-4 h-4 text-text-muted flex-shrink-0" />
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <File className="w-5 h-5 text-text-muted flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm text-text-dark truncate">{resource.title}</h4>
+                                  <h4 className="font-medium text-text-dark truncate">{resource.title}</h4>
                         {resource.description && (
-                          <p className="text-xs text-text-light truncate">{resource.description}</p>
+                                    <p className="text-sm text-text-light truncate">{resource.description}</p>
+                                  )}
+                                  {resource.file_size && (
+                                    <p className="text-xs text-text-muted">
+                                      {resource.file_size < 1024 
+                                        ? `${resource.file_size} B`
+                                        : resource.file_size < 1024 * 1024
+                                        ? `${(resource.file_size / 1024).toFixed(2)} KB`
+                                        : `${(resource.file_size / (1024 * 1024)).toFixed(2)} MB`}
+                                    </p>
                         )}
                       </div>
                     </div>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  downloadFile(resource.url, resource.file_name || resource.title);
+                                }}
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
                   </div>
                 )
-              ))}
+                        ))
+                      ) : lesson.content_url ? (
+                        <div 
+                          onClick={() => window.open(lesson.content_url, '_blank', 'noopener,noreferrer')}
+                          className="flex items-center justify-between p-3 border border-background-dark rounded-lg hover:bg-background-light cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3">
+                            <FileText className="w-5 h-5 text-text-muted" />
+                            <div>
+                              <h4 className="font-medium text-text-dark">Additional Content</h4>
+                              <p className="text-sm text-text-light">External resource</p>
+                            </div>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              downloadFile(lesson.content_url, 'additional-content');
+                            }}
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </Card>
+                ) : null}
+              </div>
+
+              {/* Notes Section (if showNotes is true) */}
+              {showNotes && (
+                <Card className="p-6 mb-6">
+                  <h3 className="text-lg font-semibold text-text-dark mb-4">My Notes</h3>
+                  <textarea
+                    className="w-full h-64 p-4 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default"
+                    placeholder="Take notes about this lesson..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
+                  <div className="mt-4 flex justify-end">
+                    <Button variant="secondary" onClick={() => {
+                      // Save notes functionality can be added here
+                      success('Notes saved!');
+                    }}>Save Notes</Button>
             </div>
           </Card>
         )}
 
-        {/* Ask Question */}
-        <Card className="p-6">
-          <h3 className="font-semibold text-text-dark mb-4">Need Help?</h3>
-          <p className="text-sm text-text-light mb-4">
-            Have questions about this lesson? Get help from the community.
-          </p>
-          <Button variant="secondary" className="w-full">
-            <MessageCircle className="w-4 h-4 mr-2" />
-            Ask a Question
+              {/* Settings Button (for course managers) */}
+              {canManageCourse && (
+                <div className="mb-6">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate(`/app/courses/${courseId}/lesson/${lessonId}/presentation`)}
+                    className="text-primary-default hover:text-primary-dark"
+                    title="Manage Presentation Content"
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    Lesson Settings
           </Button>
-        </Card>
-        
+                </div>
+              )}
+
+              {/* Time Requirement Warning */}
+            {timeRemainingInfo && !timeRequirementMet && (
+                <Card className="p-4 mb-6 bg-warning-light border-warning-default">
+              <div className="flex items-center gap-2 text-warning-default">
+                <Clock className="w-4 h-4" />
+                    <span className="text-sm">
+                      {timeRemainingInfo.minutesRemaining} minute{timeRemainingInfo.minutesRemaining !== 1 ? 's' : ''} remaining to meet the minimum time requirement
+                </span>
         </div>
+                </Card>
       )}
+          </div>
+          </div>
+        </div>
+      </div>
       
       {/* Floating Sidebar Toggle (when collapsed) */}
       {sidebarCollapsed && (
-        <>
-          {/* Mobile Floating Button */}
           <Button
             variant="secondary"
             size="sm"
             onClick={() => setSidebarCollapsed(false)}
-            className="fixed bottom-6 right-6 z-50 shadow-lg flex items-center gap-2 lg:hidden"
+          className="fixed bottom-6 right-6 z-50 shadow-lg flex items-center gap-2"
           >
             <PanelLeftOpen className="w-4 h-4" />
             <span className="text-sm">Show Sidebar</span>
           </Button>
-          
-          {/* Desktop Floating Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarCollapsed(false)}
-            className="fixed top-20 right-6 z-50 shadow-lg flex items-center gap-2 hidden lg:flex"
-          >
-            <PanelLeftOpen className="w-4 h-4" />
-            <span className="text-sm">Show Sidebar</span>
-          </Button>
-        </>
       )}
 
       <Modal
