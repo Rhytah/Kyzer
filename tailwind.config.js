@@ -16,8 +16,8 @@ export default {
         text: {
           dark: '#111827',
           medium: '#374151',
-          light: '#6B7280',
-          muted: '#9CA3AF'
+          light: '#4B5563',
+          muted: '#6B7280'
         },
         background: {
           white: '#FFFFFF',

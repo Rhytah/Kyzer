@@ -1,8 +1,7 @@
-
 // src/pages/public/Home.jsx
-import { Link } from 'react-router-dom'
-import { 
-  ArrowRight, 
+import { Link } from "react-router-dom";
+import {
+  ArrowRight,
   Play,
   Users,
   BookOpen,
@@ -13,44 +12,50 @@ import {
   Building2,
   Globe,
   Shield,
-  Zap
-} from 'lucide-react'
-import Button from '@/components/ui/Button'
-import Card from '@/components/ui/Card'
-import heroImage from '@/assets/images/hand-drawn.png';
+  Zap,
+} from "lucide-react";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import heroImage from "@/assets/images/hand-drawn.png";
 export default function Home() {
   const features = [
     {
       icon: BookOpen,
       title: "Rich Course Catalog",
-      description: "Access thousands of courses across technology, business, design, and more with new content added weekly."
+      description:
+        "Access thousands of courses across technology, business, design, and more with new content added weekly.",
     },
     {
       icon: TrendingUp,
       title: "Advanced Analytics",
-      description: "Track progress, measure engagement, and gain insights into learning patterns with comprehensive reporting."
+      description:
+        "Track progress, measure engagement, and gain insights into learning patterns with comprehensive reporting.",
     },
     {
       icon: Users,
       title: "Corporate Management",
-      description: "Manage teams, assign mandatory courses, and track organizational learning goals with powerful admin tools."
+      description:
+        "Manage teams, assign mandatory courses, and track organizational learning goals with powerful admin tools.",
     },
     {
       icon: Award,
       title: "Certification System",
-      description: "Earn recognized certificates and badges that showcase your achievements and newly acquired skills."
+      description:
+        "Earn recognized certificates and badges that showcase your achievements and newly acquired skills.",
     },
     {
       icon: Globe,
       title: "Mobile Learning",
-      description: "Learn anywhere, anytime with our responsive platform and offline course downloads."
+      description:
+        "Learn anywhere, anytime with our responsive platform and offline course downloads.",
     },
     {
       icon: Shield,
       title: "Enterprise Security",
-      description: "Bank-grade security with SSO integration, compliance features, and data protection guarantees."
-    }
-  ]
+      description:
+        "Bank-grade security with SSO integration, compliance features, and data protection guarantees.",
+    },
+  ];
 
   const testimonials = [
     {
@@ -58,54 +63,75 @@ export default function Home() {
       role: "Learning & Development Manager",
       company: "TechCorp Inc.",
       avatar: "👩‍💼",
-      content: "Kyzer LMS transformed our training program. Employee engagement increased by 300% and we can finally track real learning outcomes.",
-      rating: 5
+      content:
+        "Kyzer LMS transformed our training program. Employee engagement increased by 300% and we can finally track real learning outcomes.",
+      rating: 5,
     },
     {
       name: "Michael Chen",
       role: "Senior Developer",
       company: "StartupXYZ",
       avatar: "👨‍💻",
-      content: "The courses are practical and up-to-date. I've learned more in 3 months than in my previous year of scattered online learning.",
-      rating: 5
+      content:
+        "The courses are practical and up-to-date. I've learned more in 3 months than in my previous year of scattered online learning.",
+      rating: 5,
     },
     {
       name: "Emily Rodriguez",
       role: "HR Director",
       company: "Global Solutions",
       avatar: "👩‍🎓",
-      content: "Managing 500+ employees' learning paths used to be a nightmare. Now it's seamless with automated reporting and progress tracking.",
-      rating: 5
-    }
-  ]
+      content:
+        "Managing 500+ employees' learning paths used to be a nightmare. Now it's seamless with automated reporting and progress tracking.",
+      rating: 5,
+    },
+  ];
 
   const stats = [
     { number: "50K+", label: "Active Learners" },
     { number: "1000+", label: "Expert-Led Courses" },
     { number: "500+", label: "Companies Trust Us" },
-    { number: "98%", label: "Satisfaction Rate" }
-  ]
+    { number: "98%", label: "Satisfaction Rate" },
+  ];
 
   const useCases = [
     {
       icon: Users,
       title: "Individual Professionals",
-      description: "Advance your career with personalized learning paths, skill assessments, and industry-recognized certifications.",
-      features: ["Personalized recommendations", "Skill gap analysis", "Career coaching", "Portfolio building"]
+      description:
+        "Advance your career with personalized learning paths, skill assessments, and industry-recognized certifications.",
+      features: [
+        "Personalized recommendations",
+        "Skill gap analysis",
+        "Career coaching",
+        "Portfolio building",
+      ],
     },
     {
       icon: Building2,
       title: "Growing Teams",
-      description: "Scale your team's capabilities with collaborative learning, team challenges, and shared knowledge bases.",
-      features: ["Team progress tracking", "Collaborative projects", "Peer learning", "Skills matrix mapping"]
+      description:
+        "Scale your team's capabilities with collaborative learning, team challenges, and shared knowledge bases.",
+      features: [
+        "Team progress tracking",
+        "Collaborative projects",
+        "Peer learning",
+        "Skills matrix mapping",
+      ],
     },
     {
       icon: Globe,
       title: "Large Enterprises",
-      description: "Deploy organization-wide training with compliance tracking, custom content, and advanced reporting.",
-      features: ["Custom integrations", "Compliance management", "Advanced analytics", "Multi-tenant architecture"]
-    }
-  ]
+      description:
+        "Deploy organization-wide training with compliance tracking, custom content, and advanced reporting.",
+      features: [
+        "Custom integrations",
+        "Compliance management",
+        "Advanced analytics",
+        "Multi-tenant architecture",
+      ],
+    },
+  ];
 
   return (
     <div className="min-h-screen">
@@ -117,24 +143,32 @@ export default function Home() {
               <h1 className="text-4xl md:text-6xl font-bold leading-tight mb-6">
                 Transform Learning Into
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-green-200">
-                  {" "}Growth
+                  {" "}
+                  Growth
                 </span>
               </h1>
               <p className="text-xl text-gray-200 mb-8 leading-relaxed">
-                Empower your team with the most comprehensive learning management system. 
-                From individual skill building to enterprise-wide training programs.
+                Empower your team with the most comprehensive learning
+                management system. From individual skill building to
+                enterprise-wide training programs.
               </p>
-              
+
               <div className="flex flex-col sm:flex-row gap-4 mb-8">
                 <Link to="/signup">
-                  <Button size="lg" className="bg-white text-primary-default hover:bg-gray-100">
+                  <Button
+                    size="lg"
+                    className="bg-white text-primary-default hover:bg-gray-100"
+                  >
                     Start Free Trial
                   </Button>
                 </Link>
-               
-                 <Link to="/about">
-                  <Button size="lg" className="bg-white text-primary-default hover:bg-gray-100">
-                  Learn More
+
+                <Link to="/about">
+                  <Button
+                    size="lg"
+                    className="bg-white text-primary-default hover:bg-gray-100"
+                  >
+                    Learn More
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>
                 </Link>
@@ -158,8 +192,12 @@ export default function Home() {
 
             {/* Hero Image/Visual */}
             <div className="relative">
-              <div >
-                <img src={heroImage} alt="Hero Image" className="w-full h-full object-cover" />
+              <div>
+                <img
+                  src={heroImage}
+                  alt="Hero Image"
+                  className="w-full h-full object-cover"
+                />
               </div>
             </div>
           </div>
@@ -188,22 +226,28 @@ export default function Home() {
               Everything You Need to Scale Learning
             </h2>
             <p className="text-xl text-text-light max-w-2xl mx-auto">
-              From individual growth to enterprise-wide training programs, we've got every learning scenario covered.
+              From individual growth to enterprise-wide training programs, we've
+              got every learning scenario covered.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => {
-              const Icon = feature.icon
+              const Icon = feature.icon;
               return (
-                <Card key={index} className="p-8 text-center hover:shadow-lg transition-shadow">
+                <Card
+                  key={index}
+                  className="p-8 text-center hover:shadow-lg transition-shadow"
+                >
                   <div className="w-16 h-16 bg-primary-light rounded-full flex items-center justify-center mx-auto mb-6">
                     <Icon className="w-8 h-8 text-primary-default" />
                   </div>
-                  <h3 className="text-xl font-semibold text-text-dark mb-4">{feature.title}</h3>
+                  <h3 className="text-xl font-semibold text-text-dark mb-4">
+                    {feature.title}
+                  </h3>
                   <p className="text-text-light">{feature.description}</p>
                 </Card>
-              )
+              );
             })}
           </div>
         </div>
@@ -217,31 +261,38 @@ export default function Home() {
               Built for Every Learning Journey
             </h2>
             <p className="text-xl text-text-light max-w-2xl mx-auto">
-              Whether you're an individual looking to grow or an organization scaling globally, 
-              we have the perfect solution for your needs.
+              Whether you're an individual looking to grow or an organization
+              scaling globally, we have the perfect solution for your needs.
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {useCases.map((useCase, index) => {
-              const Icon = useCase.icon
+              const Icon = useCase.icon;
               return (
                 <Card key={index} className="p-8">
                   <div className="w-12 h-12 bg-primary-light rounded-lg flex items-center justify-center mb-6">
                     <Icon className="w-6 h-6 text-primary-default" />
                   </div>
-                  <h3 className="text-xl font-semibold text-text-dark mb-4">{useCase.title}</h3>
+                  <h3 className="text-xl font-semibold text-text-dark mb-4">
+                    {useCase.title}
+                  </h3>
                   <p className="text-text-light mb-6">{useCase.description}</p>
                   <ul className="space-y-2">
                     {useCase.features.map((feature, featureIndex) => (
-                      <li key={featureIndex} className="flex items-center gap-3">
+                      <li
+                        key={featureIndex}
+                        className="flex items-center gap-3"
+                      >
                         <CheckCircle className="w-4 h-4 text-success-default flex-shrink-0" />
-                        <span className="text-text-dark text-sm">{feature}</span>
+                        <span className="text-text-dark text-sm">
+                          {feature}
+                        </span>
                       </li>
                     ))}
                   </ul>
                 </Card>
-              )
+              );
             })}
           </div>
         </div>
@@ -255,7 +306,8 @@ export default function Home() {
               Loved by Learners and Leaders
             </h2>
             <p className="text-xl text-text-light max-w-2xl mx-auto">
-              See why thousands of professionals and hundreds of organizations choose Kyzer LMS
+              See why thousands of professionals and hundreds of organizations
+              choose Kyzer LMS
             </p>
           </div>
 
@@ -264,16 +316,27 @@ export default function Home() {
               <Card key={index} className="p-8">
                 <div className="flex items-center gap-1 mb-4">
                   {[...Array(testimonial.rating)].map((_, starIndex) => (
-                    <Star key={starIndex} className="w-4 h-4 fill-warning-default text-warning-default" />
+                    <Star
+                      key={starIndex}
+                      className="w-4 h-4 fill-warning-default text-warning-default"
+                    />
                   ))}
                 </div>
-                <p className="text-text-dark mb-6 italic">"{testimonial.content}"</p>
+                <p className="text-text-dark mb-6 italic">
+                  "{testimonial.content}"
+                </p>
                 <div className="flex items-center gap-3">
                   <div className="text-2xl">{testimonial.avatar}</div>
                   <div>
-                    <div className="font-semibold text-text-dark">{testimonial.name}</div>
-                    <div className="text-sm text-text-light">{testimonial.role}</div>
-                    <div className="text-sm text-primary-default">{testimonial.company}</div>
+                    <div className="font-semibold text-text-dark">
+                      {testimonial.name}
+                    </div>
+                    <div className="text-sm text-text-light">
+                      {testimonial.role}
+                    </div>
+                    <div className="text-sm text-primary-default">
+                      {testimonial.company}
+                    </div>
                   </div>
                 </div>
               </Card>
@@ -293,9 +356,21 @@ export default function Home() {
           </p>
 
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8 items-center justify-items-center">
-            {['Slack', 'Microsoft Teams', 'Google Workspace', 'Zoom', 'Salesforce', 'HubSpot'].map((integration, index) => (
-              <Card key={index} className="w-24 h-24 flex items-center justify-center hover:shadow-md transition-shadow">
-                <div className="text-sm font-medium text-text-muted">{integration}</div>
+            {[
+              "Slack",
+              "Microsoft Teams",
+              "Google Workspace",
+              "Zoom",
+              "Salesforce",
+              "HubSpot",
+            ].map((integration, index) => (
+              <Card
+                key={index}
+                className="w-24 h-24 flex items-center justify-center hover:shadow-md transition-shadow"
+              >
+                <div className="text-sm font-medium text-text-muted">
+                  {integration}
+                </div>
               </Card>
             ))}
           </div>
@@ -303,24 +378,35 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-primary-default to-primary-dark text-white">
+      <section
+        className="
+      bg-gradient-to-br from-primary-dark via-primary-default to-text-dark text-white py-10 lg:py-22
+      "
+      >
         <div className="w-full text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-2xl md:text-4xl font-bold mb-6">
             Ready to Transform Your Learning?
           </h2>
           <p className="text-xl text-gray-200 mb-8">
-            Join thousands of professionals and organizations who are already growing with Kyzer LMS
+            Join thousands of professionals and organizations who are already
+            growing with Kyzer LMS
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
             <Link to="/signup">
-              <Button size="lg" className="bg-white text-primary-default hover:bg-gray-100">
+              <Button
+                size="lg"
+                className="bg-white text-primary-default hover:bg-gray-100"
+              >
                 Start Free Trial
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </Link>
             <Link to="/contact">
-              <Button variant="ghost" size="lg" className="text-white border-white hover:bg-white hover:text-primary-default">
+              <Button
+                size="lg"
+                className="text-white border-white hover:bg-white hover:text-primary-default"
+              >
                 Schedule Demo
               </Button>
             </Link>
@@ -343,5 +429,5 @@ export default function Home() {
         </div>
       </section>
     </div>
-  )
+  );
 }

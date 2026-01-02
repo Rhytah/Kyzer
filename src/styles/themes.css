@@ -6,8 +6,8 @@
   --color-primary-light: #F3F4F6;
   --color-text-dark: #111827;
   --color-text-medium: #374151;
-  --color-text-light: #6B7280;
-  --color-text-muted: #9CA3AF;
+  --color-text-light: #4B5563;
+  --color-text-muted: #6B7280;
   --color-background-white: #FFFFFF;
   --color-background-light: #F9FAFB;
   --color-background-medium: #F3F4F6;
@@ -86,14 +86,33 @@
   border-color: #6B7280; /* Medium gray border instead of light gray */
 }
 
+/* Light theme overrides for better contrast */
+/* Apply to all themes except dark mode */
+:root:not(.theme-dark) .text-gray-400,
+:root:not(.theme-dark) .text-gray-500 {
+  color: #6B7280; /* Darker gray for better contrast in light mode */
+}
+
+:root:not(.theme-dark) .text-gray-300 {
+  color: #4B5563; /* Even darker for better readability */
+}
+
+:root:not(.theme-dark) .text-gray-600 {
+  color: #374151; /* Ensure good contrast */
+}
+
+:root:not(.theme-dark) .text-gray-700 {
+  color: #1F2937; /* Ensure good contrast */
+}
+
 .theme-corporate {
   --color-primary: #1E40AF;
   --color-primary-dark: #1E3A8A;
   --color-primary-light: #DBEAFE;
   --color-text-dark: #1F2937;
   --color-text-medium: #374151;
-  --color-text-light: #6B7280;
-  --color-text-muted: #9CA3AF;
+  --color-text-light: #4B5563;
+  --color-text-muted: #6B7280;
   --color-background-white: #FFFFFF;
   --color-background-light: #F8FAFC;
   --color-background-medium: #F1F5F9;
@@ -121,7 +140,7 @@
   --color-text-dark: #064E3B;
   --color-text-medium: #065F46;
   --color-text-light: #047857;
-  --color-text-muted: #10B981;
+  --color-text-muted: #059669;
   --color-background-white: #F0FDF4;
   --color-background-light: #38bc7f29;
   --color-background-medium: #D1FAE5;
@@ -140,4 +159,19 @@
   /* RGB values for opacity support */
   --color-primary-rgb: 5, 150, 105;
   --color-primary-dark-rgb: 4, 120, 87;
+}
+
+/* Ensure CTA sections with bg-primary have proper dark background */
+.bg-primary {
+  background-color: var(--color-primary);
+}
+
+/* Ensure text is white on primary backgrounds for proper contrast */
+.bg-primary.text-white,
+.bg-primary .text-white,
+.bg-primary h1:not([class*="text-"]),
+.bg-primary h2:not([class*="text-"]),
+.bg-primary h3:not([class*="text-"]),
+.bg-primary p:not([class*="text-"]) {
+  color: #FFFFFF;
 }

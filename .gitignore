@@ -33,3 +33,6 @@ migrate_organization_members.sql
 update_lessons_schema.sql
 CLAUDE.md
 package-lock.json
+.cursor
+.cursorrules
+.cursorignore
