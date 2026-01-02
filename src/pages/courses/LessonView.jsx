@@ -111,12 +111,27 @@ export default function LessonView() {
   
   const [lesson, setLesson] = useState(null)
   const [course, setCourse] = useState(null)
+  const [previousLesson, setPreviousLesson] = useState(null) // Keep previous lesson to prevent flicker
+  const [previousCourse, setPreviousCourse] = useState(null) // Keep previous course to prevent flicker
   
   // Get course from store as fallback if local state isn't set yet
   const courseFromStore = useMemo(() => {
     if (course) return course
     return courses.find(c => c.id === courseId) || null
   }, [course, courses, courseId])
+  
+  // Use previous lesson/course if current is loading to prevent flicker
+  const displayLesson = useMemo(() => {
+    if (lesson) return lesson
+    if (previousLesson && previousLesson.id === lessonId) return previousLesson
+    return null
+  }, [lesson, previousLesson, lessonId])
+  
+  const displayCourse = useMemo(() => {
+    if (course) return course
+    if (previousCourse && previousCourse.id === courseId) return previousCourse
+    return courseFromStore
+  }, [course, previousCourse, courseId, courseFromStore])
   
   // Check if user can manage this course (course creator or has permissions)
   const canManageCourse = useMemo(() => {
@@ -496,6 +511,7 @@ export default function LessonView() {
         // Find the current course
         const foundCourse = coursesToUse.find(c => c.id === courseId)
         if (foundCourse) {
+          setPreviousCourse(course) // Save current before updating
           setCourse(foundCourse)
           actions.setCurrentCourse(foundCourse)
           
@@ -619,6 +635,7 @@ export default function LessonView() {
             // Find the current lesson
             const foundLesson = flatLessons.find(l => l.id === lessonId)
             if (foundLesson) {
+              setPreviousLesson(lesson) // Save current before updating
               setLesson(foundLesson)
               actions.setCurrentLesson(foundLesson)
               
@@ -2353,39 +2370,42 @@ export default function LessonView() {
 
   EditorContentViewer.displayName = 'EditorContentViewer';
 
-  const VideoPlayer = memo(() => {
-    if (lesson.content_type !== 'video') {
+  const VideoPlayer = memo(({ lesson: lessonProp }) => {
+    if (!lessonProp) return null
+    const displayLesson = lessonProp
+    
+    if (displayLesson.content_type !== 'video') {
       // Handle text rendering with stored format marker
-      if (lesson.content_type === 'text') {
-        return <TextContentViewer contentText={lesson.content_text} />;
+      if (displayLesson.content_type === 'text') {
+        return <TextContentViewer contentText={displayLesson.content_text} />;
       }
       // Handle PDF rendering
-      if (lesson.content_type === 'pdf') {
-        return <PDFViewer pdfUrl={lesson.content_url} onTimeTrack={saveProgress} />;
+      if (displayLesson.content_type === 'pdf') {
+        return <PDFViewer pdfUrl={displayLesson.content_url} onTimeTrack={saveProgress} />;
       }
       // Handle PPT rendering
-      if (lesson.content_type === 'ppt') {
-        return <PPTViewer pptUrl={lesson.content_url} />;
+      if (displayLesson.content_type === 'ppt') {
+        return <PPTViewer pptUrl={displayLesson.content_url} />;
       }
       // Handle image rendering
-      if (lesson.content_type === 'image') {
+      if (displayLesson.content_type === 'image') {
         return (
           <ImageViewer 
-            imageUrl={lesson.content_url} 
-            textContent={lesson.content_text}
-            audioUrl={lesson.audio_attachment_url}
+            imageUrl={displayLesson.content_url} 
+            textContent={displayLesson.content_text}
+            audioUrl={displayLesson.audio_attachment_url}
           />
         );
       }
 
       // Handle presentation rendering
-      if (lesson.content_type === 'presentation') {
-        return <PresentationWrapper lessonId={lesson.id} />;
+      if (displayLesson.content_type === 'presentation') {
+        return <PresentationWrapper lessonId={displayLesson.id} />;
       }
 
       // Handle editor-created content with content_blocks
-      if (lesson.content_type === 'editor' && lesson.content_blocks && Array.isArray(lesson.content_blocks)) {
-        return <EditorContentViewer blocks={lesson.content_blocks} />;
+      if (displayLesson.content_type === 'editor' && displayLesson.content_blocks && Array.isArray(displayLesson.content_blocks)) {
+        return <EditorContentViewer blocks={displayLesson.content_blocks} />;
       }
 
       // Fallback placeholder for other non-video content types
@@ -2393,20 +2413,20 @@ export default function LessonView() {
         <div className="bg-gray-100 rounded-lg p-8 text-center">
           <div className="text-gray-500 text-lg mb-4">Content not available</div>
           <p className="text-sm text-gray-400">
-            Content type: {lesson.content_type || 'Unknown'}
+            Content type: {displayLesson.content_type || 'Unknown'}
           </p>
         </div>
       );
     }
 
     // Check if it's a YouTube URL → render iframe embed
-    if (isYouTubeUrl(lesson.content_url)) {
-      const videoId = getYouTubeVideoId(lesson.content_url);
+    if (isYouTubeUrl(displayLesson.content_url)) {
+      const videoId = getYouTubeVideoId(displayLesson.content_url);
       if (!videoId) {
         return (
           <div className="bg-gray-100 rounded-lg p-8 text-center">
             <div className="text-gray-500 text-lg mb-4">Invalid YouTube URL</div>
-            <div className="bg-white p-6 rounded-lg border break-all">{lesson.content_url}</div>
+            <div className="bg-white p-6 rounded-lg border break-all">{displayLesson.content_url}</div>
           </div>
         );
       }
@@ -2430,7 +2450,7 @@ export default function LessonView() {
     }
 
     // Check if it's a valid direct video URL
-    if (!isValidVideoUrl(lesson.content_url)) {
+    if (!isValidVideoUrl(displayLesson.content_url)) {
       return (
         <div className="bg-gray-100 rounded-lg p-8 text-center">
           <div className="text-gray-500 text-lg mb-4">
@@ -2441,9 +2461,9 @@ export default function LessonView() {
               The provided URL is not a valid video file. Please provide a direct link to a video file (e.g., .mp4, .webm).
             </p>
             <div className="text-sm text-gray-500 break-all">
-              Current URL: {lesson.content_url}
+              Current URL: {displayLesson.content_url}
             </div>
-            {lesson.content_url?.toLowerCase().endsWith('.mov') && (
+            {displayLesson.content_url?.toLowerCase().endsWith('.mov') && (
               <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-3 mt-3 text-left">
                 This appears to be a .mov file. Web playback for MOV is unreliable across browsers/CDNs. Please convert to MP4 (H.264 + AAC) before upload for best compatibility.
               </div>
@@ -2459,7 +2479,7 @@ export default function LessonView() {
         <ReactPlayer
           key={playerKey}
           ref={playerRef}
-          url={haltVideo ? undefined : lesson.content_url}
+          url={haltVideo ? undefined : displayLesson.content_url}
           controls
           width="100%"
           height="100%"
@@ -2497,7 +2517,7 @@ export default function LessonView() {
               error: null,
               errorCode: 'UNKNOWN',
               errorMessage: 'Video playback error occurred. Please try again.',
-              src: lesson.content_url
+              src: displayLesson.content_url
             });
             if (videoTimeoutRef.current) {
               clearTimeout(videoTimeoutRef.current);
@@ -2612,7 +2632,10 @@ export default function LessonView() {
 
   VideoErrorDisplay.displayName = 'VideoErrorDisplay';
 
-  if (loading) {
+  // Show loading only if we don't have previous data to display
+  const showFullLoading = loading && !displayLesson && !displayCourse
+
+  if (showFullLoading) {
     return (
       <div className="flex justify-center items-center min-h-96">
         <LoadingSpinner size="lg" />
@@ -2620,7 +2643,7 @@ export default function LessonView() {
     )
   }
 
-  if (!lesson || !course) {
+  if (!displayLesson || !displayCourse) {
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold text-text-dark mb-4">Lesson Not Found</h2>
@@ -2631,12 +2654,26 @@ export default function LessonView() {
       </div>
     )
   }
+  
+  // Use displayLesson and displayCourse for rendering to prevent flicker
+  const currentLesson = displayLesson
+  const currentCourse = displayCourse
 
   const currentLessonIndex = lessons.findIndex(lessonEntry => lessonEntry.id === lessonId);
   const isLastLesson = currentLessonIndex !== -1 && currentLessonIndex === lessons.length - 1;
 
   return (
-    <div className="min-h-screen bg-background-default">
+    <div className="min-h-screen bg-background-default relative">
+      {/* Subtle Loading Overlay - only show when loading new lesson but have previous data */}
+      {loading && displayLesson && (
+        <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center pointer-events-none">
+          <div className="bg-white rounded-lg shadow-lg p-4 flex items-center gap-3">
+            <LoadingSpinner size="sm" />
+            <span className="text-sm text-text-medium">Loading lesson...</span>
+          </div>
+        </div>
+      )}
+      
       {/* Top Navigation Bar */}
       <div className="border-b border-background-dark bg-white sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -2647,12 +2684,12 @@ export default function LessonView() {
               onClick={() => navigate(`/app/courses/${courseId}`)}
                 className="hover:text-primary-default transition-colors"
             >
-              {course.title}
+              {currentCourse.title}
             </button>
             <span>/</span>
-            <span>{lesson.moduleTitle}</span>
+            <span>{currentLesson.moduleTitle}</span>
             <span>/</span>
-            <span className="text-text-dark">{lesson.title}</span>
+            <span className="text-text-dark">{currentLesson.title}</span>
             {isCourseCompleted && (
               <>
                 <span className="mx-2">•</span>
@@ -2773,12 +2810,12 @@ export default function LessonView() {
                 <>
                   {/* Lesson Description */}
             <div>
-                    <h2 className="text-xl font-bold text-text-dark mb-3">{lesson.title}</h2>
+                    <h2 className="text-xl font-bold text-text-dark mb-3">{currentLesson.title}</h2>
                     <div className="text-sm text-text-medium leading-relaxed">
                       {lessonDescriptionHtml || (
-                        <p>{lesson.description || lesson.content_text || 'No description available.'}</p>
+                        <p>{currentLesson.description || currentLesson.content_text || 'No description available.'}</p>
                       )}
-              </div>
+                    </div>
             </div>
             
                   {/* Feedback Buttons */}
@@ -3115,18 +3152,18 @@ export default function LessonView() {
               {/* Title Section */}
               <div className="mb-6">
                 <div className="text-xs uppercase tracking-wider text-text-light mb-2">
-                  {course.title?.toUpperCase() || 'COURSE'}
+                  {currentCourse.title?.toUpperCase() || 'COURSE'}
                 </div>
-                <h1 className="text-3xl font-bold text-text-dark">{lesson.title}</h1>
+                <h1 className="text-3xl font-bold text-text-dark">{currentLesson.title}</h1>
               </div>
 
               {/* Content Player */}
               <div className="flex-1 flex flex-col items-center justify-center bg-background-light rounded-lg p-8 mb-6 relative min-h-[500px]">
-                {lesson.content_type === 'scorm' ? (
+                {currentLesson.content_type === 'scorm' ? (
                   <div className="w-full h-full">
                     <ScormPlayer
-                      scormUrl={lesson.content_url}
-                      lessonId={lesson.id}
+                      scormUrl={currentLesson.content_url}
+                      lessonId={currentLesson.id}
                       courseId={courseId}
                       onProgress={() => {}}
                       onComplete={() => {
@@ -3139,12 +3176,12 @@ export default function LessonView() {
                   </div>
                 ) : (
                   <div className="w-full max-w-4xl">
-                    <VideoPlayer />
+                    <VideoPlayer lesson={currentLesson} />
                   </div>
                 )}
                 
                 {/* Icon/Visual Element - Only show for video content */}
-                {lesson.content_type === 'video' && (
+                {currentLesson.content_type === 'video' && (
                   <div className="absolute bottom-8 left-8 opacity-20">
                     <Brain className="w-24 h-24 text-primary-default" />
                   </div>
@@ -3182,14 +3219,14 @@ export default function LessonView() {
                   className="bg-primary-default h-1 rounded-full transition-all" 
                   style={{ width: `${courseProgressData.percentage}%` }}
                 ></div>
-            </div>
+              </div>
               <div className="flex justify-between text-xs text-text-light mb-6">
-              <span>Lesson {lesson.order_index || 1} of {lessons.length}</span>
-                <span>{formatTime(lesson.duration_minutes * 60 || 0)}</span>
-            </div>
+                <span>Lesson {currentLesson.order_index || 1} of {lessons.length}</span>
+                <span>{formatTime(currentLesson.duration_minutes * 60 || 0)}</span>
+              </div>
 
               {/* Audio Attachment Display */}
-              {lesson.audio_attachment_url && (
+              {currentLesson.audio_attachment_url && (
                 <Card className="p-6 mb-6">
                   <div className="flex items-center space-x-3 mb-4">
                     <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -3200,7 +3237,7 @@ export default function LessonView() {
                       <p className="text-sm text-gray-600">Listen to the audio explanation or narration</p>
                     </div>
                   </div>
-                  <AudioPlayer audioUrl={lesson.audio_attachment_url} />
+                  <AudioPlayer audioUrl={currentLesson.audio_attachment_url} />
                 </Card>
               )}
 
@@ -3209,12 +3246,12 @@ export default function LessonView() {
 
               {/* Resources Section */}
               <div id="lesson-resources">
-                {(lesson.resources && Array.isArray(lesson.resources) && lesson.resources.length > 0) || lesson.content_url ? (
+                {(currentLesson.resources && Array.isArray(currentLesson.resources) && currentLesson.resources.length > 0) || currentLesson.content_url ? (
                   <Card className="p-6 mb-6">
                     <h3 className="text-lg font-semibold text-text-dark mb-4">Lesson Resources</h3>
                     <div className="space-y-3">
-                      {lesson.resources && Array.isArray(lesson.resources) && lesson.resources.length > 0 ? (
-                        lesson.resources.map((resource) => (
+                      {currentLesson.resources && Array.isArray(currentLesson.resources) && currentLesson.resources.length > 0 ? (
+                        currentLesson.resources.map((resource) => (
                 resource.type === 'link' ? (
                   <a
                     key={resource.id}
@@ -3270,9 +3307,9 @@ export default function LessonView() {
                   </div>
                 )
                         ))
-                      ) : lesson.content_url ? (
+                      ) : currentLesson.content_url ? (
                         <div 
-                          onClick={() => window.open(lesson.content_url, '_blank', 'noopener,noreferrer')}
+                          onClick={() => window.open(currentLesson.content_url, '_blank', 'noopener,noreferrer')}
                           className="flex items-center justify-between p-3 border border-background-dark rounded-lg hover:bg-background-light cursor-pointer"
                         >
                           <div className="flex items-center gap-3">
@@ -3287,7 +3324,7 @@ export default function LessonView() {
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              downloadFile(lesson.content_url, 'additional-content');
+                              downloadFile(currentLesson.content_url, 'additional-content');
                             }}
                           >
                             <Download className="w-4 h-4" />
@@ -3324,7 +3361,7 @@ export default function LessonView() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => navigate(`/app/courses/${courseId}/lesson/${lessonId}/presentation`)}
+                    onClick={() => navigate(`/app/courses/${courseId}/lesson/${currentLesson.id}/presentation`)}
                     className="text-primary-default hover:text-primary-dark"
                     title="Manage Presentation Content"
                   >
