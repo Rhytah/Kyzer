@@ -22,7 +22,18 @@ export const useAuthStore = create(
                             .select(
                                 `
                 *,
-                organization:organizations(*)
+                organization:organizations(
+                    id,
+                    name,
+                    slug,
+                    subscription_status,
+                    max_employees,
+                    created_by,
+                    admin_user_id,
+                    is_active,
+                    subscription_type,
+                    subscription_end_date
+                )
               `,
                             )
                             .eq("id", user.id)

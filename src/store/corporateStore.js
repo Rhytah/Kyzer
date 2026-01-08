@@ -112,25 +112,33 @@ export const useCorporateStore = create((set, get) => ({
       const { currentCompany } = get();
       if (!currentCompany) return;
 
-      set({ loading: true });
+      // Try to call the RPC function to refresh cached members, but don't fail if it doesn't exist
+      try {
+        const { error: rpcError } = await supabase.rpc('refresh_organization_members_cache', {
+          org_id: currentCompany.id
+        });
 
-      // Call the RPC function to refresh cached members
-      const { data, error } = await supabase.rpc('refresh_organization_members_cache', {
-        org_id: currentCompany.id
-      });
+        // If the function doesn't exist, that's okay - just refresh employees directly
+        if (rpcError && rpcError.code !== '42883' && rpcError.message?.includes('Could not find the function')) {
+          // Function doesn't exist - that's fine, just continue with refresh
+        } else if (rpcError) {
+          // Other error - log but don't throw
+          console.warn("RPC function error (non-fatal):", rpcError);
+        }
+      } catch (rpcError) {
+        // RPC function doesn't exist or other RPC error - that's okay
+        console.warn("Could not call refresh_organization_members_cache (function may not exist):", rpcError.message);
+      }
 
-      if (error) throw error;
-
-      // Refresh the employees data
+      // Always refresh the employees data directly
       await get().fetchEmployees();
       await get().fetchCompanyStats();
 
-      set({ loading: false });
-      return data;
+      return true;
     } catch (error) {
       console.error("Error syncing cached members:", error);
-      set({ error: error.message, loading: false });
-      throw error;
+      // Don't throw - just log the error and continue
+      return false;
     }
   },
 
@@ -297,24 +305,86 @@ export const useCorporateStore = create((set, get) => ({
       const members = orgData.members || [];
       
       // Transform cached data to match expected format
-      const employees = members.map(member => ({
-        id: member.id,
-        user_id: member.profile_id,
-        role: member.role,
-        status: member.status,
-        invited_at: member.invited_at,
-        joined_at: member.joined_at,
-        department_id: member.department_id,
-        // Additional cached data
-        email: member.email,
-        first_name: member.first_name,
-        last_name: member.last_name,
-        full_name: member.full_name,
-        avatar_url: member.avatar_url,
-        department_name: member.department_name,
-        job_title: member.job_title,
-        permissions: member.permissions
-      }));
+      // Don't filter too strictly - allow members with profile_id or user_id even if id is missing
+      let employees = members
+        .filter(member => member && (member.id || member.profile_id || member.user_id)) // Allow members with any ID field
+        .map(member => {
+          // Use the first available ID field
+          const memberId = member.id || member.organization_member_id || member.member_id || member.profile_id || member.user_id;
+          const userId = member.profile_id || member.user_id;
+          return {
+            id: memberId, // Use the first available ID
+            user_id: userId,
+            role: member.role,
+            status: member.status || 'active',
+            invited_at: member.invited_at,
+            joined_at: member.joined_at,
+            department_id: member.department_id,
+            // Additional cached data
+            email: member.email,
+            first_name: member.first_name,
+            last_name: member.last_name,
+            full_name: member.full_name,
+            avatar_url: member.avatar_url,
+            department_name: member.department_name,
+            job_title: member.job_title,
+            permissions: member.permissions,
+            // Store user_id for fetching profile if needed
+            _profile_id: userId
+          };
+        });
+
+      // Fetch profile data for employees missing email/name data
+      const employeesNeedingProfile = employees.filter(emp => 
+        emp._profile_id && (!emp.email || !emp.full_name || (!emp.first_name && !emp.last_name))
+      );
+
+      if (employeesNeedingProfile.length > 0) {
+        const profileIds = employeesNeedingProfile.map(emp => emp._profile_id).filter(Boolean);
+        
+        if (profileIds.length > 0) {
+          try {
+            const { data: profiles, error: profileError } = await supabase
+              .from("profiles")
+              .select("id, email, first_name, last_name, avatar_url")
+              .in("id", profileIds);
+
+            if (!profileError && profiles) {
+              // Create a map of profile data by user ID
+              const profileMap = new Map();
+              profiles.forEach(profile => {
+                profileMap.set(profile.id, profile);
+              });
+
+              // Merge profile data into employees
+              employees = employees.map(emp => {
+                if (emp._profile_id && profileMap.has(emp._profile_id)) {
+                  const profile = profileMap.get(emp._profile_id);
+                  // Construct full_name from first_name and last_name
+                  const fullName = emp.full_name || 
+                    `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 
+                    profile.email || '';
+                  return {
+                    ...emp,
+                    email: emp.email || profile.email || '',
+                    first_name: emp.first_name || profile.first_name || '',
+                    last_name: emp.last_name || profile.last_name || '',
+                    full_name: fullName,
+                    avatar_url: emp.avatar_url || profile.avatar_url
+                  };
+                }
+                return emp;
+              });
+            }
+          } catch (profileFetchError) {
+            // Non-critical - just log and continue with cached data
+            console.warn("Could not fetch profile data for employees:", profileFetchError);
+          }
+        }
+      }
+
+      // Remove the temporary _profile_id field
+      employees = employees.map(({ _profile_id, ...emp }) => emp);
 
       set({ employees, loading: false });
       return employees;
@@ -1036,8 +1106,44 @@ export const useCorporateStore = create((set, get) => ({
 
       if (error) throw error;
 
-      // Sync cached data (triggers will handle this, but we'll refresh to be sure)
-      await get().syncCachedMembers();
+      // Manually update the cached members array in organizations table
+      try {
+        // Get current cached members
+        const { data: orgData } = await supabase
+          .from("organizations")
+          .select("members")
+          .eq("id", currentCompany.id)
+          .single();
+
+        if (orgData && orgData.members && Array.isArray(orgData.members)) {
+          // Update the role in the cached members array
+          const updatedMembers = orgData.members.map(member => {
+            if (member.id === employeeId) {
+              return { ...member, role: newRole };
+            }
+            return member;
+          });
+
+          // Update the organizations table with the new cached members array
+          const { error: updateCacheError } = await supabase
+            .from("organizations")
+            .update({ 
+              members: updatedMembers,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", currentCompany.id);
+
+          if (updateCacheError) {
+            console.warn("Could not update cached members (non-critical):", updateCacheError);
+          }
+        }
+      } catch (cacheError) {
+        // Cache update failed but that's okay - employees will be refreshed
+        console.warn("Could not update cached members (non-critical):", cacheError);
+      }
+
+      // Refresh employees list to show updated data
+      await get().fetchEmployees();
 
       set({ loading: false });
       toast.success("Employee role updated successfully");
@@ -1075,8 +1181,44 @@ export const useCorporateStore = create((set, get) => ({
 
       if (error) throw error;
 
-      // Sync cached data (triggers will handle this, but we'll refresh to be sure)
-      await get().syncCachedMembers();
+      // Manually update the cached members array in organizations table
+      try {
+        // Get current cached members
+        const { data: orgData } = await supabase
+          .from("organizations")
+          .select("members")
+          .eq("id", currentCompany.id)
+          .single();
+
+        if (orgData && orgData.members && Array.isArray(orgData.members)) {
+          // Update the status in the cached members array
+          const updatedMembers = orgData.members.map(member => {
+            if (member.id === employeeId) {
+              return { ...member, status: "inactive", removed_at: new Date().toISOString() };
+            }
+            return member;
+          });
+
+          // Update the organizations table with the new cached members array
+          const { error: updateCacheError } = await supabase
+            .from("organizations")
+            .update({ 
+              members: updatedMembers,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", currentCompany.id);
+
+          if (updateCacheError) {
+            console.warn("Could not update cached members (non-critical):", updateCacheError);
+          }
+        }
+      } catch (cacheError) {
+        // Cache update failed but that's okay - employees will be refreshed
+        console.warn("Could not update cached members (non-critical):", cacheError);
+      }
+
+      // Refresh employees list to show updated data
+      await get().fetchEmployees();
 
       set({ loading: false });
       toast.success("Employee removed successfully");
@@ -1271,7 +1413,13 @@ export const useCorporateStore = create((set, get) => ({
       }
 
       // Sync cached data
-      await get().syncCachedMembers();
+      // Don't fail if sync fails - it's non-critical
+      try {
+        await get().syncCachedMembers();
+      } catch (syncError) {
+        // Sync failed but that's okay - employees will be refreshed on next load
+        console.warn("Could not sync cached members (non-critical):", syncError);
+      }
 
       set({ loading: false });
       toast.success(`${updates.length} employee roles updated successfully`);

@@ -3632,41 +3632,7 @@ export default function LessonView() {
                     onChange={(e) => setNotes(e.target.value)}
                   />
                   <div className="mt-4 flex justify-between items-center">
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={async () => {
-                        if (!user?.id || !lesson?.id || !course?.id) return
-                        try {
-                          const { data, error } = await supabase
-                            .from(TABLES.LESSON_PROGRESS)
-                            .select('*')
-                            .eq('user_id', user.id)
-                            .eq('lesson_id', lesson.id)
-                            .eq('course_id', course.id)
-                            .maybeSingle()
-                          
-                          if (error) {
-                            showError(`Error: ${error.message}`)
-                            return
-                          }
-                          
-                          if (data) {
-                            const metadataStr = typeof data.metadata === 'string' 
-                              ? data.metadata 
-                              : JSON.stringify(data.metadata, null, 2)
-                            alert(`Database Data:\n\n${JSON.stringify(data, null, 2)}\n\nMetadata:\n${metadataStr}`)
-                            console.log(`Database Data:\n\n${JSON.stringify(data, null, 2)}\n\nMetadata:\n${metadataStr}`)
-                          } else {
-                            alert('No data found in database for this lesson.')
-                          }
-                        } catch (err) {
-                          showError(`Error checking database: ${err.message}`)
-                        }
-                      }}
-                    >
-                      Debug: Check DB
-                    </Button>
+                   
                     <Button 
                       variant="secondary" 
                       onClick={saveNotes}
