@@ -11,7 +11,11 @@ const Breadcrumbs = () => {
   const { user } = useAuth();
   const isCorporateUser = user?.user_metadata?.account_type === 'corporate';
   
-  // Get course store for enhanced breadcrumbs
+  // Subscribe to courses to react to store updates
+  const courses = useCourseStore(state => state.courses);
+  const actions = useCourseStore(state => state.actions);
+  
+  // Get course store for enhanced breadcrumbs (use getState for actions)
   const courseStore = useCourseStore.getState();
   
   const [breadcrumbs, setBreadcrumbs] = useState([]);
@@ -26,8 +30,9 @@ const Breadcrumbs = () => {
         const isCoursePath = location.pathname.includes('/courses/');
         
         if (isCoursePath) {
-          // Use enhanced course breadcrumbs
-          const enhancedBreadcrumbs = await getCourseBreadcrumbs(location.pathname, params, courseStore);
+          // Use enhanced course breadcrumbs - get fresh store state
+          const freshStore = useCourseStore.getState();
+          const enhancedBreadcrumbs = await getCourseBreadcrumbs(location.pathname, params, freshStore);
           setBreadcrumbs(enhancedBreadcrumbs);
         } else {
           // Use regular breadcrumbs
@@ -46,7 +51,7 @@ const Breadcrumbs = () => {
     // Small delay to ensure course store is populated
     const timer = setTimeout(loadBreadcrumbs, 100);
     return () => clearTimeout(timer);
-  }, [location.pathname, params, courseStore]);
+  }, [location.pathname, params, courses]);
 
   // Don't show breadcrumbs on dashboard or if only one item
   const isDashboard = location.pathname === '/app/dashboard' || location.pathname === '/corporate/dashboard';

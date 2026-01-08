@@ -24,8 +24,8 @@ export function useCoursePermissions() {
       };
     }
 
-    // System admins have all permissions
-    if (role === 'system_admin') {
+    // Owners and System admins have all permissions
+    if (role === 'owner' || role === 'system_admin') {
       return {
         canManageCourses: true,
         canCreateCourses: true,

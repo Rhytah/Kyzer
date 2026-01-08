@@ -556,10 +556,10 @@ const useCourseStore = create((set, get) => ({
         let existingProgress = null;
         let hasTimeTrackingColumns = false;
         
-        // Try to query with time tracking columns
+        // Try to query with time tracking columns - always include metadata to preserve notes
         const { data: timeTrackingData, error: timeTrackingError } = await supabase
           .from(TABLES.LESSON_PROGRESS)
-          .select('time_spent_seconds, minimum_time_required, review_completed')
+          .select('time_spent_seconds, minimum_time_required, review_completed, metadata')
           .eq('user_id', userId)
           .eq('lesson_id', lessonId)
           .eq('course_id', courseId)
@@ -636,12 +636,36 @@ const useCourseStore = create((set, get) => ({
             ? totalTimeSpentSeconds >= minimumTimeRequired 
             : true; // If no minimum time, consider reviewed
           
-          // Only allow completion if review is completed
-          canComplete = completed ? reviewCompleted : true;
+          // Always allow completion when explicitly requested (bypass time requirements)
+          // This allows users to complete lessons regardless of time spent
+          canComplete = completed;
         } else {
           // No time tracking - allow completion normally
           canComplete = completed;
         }
+        
+        // Get existing metadata to preserve notes and other fields
+        let existingMetadata = existingProgress?.metadata || {}
+        if (typeof existingMetadata === 'string') {
+          try {
+            existingMetadata = JSON.parse(existingMetadata)
+          } catch {
+            existingMetadata = {}
+          }
+        }
+        if (typeof existingMetadata !== 'object' || existingMetadata === null) {
+          existingMetadata = {}
+        }
+        
+        // Merge new metadata with existing to preserve notes
+        // Important: preserve notes from existingMetadata - they should never be overwritten by time tracking updates
+        const notesToPreserve = existingMetadata?.notes;
+        const mergedMetadata = {
+          ...existingMetadata,
+          ...metadata,
+          // Always preserve notes if they exist in existing metadata (unless explicitly being updated)
+          ...(notesToPreserve ? { notes: notesToPreserve } : {})
+        };
         
         // Build upsert payload - only include time tracking columns if they exist
         const upsertPayload = {
@@ -650,7 +674,7 @@ const useCourseStore = create((set, get) => ({
           course_id: courseId,
           completed: canComplete ? completed : false,
           completed_at: (canComplete && completed) ? new Date().toISOString() : null,
-          metadata: metadata,
+          metadata: mergedMetadata,
         };
         
         // Only add time tracking fields if columns exist
@@ -679,14 +703,14 @@ const useCourseStore = create((set, get) => ({
           );
           
           if (isColumnMissingError && hasTimeTrackingColumns) {
-            // Retry without time tracking columns
+            // Retry without time tracking columns - use merged metadata to preserve notes
             const basicPayload = {
               user_id: userId,
               lesson_id: lessonId,
               course_id: courseId,
               completed: canComplete ? completed : false,
               completed_at: (canComplete && completed) ? new Date().toISOString() : null,
-              metadata: metadata,
+              metadata: mergedMetadata,
             };
             
             const { data: retryData, error: retryError } = await supabase
@@ -699,7 +723,7 @@ const useCourseStore = create((set, get) => ({
               return { data: null, error: retryError };
             }
             
-            // Update local state with basic data
+            // Update local state with basic data - include merged metadata
             set((state) => ({
               courseProgress: {
                 ...state.courseProgress,
@@ -708,7 +732,7 @@ const useCourseStore = create((set, get) => ({
                   [lessonId]: {
                     completed: canComplete ? completed : false,
                     completed_at: retryData.completed_at,
-                    metadata: metadata,
+                    metadata: mergedMetadata,
                   },
                 },
               },
@@ -726,11 +750,11 @@ const useCourseStore = create((set, get) => ({
           return { data: null, error };
         }
 
-        // Update local progress state
+        // Update local progress state - use merged metadata to preserve notes
         const progressUpdate = {
           completed: canComplete ? completed : false, 
           completed_at: data.completed_at,
-          metadata: metadata,
+          metadata: mergedMetadata,
         };
         
         // Only add time tracking fields if columns exist
