@@ -89,9 +89,10 @@
 
 
 // src/hooks/corporate/useCorporatePermissions.js
-import { useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { useCorporateStore } from '@/store/corporateStore'
+import { supabase } from '@/lib/supabase'
 
 // Subscription limits configuration
 const SUBSCRIPTION_LIMITS = {
@@ -113,33 +114,110 @@ const SUBSCRIPTION_LIMITS = {
 }
 
 export function useCorporatePermissions() {
-  const { user } = useAuthStore()
+  const authStore = useAuthStore()
+  const { user: storeUser } = authStore
   const { currentCompany, employees } = useCorporateStore()
-
-  // Enhanced user role detection
-  const userRole = useMemo(() => {
-    if (!currentCompany || !user) return null
+  const [user, setUser] = useState(storeUser)
+  const [userFetched, setUserFetched] = useState(false)
+  
+  // Try to get user from auth store, or fetch directly from Supabase if not available
+  // Only run once on mount, not on every store update
+  useEffect(() => {
+    // If we already have a user from the store, use it
+    if (storeUser?.id) {
+      setUser(storeUser)
+      setUserFetched(true)
+      return
+    }
     
-    // Check if user is organization owner (creator)
-    if (currentCompany.created_by === user.id) {
-      // Verify they have the owner role in members table
-      const employeeRecord = employees.find(emp => emp.user_id === user.id)
-      if (employeeRecord?.role === 'owner') {
-        return 'owner'
-      }
-      // If created_by matches but role isn't set, still consider them owner
-      if (currentCompany.created_by === user.id) {
-        return 'owner'
+    // Only fetch if we haven't fetched yet and don't have a user
+    if (userFetched) return
+    
+    const getUser = async () => {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser()
+        if (authUser) {
+          setUser(authUser)
+          setUserFetched(true)
+          // Only update store if user actually changed
+          if (authStore.user?.id !== authUser.id && authStore.setUser) {
+            authStore.setUser(authUser)
+          }
+        } else {
+          setUserFetched(true)
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Error fetching user from Supabase:', error)
+        setUserFetched(true)
       }
     }
     
-    // Check if user is company admin (legacy)
+    getUser()
+    
+    // Listen to auth state changes (only set up once)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        setUser(prevUser => {
+          // Only update if user actually changed
+          if (prevUser?.id !== session.user.id) {
+            // Only update store if user actually changed
+            if (authStore.user?.id !== session.user.id && authStore.setUser) {
+              authStore.setUser(session.user)
+            }
+            return session.user
+          }
+          return prevUser
+        })
+      } else {
+        setUser(prevUser => {
+          if (prevUser) {
+            return null
+          }
+          return prevUser
+        })
+      }
+    })
+    
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, []) // Empty dependency array - only run once on mount
+  
+  // Sync with store user changes (but don't trigger profile fetch)
+  useEffect(() => {
+    if (storeUser?.id && storeUser.id !== user?.id) {
+      setUser(storeUser)
+    } else if (!storeUser && user) {
+      setUser(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeUser?.id]) // Only depend on user ID, not entire store or local user
+
+  // Enhanced user role detection
+  const userRole = useMemo(() => {
+    if (!currentCompany || !user) {
+      return null
+    }
+    
+    // Priority 1: Check if user is organization owner (creator)
+    // This is the most reliable check - if they created the company, they're the owner
+    if (currentCompany.created_by === user.id) {
+      return 'owner'
+    }
+    
+    // Priority 2: Check user's role in organization_members table
+    const employeeRecord = employees.find(emp => emp.user_id === user.id)
+    if (employeeRecord?.role === 'owner') {
+      return 'owner'
+    }
+    
+    // Priority 3: Check if user is company admin (legacy)
     if (currentCompany.admin_user_id === user.id) {
       return 'admin'
     }
     
-    // Check user's role in organization_members
-    const employeeRecord = employees.find(emp => emp.user_id === user.id)
+    // Return the role from employee record, or null
     return employeeRecord?.role || null
   }, [currentCompany, user, employees])
 

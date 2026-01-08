@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   UserPlus,
   Search,
@@ -23,7 +23,8 @@ import {
   GraduationCap,
   UserCog,
   Eye,
-  EyeOff
+  EyeOff,
+  Settings
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
@@ -42,10 +43,6 @@ const EmployeeManagement = () => {
   const departments = useDepartments()
   const invitations = useInvitations()
   
-  // Debug: Log invitations changes
-  useEffect(() => {
-    console.log("Invitations updated in component:", invitations?.length || 0, "invitations");
-  }, [invitations]);
   const { 
     fetchEmployees,
     fetchInvitations,
@@ -804,16 +801,26 @@ const EmployeeManagement = () => {
                     </td>
                   </tr>
               ) : activeView === 'employees' ? (
-                filteredEmployees.map((employee) => (
-                  <EmployeeRow 
-                    key={employee.id} 
-                    employee={employee}
-                    departments={departments}
-                    onUpdateRole={updateEmployeeRole}
-                    onRemove={removeEmployee}
-                    getRoleIcon={getRoleIcon}
-                  />
-                ))
+                filteredEmployees.map((employee, index) => {
+                  // Use multiple fallbacks for the key to ensure uniqueness
+                  const employeeKey = employee?.id || employee?.user_id || employee?.profile_id || `emp-${index}-${employee?.email || ''}`
+                  return (
+                    <EmployeeRow 
+                      key={employeeKey} 
+                      employee={employee}
+                      departments={departments}
+                      onUpdateRole={async (employeeId, newRole) => {
+                        await updateEmployeeRole(employeeId, newRole)
+                        await fetchEmployees() // Refresh the list after update
+                      }}
+                      onRemove={async (employeeId) => {
+                        await removeEmployee(employeeId)
+                        await fetchEmployees() // Refresh the list after removal
+                      }}
+                      getRoleIcon={getRoleIcon}
+                    />
+                  )
+                })
               ) : activeView === 'invitations' ? (
                 filteredInvitations.map((invitation) => (
                   <InvitationRow 
@@ -1044,28 +1051,31 @@ function InvitationRow({ invitation, departments, isSelected, onToggleSelection,
 function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIcon }) {
   const [showActions, setShowActions] = useState(false)
   const [showRoleEdit, setShowRoleEdit] = useState(false)
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const [newRole, setNewRole] = useState(employee.role)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [isRemoving, setIsRemoving] = useState(false)
+  const actionsRef = useRef(null)
+  const buttonRef = useRef(null)
   const { user } = useAuthStore()
-  const { canManageEmployees, userRole } = useCorporatePermissions()
+  const { canManageEmployees, userRole, isOwner } = useCorporatePermissions()
 
   const RoleIcon = getRoleIcon(employee.role)
-  
-  // Check if current user can change roles
-  // Allow owner, corporate_admin, admin, manager, or system_admin to change roles
-  // But prevent changing the owner's role
-  const canChangeRole = canManageEmployees && userRole && [
-    'owner',
-    'corporate_admin', 
-    'admin', 
-    'manager',
-    'system_admin'
-  ].includes(userRole)
   
   // Check if this employee is the organization owner
   const isOrganizationOwner = employee.role === 'owner'
   
   // Check if this is the current user
   const isCurrentUser = user?.id && (employee.user_id === user.id || employee.id === user.id)
+  
+  // Check if current user can change roles
+  const canChangeRole = (isOwner || (canManageEmployees && userRole && [
+    'owner',
+    'corporate_admin', 
+    'admin', 
+    'manager',
+    'system_admin'
+  ].includes(userRole))) && !isOrganizationOwner
 
   const handleRoleUpdate = async () => {
     try {
@@ -1089,23 +1099,94 @@ function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIco
         )
         if (!confirm) {
           setShowRoleEdit(false)
+          setNewRole(employee.role) // Reset to original role
           return
         }
       }
       
       // Validate employee ID before updating
-      if (!employee.id || employee.id === 'undefined') {
-        console.error('Invalid employee ID');
-        return;
+      // Check multiple possible ID fields (id, organization_member_id, etc.)
+      const employeeId = employee?.id || employee?.organization_member_id || employee?.member_id || employee?.user_id || employee?.profile_id
+      if (!employeeId || employeeId === 'undefined' || (typeof employeeId !== 'string' && typeof employeeId !== 'number')) {
+        toast.error('Invalid employee ID. Please refresh the page and try again.')
+        return
       }
-      await onUpdateRole(employee.id, newRole)
+      
+      // Validate role hasn't changed
+      if (newRole === employee.role) {
+        setShowRoleEdit(false)
+        return
+      }
+      
+      setIsUpdating(true)
+      await onUpdateRole(employeeId, newRole)
       setShowRoleEdit(false)
+      setShowActions(false)
       toast.success('Role updated successfully')
     } catch (error) {
-      console.error('Failed to update role:', error)
       toast.error('Failed to update role: ' + (error.message || 'Unknown error'))
+    } finally {
+      setIsUpdating(false)
     }
   }
+
+  const handleRemoveEmployee = async () => {
+    try {
+      if (!canManageEmployees && !isOwner) {
+        toast.error('You do not have permission to remove employees')
+        return
+      }
+      
+      // Validate employee ID before removing
+      // Check multiple possible ID fields (id, organization_member_id, etc.)
+      const employeeId = employee?.id || employee?.organization_member_id || employee?.member_id || employee?.user_id || employee?.profile_id
+      if (!employeeId || employeeId === 'undefined' || (typeof employeeId !== 'string' && typeof employeeId !== 'number')) {
+        toast.error('Invalid employee ID. Please refresh the page and try again.')
+        setShowRemoveConfirm(false)
+        return
+      }
+      
+      setIsRemoving(true)
+      await onRemove(employeeId)
+      setShowRemoveConfirm(false)
+      setShowActions(false)
+      toast.success('Employee removed successfully')
+    } catch (error) {
+      toast.error('Failed to remove employee: ' + (error.message || 'Unknown error'))
+    } finally {
+      setIsRemoving(false)
+    }
+  }
+
+  const handleCancelRoleEdit = () => {
+    setNewRole(employee.role) // Reset to original role
+    setShowRoleEdit(false)
+  }
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Don't close if clicking inside the actions menu or the button
+      if (actionsRef.current?.contains(event.target) || 
+          buttonRef.current?.contains(event.target)) {
+        return
+      }
+      // Close if clicking outside
+      setShowActions(false)
+    }
+
+    if (showActions) {
+      // Use a small delay to prevent immediate closing
+      const timeoutId = setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside)
+      }, 100)
+      
+      return () => {
+        clearTimeout(timeoutId)
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }
+  }, [showActions])
 
   return (
     <tr className="border-b border-background-light hover:bg-background-light">
@@ -1139,9 +1220,13 @@ function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIco
             <select
               value={newRole}
               onChange={(e) => setNewRole(e.target.value)}
-              className="px-2 py-1 border border-background-dark rounded text-sm"
+              className="px-3 py-1.5 border border-background-dark rounded-lg text-sm focus:ring-2 focus:ring-primary-default focus:border-primary-default"
+              disabled={isUpdating}
             >
               <option value="learner">Learner (Individual)</option>
+              <option value="employee">Employee</option>
+              <option value="manager">Manager</option>
+              <option value="admin">Admin</option>
               <option value="corporate_admin">Corporate Admin</option>
               <option value="instructor">Instructor (Optional)</option>
               <option value="system_admin">System Admin</option>
@@ -1150,8 +1235,19 @@ function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIco
                 <option value="owner">Owner</option>
               )}
             </select>
-            <Button size="sm" onClick={handleRoleUpdate}>Save</Button>
-            <Button variant="ghost" size="sm" onClick={() => setShowRoleEdit(false)}>
+            <Button 
+              size="sm" 
+              onClick={handleRoleUpdate}
+              disabled={isUpdating || newRole === employee.role}
+            >
+              {isUpdating ? 'Saving...' : 'Save'}
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleCancelRoleEdit}
+              disabled={isUpdating}
+            >
               Cancel
             </Button>
           </div>
@@ -1163,7 +1259,7 @@ function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIco
               <RoleIcon className="w-4 h-4 text-text-medium" />
             )}
             <span className="capitalize text-text-dark">
-              {isOrganizationOwner ? 'Owner' : employee.role}
+              {isOrganizationOwner ? 'Owner' : employee.role?.replace('_', ' ') || 'Employee'}
             </span>
           </div>
         )}
@@ -1186,55 +1282,120 @@ function EmployeeRow({ employee, departments, onUpdateRole, onRemove, getRoleIco
       </td>
       
       <td className="py-3 px-4 text-right">
-        <div className="relative" style={{ zIndex: showActions ? 1000 : 'auto' }}>
+        <div className="relative">
           <Button
+            ref={buttonRef}
             variant="ghost"
             size="sm"
-            onClick={() => setShowActions(!showActions)}
+            onClick={(e) => {
+              e.stopPropagation()
+              setShowActions(!showActions)
+            }}
           >
             <MoreVertical className="w-4 h-4" />
           </Button>
           
+          {/* Actions Dropdown Menu */}
           {showActions && (
-            <div className="absolute right-0 top-8 w-48 bg-white border border-background-dark rounded-lg shadow-xl z-[9999]">
-              {canChangeRole && !isOrganizationOwner && (
-                <button
-                  onClick={() => {
-                    setShowRoleEdit(true)
-                    setShowActions(false)
-                  }}
-                  className="w-full text-left px-4 py-2 hover:bg-background-light flex items-center gap-2"
-                >
-                  <Edit className="w-4 h-4" />
-                  Change Role
-                </button>
-              )}
+            <div 
+              ref={actionsRef}
+              className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-background-dark z-50"
+              style={{ minWidth: '200px' }}
+            >
+              {/* Show owner badge if this is the owner row */}
               {isOrganizationOwner && (
-                <div className="px-4 py-2 text-xs text-text-light border-b border-background-light">
-                  <Crown className="w-3 h-3 inline mr-1" />
-                  Organization Owner
+                <div className="px-4 py-3 text-xs text-text-light border-b border-background-light bg-background-light">
+                  <div className="flex items-center gap-2">
+                    <Crown className="w-4 h-4 text-yellow-600" />
+                    <span className="font-medium">Organization Owner</span>
+                  </div>
+                  <p className="text-text-muted mt-1">This role cannot be changed</p>
                 </div>
               )}
-              {canManageEmployees && !isCurrentUser && !isOrganizationOwner && (
+              
+              {/* Change Role action for non-owner employees */}
+              {!isOrganizationOwner && (
                 <button
                   onClick={() => {
-                    onRemove(employee.id)
-                    setShowActions(false)
+                    if (isOwner || canChangeRole) {
+                      setShowRoleEdit(true)
+                      setShowActions(false)
+                    }
                   }}
-                  className="w-full text-left px-4 py-2 hover:bg-background-light text-error-default flex items-center gap-2"
+                  disabled={!isOwner && !canChangeRole}
+                  className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${
+                    (isOwner || canChangeRole) 
+                      ? 'hover:bg-background-light cursor-pointer text-text-dark' 
+                      : 'opacity-50 cursor-not-allowed text-text-light'
+                  }`}
                 >
-                  <Trash2 className="w-4 h-4" />
-                  Remove Employee
+                  <Edit className="w-4 h-4" />
+                  <span>Change Role</span>
                 </button>
               )}
-              {!canChangeRole && !canManageEmployees && (
-                <div className="px-4 py-2 text-xs text-text-light">
+              
+              {/* Remove Employee action for non-owner, non-current-user employees */}
+              {!isCurrentUser && !isOrganizationOwner && (
+                <button
+                  onClick={() => {
+                    if (isOwner || canManageEmployees) {
+                      setShowRemoveConfirm(true)
+                      setShowActions(false)
+                    }
+                  }}
+                  disabled={!isOwner && !canManageEmployees}
+                  className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors border-t border-background-light ${
+                    (isOwner || canManageEmployees)
+                      ? 'hover:bg-error-light text-error-default cursor-pointer' 
+                      : 'opacity-50 cursor-not-allowed text-text-light'
+                  }`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Remove Employee</span>
+                </button>
+              )}
+              
+              {/* Show "No actions available" message */}
+              {!isOrganizationOwner && !isCurrentUser && !isOwner && !canChangeRole && !canManageEmployees && (
+                <div className="px-4 py-3 text-xs text-text-light text-center">
                   No actions available
                 </div>
               )}
             </div>
           )}
         </div>
+        
+        {/* Remove Confirmation Modal */}
+        <Modal
+          isOpen={showRemoveConfirm}
+          onClose={() => setShowRemoveConfirm(false)}
+          title="Remove Employee"
+        >
+          <div className="space-y-4">
+            <p className="text-text-dark">
+              Are you sure you want to remove <strong>{employee.full_name || employee.email || 'this employee'}</strong> from your organization?
+            </p>
+            <p className="text-sm text-text-light">
+              This action will mark the employee as inactive. They will no longer have access to organization resources.
+            </p>
+            <div className="flex justify-end gap-3 pt-4">
+              <Button 
+                variant="ghost" 
+                onClick={() => setShowRemoveConfirm(false)}
+                disabled={isRemoving}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="danger"
+                onClick={handleRemoveEmployee}
+                disabled={isRemoving}
+              >
+                {isRemoving ? 'Removing...' : 'Remove Employee'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       </td>
     </tr>
   )
@@ -1816,17 +1977,20 @@ function DepartmentModal({ isOpen, onClose, onSubmit, departments, employees, lo
             onChange={(e) => setFormData({ ...formData, manager_id: e.target.value })}
           >
             <option value="">No manager assigned</option>
-            {potentialManagers.map(emp => {
-              const displayName = emp.full_name || 
-                `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || 
-                emp.email || 'Unknown User'
-              const roleDisplay = emp.role?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
-              return (
-                <option key={emp.id} value={emp.id}>
-                  {displayName} - {roleDisplay}
-                </option>
-              )
-            })}
+            {potentialManagers
+              .filter(emp => emp && (emp.id || emp.user_id))
+              .map(emp => {
+                const displayName = emp.full_name || 
+                  `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || 
+                  emp.email || 'Unknown User'
+                const roleDisplay = emp.role?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+                const empId = emp.id || emp.user_id || `emp-${Math.random()}`
+                return (
+                  <option key={empId} value={emp.id || emp.user_id}>
+                    {displayName} - {roleDisplay}
+                  </option>
+                )
+              })}
           </select>
         </div>
 
