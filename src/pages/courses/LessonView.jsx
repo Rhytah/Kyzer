@@ -37,6 +37,7 @@ import PresentationViewer from '@/components/course/PresentationViewer'
 import CertificatePreviewModal from '@/components/course/CertificatePreviewModal'
 import { useCourseStore } from '@/store/courseStore'
 import { useAuth } from '@/hooks/auth/useAuth'
+import { supabase, TABLES } from '@/lib/supabase'
 import { 
   Button, 
   Card, 
@@ -144,6 +145,8 @@ export default function LessonView() {
   const [isCompleted, setIsCompleted] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [notes, setNotes] = useState('')
+  const [isSavingNotes, setIsSavingNotes] = useState(false)
+  const [notesLoaded, setNotesLoaded] = useState(false)
   const [videoLoading, setVideoLoading] = useState(false)
   const [videoError, setVideoError] = useState(null)
   const [isCompleting, setIsCompleting] = useState(false)
@@ -519,10 +522,17 @@ export default function LessonView() {
           const { data: fetchedLessons } = await actions.fetchCourseLessons(courseId)
           if (fetchedLessons && Object.keys(fetchedLessons).length > 0) {
             // Convert grouped lessons to flat array for navigation
+            // Preserve module information on each lesson
             const flatLessons = [];
             Object.values(fetchedLessons).forEach(moduleData => {
               if (moduleData.lessons && Array.isArray(moduleData.lessons)) {
-                flatLessons.push(...moduleData.lessons);
+                moduleData.lessons.forEach(lesson => {
+                  // Ensure module info is available on the lesson
+                  if (!lesson.module && moduleData.module) {
+                    lesson.module = moduleData.module;
+                  }
+                  flatLessons.push(lesson);
+                });
               }
             });
             
@@ -639,11 +649,18 @@ export default function LessonView() {
               setLesson(foundLesson)
               actions.setCurrentLesson(foundLesson)
               
+              // Reset notes state when lesson changes
+              setNotes('')
+              setNotesLoaded(false)
+              
               // Check if lesson is completed and load existing time
               if (user?.id) {
                 const { data: progress } = await actions.fetchCourseProgress(user.id, courseId)
                 const lessonProgress = progress?.[lessonId]
                 setIsCompleted(lessonProgress?.completed || false)
+                
+                // Load notes for this lesson
+                loadNotes(user.id, lessonId, courseId)
               }
             }
           }
@@ -666,12 +683,61 @@ export default function LessonView() {
     }
   }, [courseId, lessonId, user?.id])
 
+  // Load notes for the current lesson
+  const loadNotes = useCallback(async (userId, lessonId, courseId) => {
+    if (!userId || !lessonId || !courseId) return
+    
+    try {
+      const { data, error } = await supabase
+        .from(TABLES.LESSON_PROGRESS)
+        .select('metadata')
+        .eq('user_id', userId)
+        .eq('lesson_id', lessonId)
+        .eq('course_id', courseId)
+        .maybeSingle()
+      
+      if (error && error.code !== 'PGRST116') {
+        // PGRST116 is "not found" which is fine
+        setNotesLoaded(true)
+        return
+      }
+      
+      // Handle metadata - it might be a string or an object
+      let metadata = data?.metadata
+      if (typeof metadata === 'string') {
+        try {
+          metadata = JSON.parse(metadata)
+        } catch {
+          metadata = {}
+        }
+      }
+      
+      if (metadata && typeof metadata === 'object' && metadata.notes) {
+        setNotes(metadata.notes || '')
+      } else {
+        setNotes('')
+      }
+      setNotesLoaded(true)
+    } catch (error) {
+      // Handle error silently
+      setNotes('')
+      setNotesLoaded(true)
+    }
+  }, [])
+
   // Fetch enrolled courses to check completion status
   useEffect(() => {
     if (user?.id) {
       fetchEnrolledCourses(user.id)
     }
   }, [user?.id, fetchEnrolledCourses])
+
+  // Load notes when lesson, course, or user changes
+  useEffect(() => {
+    if (user?.id && lesson?.id && course?.id && !notesLoaded) {
+      loadNotes(user.id, lesson.id, course.id)
+    }
+  }, [user?.id, lesson?.id, course?.id, notesLoaded, loadNotes])
 
   const saveProgress = useCallback(async (additionalTime = 0, completedOverride = null) => {
     // Validate all required IDs before making any database calls
@@ -710,6 +776,103 @@ export default function LessonView() {
       // Handle error silently or set error state if needed
     }
   }, [user?.id, lesson?.id, course?.id, isCompleted, actions, courseProgress, courseId])
+
+  // Save notes for the current lesson
+  const saveNotes = useCallback(async () => {
+    if (!user?.id || !lesson?.id || !course?.id) {
+      showError('Unable to save notes. Please try again.')
+      return
+    }
+    
+    setIsSavingNotes(true)
+    
+    try {
+      // First, check if lesson_progress entry exists
+      const { data: existingProgress, error: checkError } = await supabase
+        .from(TABLES.LESSON_PROGRESS)
+        .select('id, metadata, completed')
+        .eq('user_id', user.id)
+        .eq('lesson_id', lesson.id)
+        .eq('course_id', course.id)
+        .maybeSingle()
+      
+      // Handle metadata - it might be a string or an object
+      let existingMetadata = existingProgress?.metadata || {}
+      if (typeof existingMetadata === 'string') {
+        try {
+          existingMetadata = JSON.parse(existingMetadata)
+        } catch {
+          existingMetadata = {}
+        }
+      }
+      
+      // Ensure metadata is an object
+      if (typeof existingMetadata !== 'object' || existingMetadata === null) {
+        existingMetadata = {}
+      }
+      
+      // Create new metadata object that preserves existing fields and adds/updates notes
+      const updatedMetadata = {
+        ...existingMetadata,
+        notes: notes
+      }
+      
+      if (existingProgress) {
+        // Update existing progress entry - preserve all fields including completed status
+        const { error: updateError } = await supabase
+          .from(TABLES.LESSON_PROGRESS)
+          .update({ 
+            metadata: updatedMetadata,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingProgress.id)
+        
+        if (updateError) throw updateError
+      } else {
+        // Create new progress entry with notes
+        const { error: insertError } = await supabase
+          .from(TABLES.LESSON_PROGRESS)
+          .insert({
+            user_id: user.id,
+            lesson_id: lesson.id,
+            course_id: course.id,
+            completed: false,
+            metadata: updatedMetadata,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+        
+        if (insertError) throw insertError
+      }
+      
+      // Verify the save worked by fetching the data back
+      const { data: verifyData } = await supabase
+        .from(TABLES.LESSON_PROGRESS)
+        .select('metadata')
+        .eq('id', existingProgress?.id || 'just-saved')
+        .maybeSingle()
+      
+      if (verifyData?.metadata?.notes !== notes) {
+        // Notes weren't saved correctly, try one more time
+        const finalMetadata = {
+          ...(typeof verifyData?.metadata === 'object' ? verifyData.metadata : {}),
+          notes: notes
+        }
+        await supabase
+          .from(TABLES.LESSON_PROGRESS)
+          .update({ metadata: finalMetadata })
+          .eq('user_id', user.id)
+          .eq('lesson_id', lesson.id)
+          .eq('course_id', course.id)
+      }
+      
+      success('Notes saved successfully!')
+    } catch (error) {
+      showError('Failed to save notes. Please try again.')
+    } finally {
+      setIsSavingNotes(false)
+    }
+  }, [user?.id, lesson?.id, course?.id, notes, success, showError])
 
   // Track time for all content types (videos, PDFs, text, etc.)
   useEffect(() => {
@@ -754,39 +917,41 @@ export default function LessonView() {
   }, [lesson, course, user?.id, saveProgress])
 
   const markAsCompleted = async () => {
-    if (firstIncompleteKnowledgeCheck) {
-      activateKnowledgeCheck(firstIncompleteKnowledgeCheck.id);
-      showError('Please complete the knowledge check for this lesson before marking it as complete.');
-      return;
-    }
-
     if (user?.id && lesson && course) {
       try {
         setIsCompleting(true)
-        // Time tracking is handled automatically by the interval
-        // Just mark as complete - time will be saved by the tracking interval
+        
+        // Get current progress to preserve time spent
+        const currentProgress = courseProgress[course.id]?.[lesson.id];
+        const existingTimeSpent = currentProgress?.time_spent_seconds || 0;
+        
+        // Mark as complete and save progress
         const result = await actions.updateLessonProgress(
           user.id,
           lesson.id,
           course.id,
           true,
           { 
-            timeSpent: 0, // Time is accumulated automatically, just pass 0 here
-            completedAt: new Date().toISOString()
+            timeSpent: 0, // Additional time (already accumulated in existing progress)
+            completedAt: new Date().toISOString(),
+            lastAccessed: new Date().toISOString()
           }
         )
         
-        // Check if completion was blocked due to minimum time requirement
-        if (result && !result.canComplete && result.minimumTimeRequired) {
-          const timeRemaining = result.minimumTimeRequired - (result.timeSpentSeconds || 0);
-          const minutesRemaining = Math.ceil(timeRemaining / 60);
-          showError(`Please review the material for at least ${Math.ceil(result.minimumTimeRequired / 60)} minutes before completing. You need ${minutesRemaining} more minute${minutesRemaining !== 1 ? 's' : ''}.`);
-          setIsCompleting(false);
-          return;
+        if (result?.error) {
+          showError('Failed to mark lesson as complete. Please try again.')
+          setIsCompleting(false)
+          return
         }
         
+        // Update local state immediately
         setIsCompleted(true)
+        
+        // Refresh course progress to ensure UI is updated
+        await actions.fetchCourseProgress(user.id, course.id)
+        
         success('Lesson marked as complete!')
+        
         // Navigate to next lesson if available
         const { data: lessonsData } = await actions.fetchCourseLessons(course.id)
         if (lessonsData && Object.keys(lessonsData).length > 0) {
@@ -1031,21 +1196,24 @@ export default function LessonView() {
 
 
   // Memoized LazyIframe component for performance
-  const LazyIframe = memo(({ src, title, className, onLoad, frameBorder, allowFullScreen }) => {
+  const LazyIframe = memo(({ src, title, className, onLoad, onError, frameBorder, allowFullScreen }) => {
     const [ref, isIntersecting, hasIntersected] = useIntersectionObserver({
       threshold: 0.1,
       rootMargin: '50px'
     });
+    const iframeRef = useRef(null);
 
     return (
       <div ref={ref} className={className}>
         {hasIntersected ? (
           <iframe
+            ref={iframeRef}
             src={src}
             title={title}
             className="w-full h-full"
             loading="lazy"
             onLoad={onLoad}
+            onError={onError}
             frameBorder={frameBorder}
             allowFullScreen={allowFullScreen}
           />
@@ -1065,9 +1233,21 @@ export default function LessonView() {
     const [isLoaded, setIsLoaded] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(null);
+    const [hasError, setHasError] = useState(false);
     const pdfViewStartTime = useRef(null);
     const lastSaveTime = useRef(null);
     const onTimeTrackRef = useRef(onTimeTrack);
+    const isLoadedRef = useRef(false);
+    const hasErrorRef = useRef(false);
+
+    // Update refs when state changes
+    useEffect(() => {
+      isLoadedRef.current = isLoaded;
+    }, [isLoaded]);
+    
+    useEffect(() => {
+      hasErrorRef.current = hasError;
+    }, [hasError]);
 
     // Update ref when onTimeTrack changes, but don't trigger effect
     useEffect(() => {
@@ -1076,9 +1256,39 @@ export default function LessonView() {
 
     useEffect(() => {
       setIsLoaded(false);
+      setHasError(false);
+      isLoadedRef.current = false;
+      hasErrorRef.current = false;
       setCurrentPage(1);
       pdfViewStartTime.current = Date.now();
       lastSaveTime.current = Date.now();
+      
+      // Fallback timeout: if onLoad doesn't fire within 12 seconds, assume loaded
+      // Increased timeout significantly to give PDF.js time to fully render entire document
+      // PDFs in iframes sometimes don't fire onLoad reliably, and PDF.js needs time to render all pages
+      const loadTimeout = setTimeout(() => {
+        if (!isLoadedRef.current && !hasErrorRef.current) {
+          // One final check - try to see if content is visible
+          const iframe = document.querySelector(`iframe[title="PDF Document"]`);
+          if (iframe) {
+            // Give it more time if iframe exists to ensure full document render
+            setTimeout(() => {
+              if (!isLoadedRef.current && !hasErrorRef.current) {
+                isLoadedRef.current = true;
+                setIsLoaded(true);
+                pdfViewStartTime.current = Date.now();
+                lastSaveTime.current = Date.now();
+              }
+            }, 3000); // Additional 3 seconds for full render
+          } else {
+            // Iframe doesn't exist yet, mark as loaded anyway
+            isLoadedRef.current = true;
+            setIsLoaded(true);
+            pdfViewStartTime.current = Date.now();
+            lastSaveTime.current = Date.now();
+          }
+        }
+      }, 12000); // Increased to 12 seconds to allow full document render
       
       // Track time when PDF is viewed
       const trackPDFTime = () => {
@@ -1096,6 +1306,7 @@ export default function LessonView() {
       const interval = setInterval(trackPDFTime, 30000); // Check every 30 seconds
       
       return () => {
+        clearTimeout(loadTimeout);
         clearInterval(interval);
         // Save final time on unmount
         if (lastSaveTime.current && document.visibilityState === 'visible' && onTimeTrackRef.current) {
@@ -1105,12 +1316,65 @@ export default function LessonView() {
           }
         }
       };
-    }, [pdfUrl]); // Only depend on pdfUrl, not onTimeTrack
+    }, [pdfUrl]); // Only depend on pdfUrl
 
     const handleLoad = useCallback(() => {
-      setIsLoaded(true);
-      pdfViewStartTime.current = Date.now();
-      lastSaveTime.current = Date.now();
+      // Wait longer to ensure PDF.js has fully initialized and rendered all pages
+      // This prevents showing partial/glitchy content as pages load incrementally
+      const checkPDFReady = () => {
+        const iframe = document.querySelector(`iframe[title="PDF Document"]`);
+        if (iframe) {
+          try {
+            // Try to access iframe content to verify it's loaded
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+            if (iframeDoc) {
+              // Check if PDF.js viewer is present and initialized
+              const viewer = iframeDoc.querySelector('.pdfViewer') || iframeDoc.querySelector('#viewer');
+              if (viewer) {
+                // Check if pages are rendered (PDF.js adds page elements)
+                const pages = viewer.querySelectorAll('.page');
+                if (pages.length > 0) {
+                  // Pages are being rendered, wait a bit more for all pages to finish
+                  // Check again after a delay to ensure all pages are rendered
+                  setTimeout(() => {
+                    const allPages = viewer.querySelectorAll('.page');
+                    // Wait for at least 2 seconds after pages start appearing to ensure full render
+                    setTimeout(() => {
+                      isLoadedRef.current = true;
+                      setIsLoaded(true);
+                      pdfViewStartTime.current = Date.now();
+                      lastSaveTime.current = Date.now();
+                    }, 2000); // Additional 2 seconds for all pages to render
+                  }, 1000);
+                  return;
+                }
+              }
+            }
+          } catch (e) {
+            // Cross-origin or other error - that's fine, just wait longer
+          }
+        }
+        
+        // Fallback: mark as loaded after a longer delay to ensure full render
+        setTimeout(() => {
+          isLoadedRef.current = true;
+          setIsLoaded(true);
+          pdfViewStartTime.current = Date.now();
+          lastSaveTime.current = Date.now();
+        }, 3000); // 3 second delay for full document render
+      };
+      
+      // Initial delay to let iframe start loading, then check
+      setTimeout(() => {
+        requestAnimationFrame(checkPDFReady);
+      }, 1000); // 1 second initial delay
+    }, []);
+
+    const handleError = useCallback(() => {
+      hasErrorRef.current = true;
+      isLoadedRef.current = false;
+      setHasError(true);
+      setIsLoaded(false);
     }, []);
 
     const goToNextPage = useCallback(() => {
@@ -1141,21 +1405,43 @@ export default function LessonView() {
           <>
             <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
               <div className="relative w-full h-full">
+                {hasError ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                    <div className="text-center text-gray-500 p-8">
+                      <p className="mb-4">Failed to load PDF document.</p>
+                      <button
+                        onClick={() => {
+                          setHasError(false);
+                          setIsLoaded(false);
+                          setCurrentPage(1); // Reset to first page on retry
+                        }}
+                        className="px-4 py-2 bg-primary-default text-white rounded-lg hover:bg-primary-dark transition-colors"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
                 <LazyIframe
-                  key={pdfUrl}
+                      key={`${pdfUrl}-${currentPage}`}
                   src={`${pdfUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitH&page=${currentPage}`}
                   title="PDF Document"
-                  className={`w-full h-full transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                  className={`w-full h-full transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                   onLoad={handleLoad}
+                      onError={handleError}
                   frameBorder="0"
                 />
-                {!isLoaded && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-[rgba(6,17,48,0.96)]">
+                    {!isLoaded && !hasError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-[rgba(6,17,48,0.96)] z-10">
                     <div className="flex flex-col items-center gap-3 text-white">
                       <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#FF8F3F]"></div>
                       <p className="text-xs font-medium tracking-wide text-[#FFCB9E] uppercase">Loading document…</p>
+                      <p className="text-xs text-gray-400 mt-2">Please wait while the document renders</p>
                     </div>
                   </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -2687,9 +2973,9 @@ export default function LessonView() {
               {currentCourse.title}
             </button>
             <span>/</span>
-            <span>{currentLesson.moduleTitle}</span>
+            <span>{currentLesson?.module?.title || 'Unassigned Lessons'}</span>
             <span>/</span>
-            <span className="text-text-dark">{currentLesson.title}</span>
+            <span className="text-text-dark">{currentLesson?.title || 'Lesson'}</span>
             {isCourseCompleted && (
               <>
                 <span className="mx-2">•</span>
@@ -2721,7 +3007,9 @@ export default function LessonView() {
                 className="flex items-center gap-2"
               >
                 <List className="w-4 h-4" />
-                <span className="hidden sm:inline">Course Outline</span>
+                <span className="hidden sm:inline">
+                  {sidebarCollapsed ? 'Show Course Outline' : 'Hide Course Outline'}
+                </span>
           </Button>
           
           {isLastLesson ? (
@@ -2752,15 +3040,9 @@ export default function LessonView() {
           ) : (
             <Button 
               onClick={() => goToNextLesson(false)} 
-              disabled={!timeRequirementMet || !!firstIncompleteKnowledgeCheck}
-              title={
-                !timeRequirementMet && timeRemainingInfo
-                  ? `Please review this lesson for at least ${timeRemainingInfo.totalMinutesRequired} minute${timeRemainingInfo.totalMinutesRequired !== 1 ? 's' : ''} before proceeding. You need ${timeRemainingInfo.minutesRemaining} more minute${timeRemainingInfo.minutesRemaining !== 1 ? 's' : ''}.`
-                  : firstIncompleteKnowledgeCheck
-                  ? 'Complete the knowledge check before moving on.'
-                  : 'Continue to next lesson'
-              }
-                  className="flex items-center gap-2"
+              disabled={false}
+              title="Continue to next lesson"
+              className="flex items-center gap-2"
             >
                   <span className="hidden sm:inline">Next</span>
                   <ChevronRight className="w-4 h-4" />
@@ -2781,18 +3063,7 @@ export default function LessonView() {
             <div className="lg:col-span-4 space-y-6">
               {/* Toggle Buttons */}
               <div className="flex gap-2 border-b border-background-dark pb-2">
-                <button
-                  onClick={() => setSidebarView('lessonInfo')}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                    sidebarView === 'lessonInfo'
-                      ? 'bg-primary-light text-primary-default font-medium'
-                      : 'text-text-light hover:text-text-dark hover:bg-background-light'
-                  }`}
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span className="text-sm">Lesson Info</span>
-                </button>
-                <button
+              <button
                   onClick={() => setSidebarView('courseOutline')}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                     sidebarView === 'courseOutline'
@@ -2803,6 +3074,18 @@ export default function LessonView() {
                   <FileText className="w-4 h-4" />
                   <span className="text-sm">Course Outline</span>
                 </button>
+                   <button
+                  onClick={() => setSidebarView('lessonInfo')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                    sidebarView === 'lessonInfo'
+                      ? 'bg-primary-light text-primary-default font-medium'
+                      : 'text-text-light hover:text-text-dark hover:bg-background-light'
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span className="text-sm">Lesson Info</span>
+                </button>
+             
           </div>
 
               {/* Lesson Info View */}
@@ -2815,7 +3098,7 @@ export default function LessonView() {
                       {lessonDescriptionHtml || (
                         <p>{currentLesson.description || currentLesson.content_text || 'No description available.'}</p>
                       )}
-                    </div>
+              </div>
             </div>
             
                   {/* Feedback Buttons */}
@@ -2845,7 +3128,15 @@ export default function LessonView() {
                   {/* Action Buttons */}
                   <div className="space-y-2">
                     <button
-                      onClick={() => setShowNotes(!showNotes)}
+                      onClick={() => {
+                        setShowNotes(true);
+                        setTimeout(() => {
+                          const notesSection = document.getElementById('lesson-notes');
+                          if (notesSection) {
+                            notesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }
+                        }, 100);
+                      }}
                       className="w-full flex items-center gap-3 p-3 rounded-lg border border-background-dark hover:bg-background-light transition-colors text-left"
                     >
                       <Lightbulb className="w-5 h-5 text-primary-default" />
@@ -3192,17 +3483,11 @@ export default function LessonView() {
                   {!isCompleted ? (
                     <Button 
                       onClick={markAsCompleted} 
-                      disabled={isCompleting || !timeRequirementMet || !!firstIncompleteKnowledgeCheck}
-                      title={
-                        !timeRequirementMet && timeRemainingInfo
-                          ? `Please review this lesson for at least ${timeRemainingInfo.totalMinutesRequired} minute${timeRemainingInfo.totalMinutesRequired !== 1 ? 's' : ''} before completing. You need ${timeRemainingInfo.minutesRemaining} more minute${timeRemainingInfo.minutesRemaining !== 1 ? 's' : ''}.`
-                          : firstIncompleteKnowledgeCheck
-                          ? 'Please complete the knowledge check for this lesson before marking it as complete.'
-                          : 'Mark this lesson as complete'
-                      }
+                      disabled={isCompleting}
+                      title="Mark this lesson as complete"
                       className="bg-primary-default hover:bg-primary-dark text-white px-6 py-3 rounded-lg font-medium shadow-lg transition-colors"
                     >
-                      {isCompleting ? 'Completing...' : 'Got It!'}
+                      {isCompleting ? 'Completing...' : 'Complete'}
                     </Button>
                   ) : (
                     <div className="flex items-center gap-2 text-success-default bg-success-light px-6 py-3 rounded-lg font-medium">
@@ -3338,7 +3623,7 @@ export default function LessonView() {
 
               {/* Notes Section (if showNotes is true) */}
               {showNotes && (
-                <Card className="p-6 mb-6">
+                <Card id="lesson-notes" className="p-6 mb-6">
                   <h3 className="text-lg font-semibold text-text-dark mb-4">My Notes</h3>
                   <textarea
                     className="w-full h-64 p-4 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default"
@@ -3346,11 +3631,49 @@ export default function LessonView() {
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                   />
-                  <div className="mt-4 flex justify-end">
-                    <Button variant="secondary" onClick={() => {
-                      // Save notes functionality can be added here
-                      success('Notes saved!');
-                    }}>Save Notes</Button>
+                  <div className="mt-4 flex justify-between items-center">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={async () => {
+                        if (!user?.id || !lesson?.id || !course?.id) return
+                        try {
+                          const { data, error } = await supabase
+                            .from(TABLES.LESSON_PROGRESS)
+                            .select('*')
+                            .eq('user_id', user.id)
+                            .eq('lesson_id', lesson.id)
+                            .eq('course_id', course.id)
+                            .maybeSingle()
+                          
+                          if (error) {
+                            showError(`Error: ${error.message}`)
+                            return
+                          }
+                          
+                          if (data) {
+                            const metadataStr = typeof data.metadata === 'string' 
+                              ? data.metadata 
+                              : JSON.stringify(data.metadata, null, 2)
+                            alert(`Database Data:\n\n${JSON.stringify(data, null, 2)}\n\nMetadata:\n${metadataStr}`)
+                            console.log(`Database Data:\n\n${JSON.stringify(data, null, 2)}\n\nMetadata:\n${metadataStr}`)
+                          } else {
+                            alert('No data found in database for this lesson.')
+                          }
+                        } catch (err) {
+                          showError(`Error checking database: ${err.message}`)
+                        }
+                      }}
+                    >
+                      Debug: Check DB
+                    </Button>
+                    <Button 
+                      variant="secondary" 
+                      onClick={saveNotes}
+                      disabled={isSavingNotes}
+                    >
+                      {isSavingNotes ? 'Saving...' : 'Save Notes'}
+                    </Button>
             </div>
           </Card>
         )}

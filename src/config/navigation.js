@@ -220,7 +220,18 @@ export const getCourseBreadcrumbs = async (pathname, params = {}, courseStore = 
         // If we have a courseId and courseStore, try to get course details
         if (params.courseId && courseStore) {
             try {
-                const course = courseStore.courses.find(c => c.id === params.courseId);
+                let course = courseStore.courses.find(c => c.id === params.courseId);
+                
+                // If course not in store, try to fetch it
+                if (!course && courseStore.actions && courseStore.actions.fetchCourses) {
+                    try {
+                        await courseStore.actions.fetchCourses({}, null);
+                        course = courseStore.courses.find(c => c.id === params.courseId);
+                    } catch (_) {
+                        // Silently fail if fetch doesn't work
+                    }
+                }
+                
                 if (course) {
                     currentPath = `/app/courses/${params.courseId}`;
                     breadcrumbs.push({
@@ -248,10 +259,11 @@ export const getCourseBreadcrumbs = async (pathname, params = {}, courseStore = 
                                     }
                                 });
 
-                                if (foundModule && foundModule.id !== 'unassigned') {
+                                // Always show module, even if unassigned
+                                if (foundModule) {
                                     breadcrumbs.push({
-                                        label: foundModule.title || 'Module',
-                                        href: `${currentPath}#module-${foundModule.id}`,
+                                        label: foundModule.title || 'Unassigned Lessons',
+                                        href: foundModule.id !== 'unassigned' ? `${currentPath}#module-${foundModule.id}` : currentPath,
                                         isLast: false
                                     });
                                 }
@@ -262,7 +274,21 @@ export const getCourseBreadcrumbs = async (pathname, params = {}, courseStore = 
                                         href: null,
                                         isLast: true
                                     });
+                                } else {
+                                    // Lesson not found, but still show generic lesson label
+                                    breadcrumbs.push({
+                                        label: 'Lesson',
+                                        href: null,
+                                        isLast: true
+                                    });
                                 }
+                            } else {
+                                // No lessons data, but still show lesson in breadcrumb
+                                breadcrumbs.push({
+                                    label: 'Lesson',
+                                    href: null,
+                                    isLast: true
+                                });
                             }
                         } catch (error) {
                             // Fallback to generic lesson label
