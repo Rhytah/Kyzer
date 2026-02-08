@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import heroImage from "@/assets/images/hand-drawn.png";
 export default function Home() {
   const features = [
     {
@@ -192,12 +191,10 @@ export default function Home() {
 
             {/* Hero Image/Visual */}
             <div className="relative">
-              <div>
-                <img
-                  src={heroImage}
-                  alt="Hero Image"
-                  className="w-full h-full object-cover"
-                />
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="text-6xl md:text-8xl opacity-20">
+                  📚
+                </div>
               </div>
             </div>
           </div>
