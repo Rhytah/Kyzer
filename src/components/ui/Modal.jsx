@@ -61,11 +61,12 @@ const Modal = ({
         onClick={onClose}
       />
       
-      {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
+      {/* Modal - stop propagation so clicks inside don't close or get swallowed by parent */}
+      <div className="flex min-h-full items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
         <div
           className={`relative w-full ${sizeClasses[size]} bg-background-white rounded-xl`}
           style={containerStyles}
+          onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           {title && (

@@ -195,11 +195,6 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     
-    // Protect content_text when it contains split PDF data
-    if (name === 'content_text' && formData.content_type === 'presentation' && pdfSplitData) {
-      return; // Don't update content_text if it contains split PDF data
-    }
-    
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
@@ -401,15 +396,11 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
     setPdfSplitData(splitData);
     setShowPdfSplitter(false);
     
-    // Update content type to presentation but don't store split data in content_text
-    const updatedFormData = {
-      ...formData,
-      content_type: 'presentation', // Change content type to presentation after splitting
-      content_text: '', // Clear content_text - split data is stored separately
-      content_url: '' // Clear URL since we're using split data
-    };
-    
-    setFormData(updatedFormData);
+    setFormData(prev => ({
+      ...prev,
+      content_type: 'presentation',
+      content_url: ''
+    }));
     
     success(`PDF successfully split into ${splitData.images.length} pages! Ready to save as presentation.`);
   };
@@ -997,7 +988,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
             const presentationData = {
               lesson_id: createdLesson.id,
               title: `${createdLesson.title} - Presentation`,
-              description: formData.content_text || `Auto-generated presentation from split PDF with ${splitData.images.length} pages`,
+              description: formData.content_text || '',
               estimated_duration: Math.ceil(splitData.images.length * 30), // 30 seconds per page
               created_by: user.id
             };
@@ -1096,6 +1087,46 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         return;
       }
 
+      // Handle image upload if selected - MUST happen before lesson creation
+      if (formData.content_type === 'image' && imageFile) {
+        setIsUploading(true);
+        try {
+          const subdir = `lessons/images/${courseId}`;
+          const path = await uploadPreservingName(subdir, imageFile);
+          const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, path);
+          
+          lessonData.content_url = publicUrl;
+          setIsUploading(false);
+        } catch (error) {
+          const errorMsg = `Failed to upload image: ${error.message}`;
+          setError(errorMsg);
+          showError(errorMsg);
+          setIsUploading(false);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Handle audio attachment upload if selected - MUST happen before lesson creation
+      if (audioFile) {
+        setIsUploading(true);
+        try {
+          const subdir = `lessons/audio-attachments/${courseId}`;
+          const path = await uploadPreservingName(subdir, audioFile);
+          const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, path);
+          
+          lessonData.audio_attachment_url = publicUrl;
+          setIsUploading(false);
+        } catch (error) {
+          const errorMsg = `Failed to upload audio attachment: ${error.message}`;
+          setError(errorMsg);
+          showError(errorMsg);
+          setIsUploading(false);
+          setLoading(false);
+          return;
+        }
+      }
+
       // If not a presentation, create the lesson normally
       if (formData.content_type !== 'presentation') {
         const lessonResult = isEditing 
@@ -1117,47 +1148,6 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
         onSuccess(lessonResult.data);
         setLoading(false);
         return;
-      }
-
-
-      // Handle image upload if selected
-      if (formData.content_type === 'image' && imageFile) {
-        setIsUploading(true);
-        try {
-          const subdir = `lessons/images/${courseId}`;
-          const path = await uploadPreservingName(subdir, imageFile);
-          const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, path);
-          
-          lessonData.content_url = publicUrl;
-          setIsUploading(false);
-        } catch (error) {
-          const errorMsg = `Failed to upload image: ${error.message}`;
-          setError(errorMsg);
-          showError(errorMsg);
-          setIsUploading(false);
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Handle audio attachment upload if selected
-      if (audioFile) {
-        setIsUploading(true);
-        try {
-          const subdir = `lessons/audio-attachments/${courseId}`;
-          const path = await uploadPreservingName(subdir, audioFile);
-          const publicUrl = getFileUrl(STORAGE_BUCKETS.COURSE_CONTENT, path);
-          
-          lessonData.audio_attachment_url = publicUrl;
-          setIsUploading(false);
-        } catch (error) {
-          const errorMsg = `Failed to upload audio attachment: ${error.message}`;
-          setError(errorMsg);
-          showError(errorMsg);
-          setIsUploading(false);
-          setLoading(false);
-          return;
-        }
       }
     } catch (error) {
       setError(error.message || 'An unexpected error occurred');
@@ -2542,6 +2532,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                 PDF Splitter & Arranger
               </h3>
               <button
+                type="button"
                 onClick={() => setShowPdfSplitter(false)}
                 className="p-2 hover:bg-gray-100 rounded-md text-gray-400 hover:text-gray-600"
               >

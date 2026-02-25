@@ -340,20 +340,20 @@ export default function PresentationViewer({
     trackSlideStart(currentSlideIndex);
   }, [currentSlideIndex, trackSlideStart]);
 
-  // Function to fetch quiz data for a quiz slide
+  const fetchedQuizSlidesRef = useRef(new Set());
+
   const fetchQuizData = useCallback(async (slide) => {
     if (slide.content_type !== 'quiz' || !slide.metadata?.quiz_id) return;
     
     const slideId = slide.id;
     const quizId = slide.metadata.quiz_id;
     
-    // Avoid refetching if already loaded
-    if (quizData[slideId] || quizLoading[slideId]) return;
+    if (fetchedQuizSlidesRef.current.has(slideId)) return;
+    fetchedQuizSlidesRef.current.add(slideId);
     
     try {
       setQuizLoading(prev => ({ ...prev, [slideId]: true }));
       
-      // Fetch quiz data and questions
       const [quizResult, questionsResult] = await Promise.all([
         actions.fetchQuiz(quizId),
         actions.fetchQuizQuestions(quizId)
@@ -367,11 +367,12 @@ export default function PresentationViewer({
         setQuizQuestions(prev => ({ ...prev, [slideId]: questionsResult.data }));
       }
     } catch (error) {
+      fetchedQuizSlidesRef.current.delete(slideId);
       showError(`Failed to load quiz: ${error.message}`);
     } finally {
       setQuizLoading(prev => ({ ...prev, [slideId]: false }));
     }
-  }, [actions, quizData, quizLoading, showError]);
+  }, [actions, showError]);
   // Fetch quiz data when current slide is a quiz and manage loading states
   useEffect(() => {
     if (currentSlide?.content_type === 'quiz') {
@@ -1104,70 +1105,10 @@ export default function PresentationViewer({
           Press F11 or Esc to exit fullscreen
         </div>
       )}
-      {/* Presentation Info */}
-      <Card className="p-6 mb-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-text-dark mb-2">
-              {lesson?.title || presentation.title}
-            </h1>
-            {presentation.description && (
-              <p className="text-text-medium mb-3">{presentation.description}</p>
-            )}
-            <div className="flex items-center gap-6 text-sm text-text-muted">
-              <div className="flex items-center gap-2">
-                <Settings className="w-4 h-4" />
-                <span>Presentation</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                <span>{presentation.estimated_duration ? `${presentation.estimated_duration} min` : formatTime(totalSlides * 30)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4" />
-                <span>{totalSlides} slides</span>
-              </div>
-              {/* Progress Summary */}
-              {userId && presentationProgress && (
-                <div className="flex items-center gap-2 bg-green-50 px-3 py-1 rounded-full">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span className="text-green-700 font-medium">
-                    {presentationProgress.completed_slides}/{presentationProgress.total_slides} completed
-                    {presentationProgress.total_time_spent_seconds > 0 && (
-                      <span className="ml-2 text-green-600">
-                        • {Math.round(presentationProgress.total_time_spent_seconds / 60)}m spent
-                      </span>
-                    )}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="secondary" 
-              size="sm"
-              onClick={() => setShowEditForm(true)}
-              className="flex items-center gap-2"
-            >
-              <Edit3 className="w-4 h-4" />
-              Edit
-            </Button>
-            {!isCompleted ? (
-              <Button onClick={onMarkComplete}>
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Mark Complete
-              </Button>
-            ) : (
-              <div className="flex items-center gap-2 text-success-default">
-                <CheckCircle className="w-5 h-5" />
-                <span className="font-medium">Completed</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </Card>
+      {/* Presentation Description & Actions */}
+      {(presentation.description && !presentation.description.startsWith('Auto-generated presentation from split PDF')) && (
+        <p className="text-text-medium mb-4">{presentation.description}</p>
+      )}
 
       {/* Presentation Content */}
       <Card className="p-6">

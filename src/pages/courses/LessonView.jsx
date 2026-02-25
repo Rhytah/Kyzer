@@ -49,6 +49,415 @@ import {
   Modal
 } from '@/components/ui'
 
+// KnowledgeCheckCard - defined at module level to avoid re-creation on parent re-renders
+const KnowledgeCheckCard = memo(({
+  quiz,
+  questions,
+  onSubmit,
+  onRetake,
+  isCompleted,
+  initialResult,
+  isActive,
+  variant = 'default',
+  onContinue
+}) => {
+  const { success, error: showError } = useToast();
+  const [answers, setAnswers] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(Boolean(initialResult));
+  const [result, setResult] = useState(initialResult || null);
+
+  useEffect(() => {
+    if (initialResult) {
+      setResult(initialResult);
+      setShowFeedback(true);
+      if (initialResult.answers) {
+        setAnswers(initialResult.answers);
+      }
+    }
+  }, [initialResult]);
+
+  const evaluateAnswer = useCallback((question, answer) => {
+    if (answer === undefined || answer === null) return false;
+
+    switch (question.question_type) {
+      case 'multiple_choice':
+        return answer === question.correct_answer;
+      case 'multiple_select': {
+        const userSet = new Set(Array.isArray(answer) ? answer : []);
+        const correctSet = new Set(Array.isArray(question.correct_answer) ? question.correct_answer : []);
+        if (userSet.size !== correctSet.size) return false;
+        for (const value of userSet) {
+          if (!correctSet.has(value)) return false;
+        }
+        return true;
+      }
+      case 'true_false':
+        return answer === question.correct_answer;
+      case 'short_answer': {
+        const userText = (answer || '').toString().trim().toLowerCase();
+        const correctText = (question.correct_answer || '').toString().trim().toLowerCase();
+        return userText.length > 0 && userText === correctText;
+      }
+      default:
+        return false;
+    }
+  }, []);
+
+  const computeResult = useCallback(() => {
+    if (!questions || questions.length === 0) {
+      return {
+        score: 0,
+        maxScore: 0,
+        percentage: 0,
+        breakdown: [],
+      };
+    }
+
+    let score = 0;
+    const breakdown = questions.map((question, idx) => {
+      const answerKey = question.id ?? `q-${idx}`;
+      const answer = answers[answerKey];
+      const correct = evaluateAnswer(question, answer);
+      if (correct) score += 1;
+      return {
+        questionId: question.id,
+        questionIndex: idx,
+        isCorrect: correct,
+        userAnswer: answer,
+        correctAnswer: question.correct_answer,
+      };
+    });
+
+    const maxScore = questions.length;
+    const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+
+    return {
+      score,
+      maxScore,
+      percentage,
+      breakdown,
+      answers,
+    };
+  }, [answers, evaluateAnswer, questions]);
+
+  const handleAnswerChange = useCallback((questionId, value) => {
+    setAnswers(prev => ({
+      ...prev,
+      [questionId]: value,
+    }));
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!questions || questions.length === 0) {
+      showError('This knowledge check has no questions.');
+      return;
+    }
+
+    const unanswered = questions.filter((question, idx) => {
+      const answerKey = question.id ?? `q-${idx}`;
+      const value = answers[answerKey];
+      if (Array.isArray(value)) return value.length === 0;
+      if (typeof value === 'string') return value.trim().length === 0;
+      return value === undefined || value === null;
+    });
+
+    if (unanswered.length > 0) {
+      showError('Please answer all questions before submitting.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const summary = computeResult();
+    try {
+      await onSubmit(quiz, answers, summary);
+      setResult(summary);
+      setShowFeedback(true);
+      success('Knowledge check submitted successfully!');
+    } catch (error) {
+      showError('Failed to submit knowledge check. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRetake = () => {
+    setAnswers({});
+    setResult(null);
+    setShowFeedback(false);
+    if (onRetake) {
+      onRetake(quiz.id);
+    }
+  };
+
+  const renderAnswerContent = (question, questionIndex) => {
+    const answerKey = question.id ?? `q-${questionIndex}`;
+    const currentAnswer = answers[answerKey];
+    const feedback = showFeedback ? evaluateAnswer(question, currentAnswer) : null;
+
+    const baseOptionClass = 'flex items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors';
+    const neutralClasses = 'border-background-dark hover:border-primary-default';
+    const correctClasses = 'border-success-default bg-success-superlight text-success-darker';
+    const incorrectClasses = 'border-error-default bg-error-superlight text-error-darker';
+
+    const getOptionClass = (isSelected, optionIndex, optionValue) => {
+      if (!showFeedback) {
+        return `${baseOptionClass} ${isSelected ? 'border-primary-default bg-primary-superlight text-primary-darker' : neutralClasses}`;
+      }
+      let optionCorrect = false;
+      if (question.question_type === 'multiple_select') {
+        optionCorrect = Array.isArray(question.correct_answer) && question.correct_answer.includes(optionIndex);
+      } else if (question.question_type === 'true_false') {
+        optionCorrect = optionValue === question.correct_answer;
+      } else {
+        optionCorrect = optionIndex === question.correct_answer;
+      }
+      if (optionCorrect) {
+        return `${baseOptionClass} ${correctClasses}`;
+      }
+      if (isSelected && !optionCorrect) {
+        return `${baseOptionClass} ${incorrectClasses}`;
+      }
+      return `${baseOptionClass} ${neutralClasses}`;
+    };
+
+    switch (question.question_type) {
+      case 'multiple_choice':
+        return (
+          <div className="space-y-3">
+            {question.options?.map((option, optionIndex) => {
+              const isSelected = currentAnswer === optionIndex;
+              return (
+                <button
+                  key={optionIndex}
+                  type="button"
+                  className={getOptionClass(isSelected, optionIndex, optionIndex)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!showFeedback) {
+                      handleAnswerChange(answerKey, optionIndex);
+                    }
+                  }}
+                  disabled={showFeedback}
+                  aria-pressed={isSelected}
+                  style={{ cursor: showFeedback ? 'not-allowed' : 'pointer' }}
+                >
+                  <span className="font-medium">{String.fromCharCode(65 + optionIndex)}.</span>
+                  <span>{option}</span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      case 'multiple_select': {
+        const selectedAnswers = Array.isArray(currentAnswer) ? currentAnswer : [];
+        return (
+          <div className="space-y-3">
+            {question.options?.map((option, optionIndex) => {
+              const isSelected = selectedAnswers.includes(optionIndex);
+              return (
+                <button
+                  key={optionIndex}
+                  type="button"
+                  className={getOptionClass(isSelected, optionIndex, optionIndex)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (showFeedback) return;
+                    const updated = new Set(selectedAnswers);
+                    if (updated.has(optionIndex)) {
+                      updated.delete(optionIndex);
+                    } else {
+                      updated.add(optionIndex);
+                    }
+                    handleAnswerChange(answerKey, Array.from(updated));
+                  }}
+                  disabled={showFeedback}
+                  aria-pressed={isSelected}
+                  style={{ cursor: showFeedback ? 'not-allowed' : 'pointer' }}
+                >
+                  <span className="font-medium">{String.fromCharCode(65 + optionIndex)}.</span>
+                  <span>{option}</span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      }
+      case 'true_false':
+        return (
+          <div className="space-y-3">
+            {[true, false].map(value => {
+              const label = value ? 'True' : 'False';
+              const isSelected = currentAnswer === value;
+              const optionIndex = value ? 1 : 0;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  className={getOptionClass(isSelected, optionIndex, value)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!showFeedback) {
+                      handleAnswerChange(answerKey, value);
+                    }
+                  }}
+                  disabled={showFeedback}
+                  aria-pressed={isSelected}
+                  style={{ cursor: showFeedback ? 'not-allowed' : 'pointer' }}
+                >
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      case 'short_answer':
+        return (
+          <div className="space-y-2">
+            <textarea
+              value={currentAnswer || ''}
+              onChange={event => handleAnswerChange(answerKey, event.target.value)}
+              disabled={showFeedback}
+              placeholder="Type your response here..."
+              className="w-full rounded-lg border border-background-dark px-3 py-2 text-sm focus:border-primary-default focus:outline-none focus:ring-2 focus:ring-primary-muted disabled:bg-background-light"
+              rows={3}
+            />
+            {showFeedback && (
+              <p className={`text-sm font-medium ${feedback ? 'text-success-darker' : 'text-error-darker'}`}>
+                {feedback
+                  ? 'Correct!'
+                  : `Expected answer: ${question.correct_answer}`}
+              </p>
+            )}
+          </div>
+        );
+      default:
+        return <p className="text-sm text-text-light">Unsupported question type.</p>;
+    }
+  };
+
+  const containerClassName = [
+    'bg-white',
+    'p-6',
+    'transition-shadow',
+    variant === 'modal'
+      ? 'rounded-2xl shadow-lg sm:p-10 max-h-[70vh] overflow-y-auto'
+      : variant === 'embedded'
+        ? 'rounded-xl border border-background-dark shadow-sm'
+        : 'rounded-2xl border border-background-dark shadow-sm',
+    isActive ? 'ring-2 ring-primary-default shadow-lg' : ''
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <div
+      id={`knowledge-check-${quiz.id}`}
+      className={containerClassName}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-primary-default">
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary-superlight px-2 py-1 font-semibold text-primary-darker">
+              <CheckCircle className="h-3 w-3" />
+              Knowledge Check
+            </span>
+            {questions?.length ? (
+              <span className="text-text-light">
+                {questions.length} {questions.length === 1 ? 'question' : 'questions'}
+              </span>
+            ) : null}
+          </div>
+          <h3 className="mt-3 text-lg font-semibold text-text-dark">{quiz.title}</h3>
+          {quiz.description && <p className="mt-2 text-sm text-text-light">{quiz.description}</p>}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {isCompleted ? (
+            <StatusBadge status="success" label="Completed" />
+          ) : (
+            <StatusBadge status="warning" label="In Progress" />
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-6">
+        {questions && questions.length > 0 ? (
+          questions.map((question, index) => {
+            const breakdownEntry = result?.breakdown?.find(entry => entry.questionId === question.id);
+            const questionFeedback = breakdownEntry ? breakdownEntry.isCorrect : null;
+            return (
+              <div key={question.id || `${quiz.id}-${index}`} className="space-y-4 rounded-lg border border-background-dark p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-text-dark">
+                      {index + 1}. {question.question_text}
+                    </p>
+                    {showFeedback && questionFeedback !== null && (
+                      <p className={`mt-2 text-xs font-medium ${questionFeedback ? 'text-success-darker' : 'text-error-darker'}`}>
+                        {questionFeedback
+                          ? 'Great job! You got all questions correct.'
+                          : 'Review the questions you missed and try again.'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {renderAnswerContent(question, index)}
+              </div>
+            );
+          })
+        ) : (
+          <div className="rounded-lg border border-dashed border-background-dark p-6 text-center text-sm text-text-light">
+            No questions available for this knowledge check.
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {result && showFeedback ? (
+          <div className="flex items-center gap-3 text-sm text-text-light">
+            <div className="flex items-center gap-1 rounded-full bg-primary-superlight px-3 py-1 font-medium text-primary-darker">
+              Score: {result.score}/{result.maxScore}
+            </div>
+            <span>Accuracy: {result.percentage}%</span>
+          </div>
+        ) : (
+          <p className="text-sm text-text-light">
+            Answer all questions to complete this knowledge check.
+          </p>
+        )}
+
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {showFeedback && (
+            <>
+              <Button variant="ghost" onClick={handleRetake} size="sm">
+                Try Again
+              </Button>
+              {onContinue && (
+                <Button onClick={onContinue} size="sm">
+                  Continue
+                </Button>
+              )}
+            </>
+          )}
+          {!showFeedback && (
+            <Button onClick={handleSubmit} disabled={isSubmitting} size="sm">
+              {isSubmitting
+                ? 'Submitting...'
+                : 'Check Answers'}
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+KnowledgeCheckCard.displayName = 'KnowledgeCheckCard';
+
 // Custom hook for intersection observer (lazy loading)
 const useIntersectionObserver = (options = {}) => {
   const [isIntersecting, setIsIntersecting] = useState(false)
@@ -95,6 +504,156 @@ const downloadFile = (url, filename) => {
   link.click();
   document.body.removeChild(link);
 };
+
+// AudioPlayer - defined at module level to avoid re-creation on parent re-renders
+const AudioPlayer = memo(({ audioUrl }) => {
+  return (
+    <div className="bg-gray-50 rounded-lg p-6">
+      {audioUrl ? (
+        <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
+          <div className="w-full h-full flex flex-col items-center justify-center p-4">
+            <div className="mb-4">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-blue-600 text-2xl">🎵</span>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Audio Lesson</h3>
+              <p className="text-sm text-gray-600">Use the controls below to play the audio content</p>
+            </div>
+            
+            <div className="max-w-md mx-auto mb-4">
+              <audio
+                controls
+                className="w-full h-12"
+                preload="metadata"
+                onError={(e) => {
+                  console.error('Audio playback error:', e);
+                }}
+              >
+                <source src={audioUrl} type="audio/mpeg" />
+                <source src={audioUrl} type="audio/wav" />
+                <source src={audioUrl} type="audio/ogg" />
+                <source src={audioUrl} type="audio/m4a" />
+                <source src={audioUrl} type="audio/aac" />
+                <source src={audioUrl} type="audio/webm" />
+                Your browser does not support the audio element.
+              </audio>
+            </div>
+
+            <div className="flex justify-center space-x-3 mb-4">
+              <Button 
+                variant="secondary" 
+                onClick={() => window.open(audioUrl, '_blank')}
+                className="text-sm"
+              >
+                Download Audio
+              </Button>
+            </div>
+
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg max-w-md">
+              <p className="text-xs text-blue-700">
+                💡 <strong>Tip:</strong> You can use the built-in controls to play, pause, seek, and adjust volume.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="text-center text-gray-500 p-8">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <span className="text-gray-400 text-2xl">🎵</span>
+          </div>
+          <div className="text-gray-500 text-lg mb-2">No audio available</div>
+          <p className="text-sm">The audio content could not be loaded.</p>
+        </div>
+      )}
+    </div>
+  );
+});
+AudioPlayer.displayName = 'AudioPlayer';
+
+// PresentationWrapper - defined at module level to avoid re-creation on parent re-renders
+const PresentationWrapper = memo(({
+  lessonId,
+  lesson,
+  userId,
+  isCompleted,
+  onPresentationComplete,
+  onMarkComplete,
+  onPreviousLesson,
+  onNextLesson,
+  hasPreviousLesson,
+  hasNextLesson
+}) => {
+  const [presentation, setPresentation] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const fetchPresentationByLesson = useCourseStore(state => state.actions.fetchPresentationByLesson);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPresentation = async () => {
+      try {
+        setLoading(true);
+        const result = await fetchPresentationByLesson(lessonId);
+        if (cancelled) return;
+        if (result.error) {
+          setError(result.error);
+        } else {
+          setPresentation(result.data);
+        }
+      } catch (err) {
+        if (!cancelled) setError(err.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadPresentation();
+    return () => { cancelled = true; };
+  }, [lessonId, fetchPresentationByLesson]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center text-gray-500 p-8">
+        <div className="text-red-500 text-lg mb-2">Error loading presentation</div>
+        <p className="text-sm">{error}</p>
+      </div>
+    );
+  }
+
+  if (!presentation) {
+    return (
+      <div className="text-center text-gray-500 p-8">
+        <div className="text-gray-500 text-lg mb-2">No presentation found</div>
+        <p className="text-sm">This lesson doesn&apos;t have a presentation yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <PresentationViewer
+      presentation={presentation}
+      lesson={lesson}
+      userId={userId}
+      onSlideComplete={() => {}}
+      onPresentationComplete={onPresentationComplete}
+      isCompleted={isCompleted}
+      onMarkComplete={onMarkComplete}
+      onPreviousLesson={onPreviousLesson}
+      onNextLesson={onNextLesson}
+      hasPreviousLesson={hasPreviousLesson}
+      hasNextLesson={hasNextLesson}
+    />
+  );
+});
+PresentationWrapper.displayName = 'PresentationWrapper';
 
 export default function LessonView() {
   const { courseId, lessonId } = useParams()
@@ -952,7 +1511,15 @@ export default function LessonView() {
         
         success('Lesson marked as complete!')
         
-        // Navigate to next lesson if available
+        // If this lesson has knowledge check(s), show the first incomplete one (don't skip it)
+        const lessonKnowledgeChecks = (quizzesByLesson[lesson.id] || []).filter(q => q.quiz_type === 'non_graded');
+        const firstIncomplete = lessonKnowledgeChecks.find(q => !quizCompletionStatus[q.id]);
+        if (firstIncomplete) {
+          activateKnowledgeCheck(firstIncomplete.id);
+          return;
+        }
+        
+        // No knowledge check or all complete: navigate to next lesson if available
         const { data: lessonsData } = await actions.fetchCourseLessons(course.id)
         if (lessonsData && Object.keys(lessonsData).length > 0) {
           const flatLessons = [];
@@ -1580,7 +2147,7 @@ export default function LessonView() {
   TextContentViewer.displayName = 'TextContentViewer';
 
   // Memoized Image Viewer component
-  const ImageViewer = memo(({ imageUrl, textContent, audioUrl }) => {
+  const ImageViewer = memo(({ imageUrl, textContent, audioUrl, contentFormat }) => {
     return (
       <div className="space-y-6">
         {imageUrl ? (
@@ -1620,9 +2187,9 @@ export default function LessonView() {
         {textContent && (
           <Card className="p-6">
             <div className="prose max-w-none">
-              {lesson.content_format === 'html' ? (
+              {contentFormat === 'html' ? (
                 <div dangerouslySetInnerHTML={{ __html: textContent }} />
-              ) : lesson.content_format === 'markdown' ? (
+              ) : contentFormat === 'markdown' ? (
                 <div className="whitespace-pre-wrap">{textContent}</div>
               ) : (
                 <div className="whitespace-pre-wrap">{textContent}</div>
@@ -1645,552 +2212,11 @@ export default function LessonView() {
   ImageViewer.displayName = 'ImageViewer';
 
   // Memoized Audio Player component
-  const AudioPlayer = memo(({ audioUrl }) => {
-    return (
-      <div className="bg-gray-50 rounded-lg p-6">
-        {audioUrl ? (
-          <div className="w-full aspect-video bg-gray-50 rounded-lg overflow-hidden">
-            <div className="w-full h-full flex flex-col items-center justify-center p-4">
-              <div className="mb-4">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <span className="text-blue-600 text-2xl">🎵</span>
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Audio Lesson</h3>
-                <p className="text-sm text-gray-600">Use the controls below to play the audio content</p>
-              </div>
-              
-              <div className="max-w-md mx-auto mb-4">
-                <audio
-                  controls
-                  className="w-full h-12"
-                  preload="metadata"
-                  onError={(e) => {
-                    console.error('Audio playback error:', e);
-                  }}
-                >
-                  <source src={audioUrl} type="audio/mpeg" />
-                  <source src={audioUrl} type="audio/wav" />
-                  <source src={audioUrl} type="audio/ogg" />
-                  <source src={audioUrl} type="audio/m4a" />
-                  <source src={audioUrl} type="audio/aac" />
-                  <source src={audioUrl} type="audio/webm" />
-                  Your browser does not support the audio element.
-                </audio>
-              </div>
+  // AudioPlayer is now defined at module level above
 
-              <div className="flex justify-center space-x-3 mb-4">
-                <Button 
-                  variant="secondary" 
-                  onClick={() => window.open(audioUrl, '_blank')}
-                  className="text-sm"
-                >
-                  Download Audio
-                </Button>
-              </div>
+  // PresentationWrapper is now defined at module level above
 
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg max-w-md">
-                <p className="text-xs text-blue-700">
-                  💡 <strong>Tip:</strong> You can use the built-in controls to play, pause, seek, and adjust volume.
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center text-gray-500 p-8">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <span className="text-gray-400 text-2xl">🎵</span>
-            </div>
-            <div className="text-gray-500 text-lg mb-2">No audio available</div>
-            <p className="text-sm">The audio content could not be loaded.</p>
-          </div>
-        )}
-      </div>
-    );
-  });
-
-  AudioPlayer.displayName = 'AudioPlayer';
-
-  // Presentation wrapper component
-  const PresentationWrapper = memo(({ lessonId }) => {
-    const [presentation, setPresentation] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const fetchPresentationByLesson = useCourseStore(state => state.actions.fetchPresentationByLesson);
-
-    useEffect(() => {
-      const loadPresentation = async () => {
-        try {
-          setLoading(true);
-          const result = await fetchPresentationByLesson(lessonId);
-          if (result.error) {
-            setError(result.error);
-          } else {
-            setPresentation(result.data);
-          }
-        } catch (err) {
-          setError(err.message);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      loadPresentation();
-    }, [lessonId, fetchPresentationByLesson]);
-
-    if (loading) {
-      return (
-        <div className="flex items-center justify-center h-64">
-          <LoadingSpinner />
-        </div>
-      );
-    }
-
-    if (error) {
-      return (
-        <div className="text-center text-gray-500 p-8">
-          <div className="text-red-500 text-lg mb-2">Error loading presentation</div>
-          <p className="text-sm">{error}</p>
-        </div>
-      );
-    }
-
-    if (!presentation) {
-      return (
-        <div className="text-center text-gray-500 p-8">
-          <div className="text-gray-500 text-lg mb-2">No presentation found</div>
-          <p className="text-sm">This lesson doesn't have a presentation yet.</p>
-        </div>
-      );
-    }
-
-    return (
-      <PresentationViewer
-        presentation={presentation}
-        lesson={lesson}
-        userId={user?.id}
-        onSlideComplete={(slideIndex) => {
-          // Handle slide completion if needed
-        }}
-        onPresentationComplete={() => {
-          // Handle presentation completion
-          setIsCompleted(true);
-        }}
-        isCompleted={isCompleted}
-        onMarkComplete={markAsCompleted}
-        onPreviousLesson={goToPreviousLesson}
-        onNextLesson={goToNextLesson}
-        hasPreviousLesson={lessons.findIndex(l => l.id === lessonId) > 0}
-        hasNextLesson={lessons.findIndex(l => l.id === lessonId) < lessons.length - 1}
-      />
-    );
-  });
-
-  PresentationWrapper.displayName = 'PresentationWrapper';
-
-  const KnowledgeCheckCard = memo(({
-    quiz,
-    questions,
-    onSubmit,
-    onRetake,
-    isCompleted,
-    initialResult,
-    isActive,
-    variant = 'default',
-    onContinue
-  }) => {
-    const { success, error: showError } = useToast();
-    const [answers, setAnswers] = useState({});
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [showFeedback, setShowFeedback] = useState(Boolean(initialResult));
-    const [result, setResult] = useState(initialResult || null);
-
-    useEffect(() => {
-      if (initialResult) {
-        setResult(initialResult);
-        setShowFeedback(true);
-        if (initialResult.answers) {
-          setAnswers(initialResult.answers);
-        }
-      }
-    }, [initialResult]);
-
-    const evaluateAnswer = useCallback((question, answer) => {
-      if (answer === undefined || answer === null) return false;
-
-      switch (question.question_type) {
-        case 'multiple_choice':
-          return answer === question.correct_answer;
-        case 'multiple_select': {
-          const userSet = new Set(Array.isArray(answer) ? answer : []);
-          const correctSet = new Set(Array.isArray(question.correct_answer) ? question.correct_answer : []);
-          if (userSet.size !== correctSet.size) return false;
-          for (const value of userSet) {
-            if (!correctSet.has(value)) return false;
-          }
-          return true;
-        }
-        case 'true_false':
-          return answer === question.correct_answer;
-        case 'short_answer': {
-          const userText = (answer || '').toString().trim().toLowerCase();
-          const correctText = (question.correct_answer || '').toString().trim().toLowerCase();
-          return userText.length > 0 && userText === correctText;
-        }
-        default:
-          return false;
-      }
-    }, []);
-
-    const computeResult = useCallback(() => {
-      if (!questions || questions.length === 0) {
-        return {
-          score: 0,
-          maxScore: 0,
-          percentage: 0,
-          breakdown: [],
-        };
-      }
-
-      let score = 0;
-      const breakdown = questions.map((question, idx) => {
-        const answer = answers[question.id];
-        const correct = evaluateAnswer(question, answer);
-        if (correct) score += 1;
-        return {
-          questionId: question.id,
-          questionIndex: idx,
-          isCorrect: correct,
-          userAnswer: answer,
-          correctAnswer: question.correct_answer,
-        };
-      });
-
-      const maxScore = questions.length;
-      const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
-
-      return {
-        score,
-        maxScore,
-        percentage,
-        breakdown,
-        answers,
-      };
-    }, [answers, evaluateAnswer, questions]);
-
-    const handleAnswerChange = useCallback((questionId, value) => {
-      setAnswers(prev => ({
-        ...prev,
-        [questionId]: value,
-      }));
-    }, []);
-
-    const handleSubmit = async () => {
-      if (!questions || questions.length === 0) {
-        showError('This knowledge check has no questions.');
-        return;
-      }
-
-      const unanswered = questions.filter(question => {
-        const value = answers[question.id];
-        if (Array.isArray(value)) return value.length === 0;
-        if (typeof value === 'string') return value.trim().length === 0;
-        return value === undefined || value === null;
-      });
-
-      if (unanswered.length > 0) {
-        showError('Please answer all questions before submitting.');
-        return;
-      }
-
-      setIsSubmitting(true);
-      const summary = computeResult();
-      try {
-        await onSubmit(quiz, answers, summary);
-        setResult(summary);
-        setShowFeedback(true);
-        success('Knowledge check submitted successfully!');
-      } catch (error) {
-        showError('Failed to submit knowledge check. Please try again.');
-      } finally {
-        setIsSubmitting(false);
-      }
-    };
-
-    const handleRetake = () => {
-      setAnswers({});
-      setResult(null);
-      setShowFeedback(false);
-      if (onRetake) {
-        onRetake(quiz.id);
-      }
-    };
-
-    const renderAnswerContent = (question) => {
-      const currentAnswer = answers[question.id];
-      const feedback = showFeedback ? evaluateAnswer(question, currentAnswer) : null;
-
-      const baseOptionClass = 'flex items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors';
-      const neutralClasses = 'border-background-dark hover:border-primary-default';
-      const correctClasses = 'border-success-default bg-success-superlight text-success-darker';
-      const incorrectClasses = 'border-error-default bg-error-superlight text-error-darker';
-
-      const getOptionClass = (isSelected, optionIndex, optionValue) => {
-        if (!showFeedback) {
-          return `${baseOptionClass} ${isSelected ? 'border-primary-default bg-primary-superlight text-primary-darker' : neutralClasses}`;
-        }
-        let optionCorrect = false;
-        if (question.question_type === 'multiple_select') {
-          optionCorrect = Array.isArray(question.correct_answer) && question.correct_answer.includes(optionIndex);
-        } else if (question.question_type === 'true_false') {
-          optionCorrect = optionValue === question.correct_answer;
-        } else {
-          optionCorrect = optionIndex === question.correct_answer;
-        }
-        if (optionCorrect) {
-          return `${baseOptionClass} ${correctClasses}`;
-        }
-        if (isSelected && !optionCorrect) {
-          return `${baseOptionClass} ${incorrectClasses}`;
-        }
-        return `${baseOptionClass} ${neutralClasses}`;
-      };
-
-      switch (question.question_type) {
-        case 'multiple_choice':
-          return (
-            <div className="space-y-3">
-              {question.options?.map((option, optionIndex) => {
-                const isSelected = currentAnswer === optionIndex;
-                return (
-                  <button
-                    key={optionIndex}
-                    type="button"
-                    className={getOptionClass(isSelected, optionIndex, optionIndex)}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (!showFeedback) {
-                        handleAnswerChange(question.id, optionIndex);
-                      }
-                    }}
-                    disabled={showFeedback}
-                    aria-pressed={isSelected}
-                    style={{ cursor: showFeedback ? 'not-allowed' : 'pointer' }}
-                  >
-                    <span className="font-medium">{String.fromCharCode(65 + optionIndex)}.</span>
-                    <span>{option}</span>
-                  </button>
-                );
-              })}
-            </div>
-          );
-        case 'multiple_select': {
-          const selectedAnswers = Array.isArray(currentAnswer) ? currentAnswer : [];
-          return (
-            <div className="space-y-3">
-              {question.options?.map((option, optionIndex) => {
-                const isSelected = selectedAnswers.includes(optionIndex);
-                return (
-                  <button
-                    key={optionIndex}
-                    type="button"
-                    className={getOptionClass(isSelected, optionIndex, optionIndex)}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (showFeedback) return;
-                      const updated = new Set(selectedAnswers);
-                      if (updated.has(optionIndex)) {
-                        updated.delete(optionIndex);
-                      } else {
-                        updated.add(optionIndex);
-                      }
-                      handleAnswerChange(question.id, Array.from(updated));
-                    }}
-                    disabled={showFeedback}
-                    aria-pressed={isSelected}
-                    style={{ cursor: showFeedback ? 'not-allowed' : 'pointer' }}
-                  >
-                    <span className="font-medium">{String.fromCharCode(65 + optionIndex)}.</span>
-                    <span>{option}</span>
-                  </button>
-                );
-              })}
-            </div>
-          );
-        }
-        case 'true_false':
-          return (
-            <div className="space-y-3">
-              {[true, false].map(value => {
-                const label = value ? 'True' : 'False';
-                const isSelected = currentAnswer === value;
-                const optionIndex = value ? 1 : 0;
-                return (
-                  <button
-                    key={label}
-                    type="button"
-                    className={getOptionClass(isSelected, optionIndex, value)}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (!showFeedback) {
-                        handleAnswerChange(question.id, value);
-                      }
-                    }}
-                    disabled={showFeedback}
-                    aria-pressed={isSelected}
-                    style={{ cursor: showFeedback ? 'not-allowed' : 'pointer' }}
-                  >
-                    <span>{label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          );
-        case 'short_answer':
-          return (
-            <div className="space-y-2">
-              <textarea
-                value={currentAnswer || ''}
-                onChange={event => handleAnswerChange(question.id, event.target.value)}
-                disabled={showFeedback}
-                placeholder="Type your response here..."
-                className="w-full rounded-lg border border-background-dark px-3 py-2 text-sm focus:border-primary-default focus:outline-none focus:ring-2 focus:ring-primary-muted disabled:bg-background-light"
-                rows={3}
-              />
-              {showFeedback && (
-                <p className={`text-sm font-medium ${feedback ? 'text-success-darker' : 'text-error-darker'}`}>
-                  {feedback
-                    ? 'Correct!'
-                    : `Expected answer: ${question.correct_answer}`}
-                </p>
-              )}
-            </div>
-          );
-        default:
-          return <p className="text-sm text-text-light">Unsupported question type.</p>;
-      }
-    };
-
-    const containerClassName = [
-      'bg-white',
-      'p-6',
-      'transition-shadow',
-      variant === 'modal'
-        ? 'rounded-2xl shadow-lg sm:p-10 max-h-[70vh] overflow-y-auto'
-        : variant === 'embedded'
-          ? 'rounded-xl border border-background-dark shadow-sm'
-          : 'rounded-2xl border border-background-dark shadow-sm',
-      isActive ? 'ring-2 ring-primary-default shadow-lg' : ''
-    ]
-      .filter(Boolean)
-      .join(' ');
-
-    return (
-      <div
-        id={`knowledge-check-${quiz.id}`}
-        className={containerClassName}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-primary-default">
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary-superlight px-2 py-1 font-semibold text-primary-darker">
-                <CheckCircle className="h-3 w-3" />
-                Knowledge Check
-              </span>
-              {questions?.length ? (
-                <span className="text-text-light">
-                  {questions.length} {questions.length === 1 ? 'question' : 'questions'}
-                </span>
-              ) : null}
-            </div>
-            <h3 className="mt-3 text-lg font-semibold text-text-dark">{quiz.title}</h3>
-            {quiz.description && <p className="mt-2 text-sm text-text-light">{quiz.description}</p>}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {isCompleted ? (
-              <StatusBadge status="success" label="Completed" />
-            ) : (
-              <StatusBadge status="warning" label="In Progress" />
-            )}
-          </div>
-        </div>
-
-        <div className="mt-6 space-y-6">
-          {questions && questions.length > 0 ? (
-            questions.map((question, index) => {
-              const breakdownEntry = result?.breakdown?.find(entry => entry.questionId === question.id);
-              const questionFeedback = breakdownEntry ? breakdownEntry.isCorrect : null;
-              return (
-                <div key={question.id || `${quiz.id}-${index}`} className="space-y-4 rounded-lg border border-background-dark p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-semibold text-text-dark">
-                        {index + 1}. {question.question_text}
-                      </p>
-                      {showFeedback && questionFeedback !== null && (
-                        <p className={`mt-2 text-xs font-medium ${questionFeedback ? 'text-success-darker' : 'text-error-darker'}`}>
-                          {questionFeedback
-                            ? 'Great job! You got all questions correct.'
-                            : 'Review the questions you missed and try again.'}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  {renderAnswerContent(question)}
-                </div>
-              );
-            })
-          ) : (
-            <div className="rounded-lg border border-dashed border-background-dark p-6 text-center text-sm text-text-light">
-              No questions available for this knowledge check.
-            </div>
-          )}
-        </div>
-
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {result && showFeedback ? (
-            <div className="flex items-center gap-3 text-sm text-text-light">
-              <div className="flex items-center gap-1 rounded-full bg-primary-superlight px-3 py-1 font-medium text-primary-darker">
-                Score: {result.score}/{result.maxScore}
-              </div>
-              <span>Accuracy: {result.percentage}%</span>
-            </div>
-          ) : (
-            <p className="text-sm text-text-light">
-              Answer all questions to complete this knowledge check.
-            </p>
-          )}
-
-          <div className="flex flex-col gap-2 sm:flex-row">
-            {showFeedback && (
-              <>
-                <Button variant="ghost" onClick={handleRetake} size="sm">
-                  Try Again
-                </Button>
-                {onContinue && (
-                  <Button onClick={onContinue} size="sm">
-                    Continue
-                  </Button>
-                )}
-              </>
-            )}
-            {!showFeedback && (
-              <Button onClick={handleSubmit} disabled={isSubmitting} size="sm">
-                {isSubmitting
-                  ? 'Submitting...'
-                  : 'Check Answers'}
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  });
-
-  KnowledgeCheckCard.displayName = 'KnowledgeCheckCard';
+  // KnowledgeCheckCard is now defined at module level above
 
   const handleKnowledgeCheckSubmit = useCallback(
     async (quizData, submittedAnswers, summary) => {
@@ -2680,13 +2706,27 @@ export default function LessonView() {
             imageUrl={displayLesson.content_url} 
             textContent={displayLesson.content_text}
             audioUrl={displayLesson.audio_attachment_url}
+            contentFormat={displayLesson.content_format}
           />
         );
       }
 
       // Handle presentation rendering
       if (displayLesson.content_type === 'presentation') {
-        return <PresentationWrapper lessonId={displayLesson.id} />;
+        return (
+          <PresentationWrapper
+            lessonId={displayLesson.id}
+            lesson={lesson}
+            userId={user?.id}
+            isCompleted={isCompleted}
+            onPresentationComplete={() => setIsCompleted(true)}
+            onMarkComplete={markAsCompleted}
+            onPreviousLesson={goToPreviousLesson}
+            onNextLesson={goToNextLesson}
+            hasPreviousLesson={lessons.findIndex(l => l.id === lessonId) > 0}
+            hasNextLesson={lessons.findIndex(l => l.id === lessonId) < lessons.length - 1}
+          />
+        );
       }
 
       // Handle editor-created content with content_blocks
@@ -3477,25 +3517,25 @@ export default function LessonView() {
                     <Brain className="w-24 h-24 text-primary-default" />
                   </div>
                 )}
+              </div>
 
-                {/* Got It / Mark Complete Button */}
-                <div className="absolute bottom-8 right-8">
-                  {!isCompleted ? (
-                    <Button 
-                      onClick={markAsCompleted} 
-                      disabled={isCompleting}
-                      title="Mark this lesson as complete"
-                      className="bg-primary-default hover:bg-primary-dark text-white px-6 py-3 rounded-lg font-medium shadow-lg transition-colors"
-                    >
-                      {isCompleting ? 'Completing...' : 'Complete'}
-                    </Button>
-                  ) : (
-                    <div className="flex items-center gap-2 text-success-default bg-success-light px-6 py-3 rounded-lg font-medium">
-                      <CheckCircle className="w-5 h-5" />
-                      <span>Completed</span>
-                    </div>
-                  )}
-                </div>
+              {/* Complete button - below the lesson display */}
+              <div className="mb-6">
+                {!isCompleted ? (
+                  <Button 
+                    onClick={markAsCompleted} 
+                    disabled={isCompleting}
+                    title="Mark this lesson as complete"
+                    className="bg-primary-default hover:bg-primary-dark text-white px-6 py-3 rounded-lg font-medium shadow-lg transition-colors"
+                  >
+                    {isCompleting ? 'Completing...' : 'Complete'}
+                  </Button>
+                ) : (
+                  <div className="inline-flex items-center gap-2 text-success-default bg-success-light px-6 py-3 rounded-lg font-medium">
+                    <CheckCircle className="w-5 h-5" />
+                    <span>Completed</span>
+                  </div>
+                )}
               </div>
 
               {/* Progress Bar */}

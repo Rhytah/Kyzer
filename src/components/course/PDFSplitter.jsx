@@ -264,12 +264,14 @@ const PDFSplitter = ({
               </div>
               <div className="flex flex-col gap-3">
                 <button
+                  type="button"
                   onClick={() => handleFileSelect(pdfFile)}
                   className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
                 >
                   Start Splitting PDF
                 </button>
                 <button
+                  type="button"
                   onClick={() => fileInputRef.current?.click()}
                   className="text-blue-600 hover:text-blue-700 text-sm font-medium"
                 >
@@ -279,6 +281,7 @@ const PDFSplitter = ({
             </div>
           ) : (
             <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
               className="flex flex-col items-center gap-4 w-full"
             >
@@ -341,6 +344,7 @@ const PDFSplitter = ({
         <div className="flex items-center gap-2">
           {initialSplitData && (
             <button
+              type="button"
               onClick={() => setCurrentStep('upload')}
               className="px-3 py-2 bg-green-500 text-white text-sm rounded-md hover:bg-green-600 transition-colors"
               title="Add more pages"
@@ -349,6 +353,7 @@ const PDFSplitter = ({
             </button>
           )}
           <button
+            type="button"
             onClick={() => setPreviewImage(null)}
             className="p-2 text-gray-400 hover:text-gray-600"
             title="Close preview"
@@ -393,6 +398,7 @@ const PDFSplitter = ({
 
         <div className="flex gap-3 justify-center">
           <button
+            type="button"
             onClick={handleFinish}
             className="px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
           >
@@ -435,6 +441,7 @@ const PDFSplitter = ({
         </div>
         
         <button
+          type="button"
           onClick={onCancel}
           className="p-2 text-gray-400 hover:text-gray-600"
           title="Cancel"
@@ -488,6 +495,7 @@ const PDFSplitter = ({
       {currentStep !== 'upload' && currentStep !== 'processing' && (
         <div className="flex items-center justify-between pt-6 border-t">
           <button
+            type="button"
             onClick={handleBack}
             className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
           >
@@ -497,6 +505,7 @@ const PDFSplitter = ({
           <div className="flex gap-3">
             {currentStep !== 'ready' && (
               <button
+                type="button"
                 onClick={handleNext}
                 disabled={images.length === 0}
                 className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
@@ -517,6 +526,7 @@ const PDFSplitter = ({
                 Page {previewImage.pageNumber}
               </h3>
               <button
+                type="button"
                 onClick={() => setPreviewImage(null)}
                 className="p-2 hover:bg-gray-100 rounded-md"
               >
