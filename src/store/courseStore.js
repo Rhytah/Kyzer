@@ -3,6 +3,24 @@ import { create } from 'zustand';
 import { supabase, TABLES, safeQuery, getUserProfile } from '@/lib/supabase';
 import { DEFAULT_CERTIFICATE_SVG } from '@/utils/certificateUtils';
 
+// Helper function to check if error is a table not found error
+const isTableNotFoundError = (error) => {
+  if (!error) return false;
+  // Check for PostgREST error code
+  if (error.code === 'PGRST116') return true;
+  // Check for PostgreSQL error code (relation does not exist)
+  if (error.code === '42P01') return true;
+  // Check for HTTP 404 status
+  if (error.status === 404) return true;
+  // Check error message for table not found indicators
+  if (error.message && (
+    error.message.includes('does not exist') ||
+    (error.message.includes('relation') && error.message.includes('not found')) ||
+    error.message.includes('404')
+  )) return true;
+  return false;
+};
+
 const useCourseStore = create((set, get) => ({
   // State
   courses: [],
@@ -1618,17 +1636,27 @@ const useCourseStore = create((set, get) => ({
           const presentationIds = presentations?.map(p => p.id) || [];
 
           if (presentationIds.length > 0) {
-            // Delete slide progress
-            await supabase
+            // Delete slide progress (ignore if table doesn't exist)
+            const { error: slideProgressError } = await supabase
               .from('slide_progress')
               .delete()
               .in('presentation_id', presentationIds);
+            
+            // Ignore table not found errors
+            if (slideProgressError && !isTableNotFoundError(slideProgressError)) {
+              // Log unexpected errors but don't fail the operation
+            }
 
-            // Delete presentation progress
-            await supabase
+            // Delete presentation progress (ignore if table doesn't exist)
+            const { error: presentationProgressError } = await supabase
               .from('presentation_progress')
               .delete()
               .in('presentation_id', presentationIds);
+            
+            // Ignore table not found errors
+            if (presentationProgressError && !isTableNotFoundError(presentationProgressError)) {
+              // Log unexpected errors but don't fail the operation
+            }
 
             // Delete slides
             await supabase
@@ -2633,7 +2661,8 @@ const useCourseStore = create((set, get) => ({
           .select('id')
           .limit(1);
 
-        if (testError && testError.code === 'PGRST116') {
+        // Handle table not found errors gracefully
+        if (testError && isTableNotFoundError(testError)) {
           // Table doesn't exist, skip slide progress tracking
           return { data: null, error: null };
         }
@@ -2684,7 +2713,8 @@ const useCourseStore = create((set, get) => ({
           .select('id')
           .limit(1);
 
-        if (testError && testError.code === 'PGRST116') {
+        // Handle table not found errors gracefully
+        if (testError && isTableNotFoundError(testError)) {
           // Table doesn't exist, skip presentation progress tracking
           return { data: null, error: null };
         }
@@ -2789,9 +2819,16 @@ const useCourseStore = create((set, get) => ({
           .eq('presentation_id', presentationId)
           .single();
 
-        if (error && error.code !== 'PGRST116') throw error;
+        // Handle table not found errors gracefully
+        if (error && !isTableNotFoundError(error)) {
+          throw error;
+        }
         return { data: data || null, error: null };
       } catch (error) {
+        // If it's a table not found error, return null data gracefully
+        if (isTableNotFoundError(error)) {
+          return { data: null, error: null };
+        }
         return { data: null, error: error.message };
       }
     },
@@ -2806,9 +2843,16 @@ const useCourseStore = create((set, get) => ({
           .eq('presentation_id', presentationId)
           .order('viewed_at', { ascending: true });
 
-        if (error) throw error;
+        // Handle table not found errors gracefully
+        if (error && !isTableNotFoundError(error)) {
+          throw error;
+        }
         return { data: data || [], error: null };
       } catch (error) {
+        // If it's a table not found error, return empty array gracefully
+        if (isTableNotFoundError(error)) {
+          return { data: [], error: null };
+        }
         return { data: [], error: error.message };
       }
     },

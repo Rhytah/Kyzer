@@ -122,6 +122,63 @@ const getExternalVideoPlatform = (url) => {
   return null;
 };
 
+// Helper function to escape HTML
+const escapeHtml = (unsafe) => {
+  return unsafe
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('\'', '&#039;');
+};
+
+// Helper function to render markdown to HTML
+const renderMarkdownToHtml = (md) => {
+  if (!md) return '';
+  const escaped = escapeHtml(md);
+  let html = escaped;
+  // Headers
+  html = html.replace(/^######\s?(.*)$/gm, '<h6>$1</h6>')
+             .replace(/^#####\s?(.*)$/gm, '<h5>$1</h5>')
+             .replace(/^####\s?(.*)$/gm, '<h4>$1</h4>')
+             .replace(/^###\s?(.*)$/gm, '<h3>$1</h3>')
+             .replace(/^##\s?(.*)$/gm, '<h2>$1</h2>')
+             .replace(/^#\s?(.*)$/gm, '<h1>$1</h1>');
+  // Bold and italic
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+             .replace(/\*(.*?)\*/g, '<em>$1</em>')
+             .replace(/__(.*?)__/g, '<strong>$1</strong>')
+             .replace(/_(.*?)_/g, '<em>$1</em>');
+  // Links
+  html = html.replace(/\[(.*?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary-default hover:text-primary-dark underline">$1</a>');
+  // Unordered lists
+  html = html.replace(/^(?:-\s.*(?:\n|$))+?/gm, (block) => {
+    const items = block.trim().split(/\n/).map(l => l.replace(/^-\s?/, '').trim()).filter(Boolean);
+    return items.length ? '<ul class="list-disc list-inside my-2">' + items.map(i => `<li class="my-1">${i}</li>`).join('') + '</ul>' : block;
+  });
+  // Ordered lists
+  html = html.replace(/^(?:\d+\.\s.*(?:\n|$))+?/gm, (block) => {
+    const items = block.trim().split(/\n/).map(l => l.replace(/^\d+\.\s?/, '').trim()).filter(Boolean);
+    return items.length ? '<ol class="list-decimal list-inside my-2">' + items.map(i => `<li class="my-1">${i}</li>`).join('') + '</ol>' : block;
+  });
+  // Code blocks (inline)
+  html = html.replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono">$1</code>');
+  // Paragraphs
+  html = html.replace(/\n{2,}/g, '</p><p>');
+  html = `<p>${html.replace(/\n/g, '<br/>')}</p>`;
+  return html;
+};
+
+// Helper function to parse stored text with format marker
+const parseStoredText = (raw) => {
+  if (!raw) return { format: 'plaintext', text: '' };
+  const match = raw.match(/^<!--content_format:(markdown|html|plaintext)-->([\s\S]*)/);
+  if (match) {
+    return { format: match[1], text: match[2] };
+  }
+  return { format: 'plaintext', text: raw };
+};
+
 export default function PresentationViewer({
   presentation,
   lesson,
@@ -680,16 +737,29 @@ export default function PresentationViewer({
 
     switch (content_type) {
       case 'text':
+        // Parse text content to determine format
+        const parsedText = parseStoredText(content_text);
+        const textFormat = content_format || parsedText.format;
+        const textContent = parsedText.text || content_text || '';
+        
+        // Generate HTML based on format
+        let renderedHtml = '';
+        if (textFormat === 'markdown') {
+          renderedHtml = renderMarkdownToHtml(textContent);
+        } else if (textFormat === 'html') {
+          renderedHtml = textContent;
+        } else {
+          // Plain text - preserve line breaks
+          renderedHtml = `<p>${escapeHtml(textContent).replace(/\n/g, '<br/>')}</p>`;
+        }
+        
         return (
           <ContentContainer>
-            <div className="prose max-w-none w-full h-full overflow-y-auto">
-              {content_format === 'html' ? (
-                <div dangerouslySetInnerHTML={{ __html: content_text }} />
-              ) : content_format === 'markdown' ? (
-                <div className="whitespace-pre-wrap">{content_text}</div>
-              ) : (
-                <div className="whitespace-pre-wrap">{content_text}</div>
-              )}
+            <div className="prose prose-lg max-w-none w-full h-full overflow-y-auto p-6">
+              <div 
+                className="text-text-dark leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: renderedHtml }}
+              />
             </div>
           </ContentContainer>
         );
