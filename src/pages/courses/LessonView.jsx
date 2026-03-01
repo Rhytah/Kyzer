@@ -5,32 +5,21 @@ import { useParams, useNavigate, useLocation, useSearchParams } from 'react-rout
 import { 
   Play, 
   Pause,
-  SkipBack,
-  SkipForward,
-  Volume2,
-  Maximize,
   CheckCircle,
   FileText,
   Download,
-  MessageCircle,
   BookOpen,
   Clock,
   ChevronLeft,
   ChevronRight,
   Settings,
-  RotateCcw,
   PanelLeftClose,
   PanelLeftOpen,
   Award,
   ExternalLink,
   File,
-  Sparkles,
-  Lightbulb,
   ThumbsUp,
-  ThumbsDown,
-  Send,
-  List,
-  Brain
+  ThumbsDown
 } from 'lucide-react'
 import { ScormPlayer } from '@/components/course'
 import PresentationViewer from '@/components/course/PresentationViewer'
@@ -702,7 +691,6 @@ export default function LessonView() {
   const [loading, setLoading] = useState(true)
   const [currentTime, setCurrentTime] = useState(0)
   const [isCompleted, setIsCompleted] = useState(false)
-  const [showNotes, setShowNotes] = useState(false)
   const [notes, setNotes] = useState('')
   const [isSavingNotes, setIsSavingNotes] = useState(false)
   const [notesLoaded, setNotesLoaded] = useState(false)
@@ -712,9 +700,8 @@ export default function LessonView() {
   const [haltVideo, setHaltVideo] = useState(false)
   const [playerKey, setPlayerKey] = useState(0)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [sidebarView, setSidebarView] = useState('lessonInfo') // 'lessonInfo' or 'courseOutline'
+  const [activeTab, setActiveTab] = useState('description')
   const [lessonFeedback, setLessonFeedback] = useState(null) // 'up' or 'down'
-  const [questionInput, setQuestionInput] = useState('')
   const [quizzesByLesson, setQuizzesByLesson] = useState({})
   const [quizCompletionStatus, setQuizCompletionStatus] = useState({})
   const [quizQuestionsById, setQuizQuestionsById] = useState({})
@@ -1573,15 +1560,18 @@ export default function LessonView() {
     }
   }
 
-  const formatTime = (seconds) => {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    const secs = Math.floor(seconds % 60)
-    
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  const getContentTypeLabel = (type) => {
+    switch (type) {
+      case 'video': return 'Video';
+      case 'text': return 'Reading';
+      case 'pdf': return 'Reading';
+      case 'presentation': return 'Presentation';
+      case 'editor': return 'Reading';
+      case 'scorm': return 'Interactive';
+      case 'image': return 'Image';
+      case 'ppt': return 'Presentation';
+      default: return 'Lesson';
     }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`
   }
 
   // Helper function to check if URL is a valid video file
@@ -2989,638 +2979,443 @@ export default function LessonView() {
   const isLastLesson = currentLessonIndex !== -1 && currentLessonIndex === lessons.length - 1;
 
   return (
-    <div className="min-h-screen bg-background-default relative">
-      {/* Subtle Loading Overlay - only show when loading new lesson but have previous data */}
+    <div className="flex flex-col h-screen bg-background-default">
       {loading && displayLesson && (
-        <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-[60] flex items-center justify-center pointer-events-none">
           <div className="bg-white rounded-lg shadow-lg p-4 flex items-center gap-3">
             <LoadingSpinner size="sm" />
             <span className="text-sm text-text-medium">Loading lesson...</span>
           </div>
         </div>
       )}
-      
+
       {/* Top Navigation Bar */}
-      <div className="border-b border-background-dark bg-white sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-        {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-sm text-text-light">
-            <button 
+      <div className="flex-shrink-0 z-40">
+        <div className="flex items-center justify-between h-14 px-4 sm:px-6 bg-white border-b border-background-dark">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
               onClick={() => navigate(`/app/courses/${courseId}`)}
-                className="hover:text-primary-default transition-colors"
+              className="flex items-center gap-2 text-sm font-medium text-text-dark hover:text-primary-default transition-colors"
             >
-              {currentCourse.title}
+              <ChevronLeft className="w-4 h-4 flex-shrink-0" />
+              <span className="hidden sm:inline truncate max-w-[200px]">{currentCourse.title}</span>
+              <span className="sm:hidden">Back</span>
             </button>
-            <span>/</span>
-            <span>{currentLesson?.module?.title || 'Unassigned Lessons'}</span>
-            <span>/</span>
-            <span className="text-text-dark">{currentLesson?.title || 'Lesson'}</span>
             {isCourseCompleted && (
-              <>
-                <span className="mx-2">•</span>
-                <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
-                  <BookOpen className="w-3 h-3" />
-                  Review Mode
-                </span>
-              </>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium flex-shrink-0">
+                <BookOpen className="w-3 h-3" />
+                Review Mode
+              </span>
             )}
           </div>
-          
-            {/* Navigation Controls */}
-            <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-                onClick={goToPreviousLesson}
-                disabled={lessons.findIndex(l => l.id === lessonId) === 0}
-                className="flex items-center gap-2"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Previous</span>
-          </Button>
-              
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="flex items-center gap-2"
-              >
-                <List className="w-4 h-4" />
-                <span className="hidden sm:inline">
-                  {sidebarCollapsed ? 'Show Course Outline' : 'Hide Course Outline'}
-                </span>
-          </Button>
-          
-          {isLastLesson ? (
-                <Button 
-                  onClick={async () => {
-              const allLessonsCompleted = lessons.every(lessonEntry => (
-                courseProgress[courseId]?.[lessonEntry.id]?.completed
-              ));
-              
-              if (!allLessonsCompleted) {
-                showError('Keep going! Mark every lesson as completed to finish the course.');
-                return;
-              }
-              
-              if (courseFinalAssessment && !finalAssessmentCompleted) {
-                navigate(`/app/courses/${courseId}/quiz/${courseFinalAssessment.id}`);
-              } else {
-                navigate(`/app/courses/${courseId}/completion`);
-              }
-                  }}
-                  className="flex items-center gap-2"
-                >
-              {courseFinalAssessment && !finalAssessmentCompleted 
-                ? 'Take Final Assessment' 
-                : 'Complete Course'}
-                  <ChevronRight className="w-4 h-4" />
-            </Button>
-          ) : (
-            <Button 
-              onClick={() => goToNextLesson(false)} 
-              disabled={false}
-              title="Continue to next lesson"
-              className="flex items-center gap-2"
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              title={sidebarCollapsed ? 'Show course outline' : 'Hide course outline'}
             >
-                  <span className="hidden sm:inline">Next</span>
-                  <ChevronRight className="w-4 h-4" />
+              {sidebarCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
             </Button>
-          )}
+          </div>
         </div>
+        <div className="w-full bg-background-medium h-1">
+          <div
+            className="bg-primary-default h-1 transition-all duration-500"
+            style={{ width: `${courseProgressData.percentage}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Main Layout */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Mobile sidebar backdrop */}
+        {!sidebarCollapsed && (
+          <div className="lg:hidden fixed inset-0 bg-black/20 z-20" onClick={() => setSidebarCollapsed(true)} />
+        )}
+
+        {/* Left Sidebar - Course Navigation */}
+        {!sidebarCollapsed && (
+          <aside className="absolute top-0 bottom-0 left-0 z-30 lg:relative lg:z-auto flex flex-col w-80 flex-shrink-0 border-r border-background-dark bg-white overflow-hidden shadow-lg lg:shadow-none">
+            <div className="p-4 border-b border-background-dark flex-shrink-0">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-text-light">Course Content</span>
+                <span className="text-xs text-text-light">
+                  {courseProgressData.completedCount}/{courseProgressData.totalCount}
+                </span>
+              </div>
+              {courseProgressData.percentage === 100 && (
+                <Button
+                  onClick={() => setShowCertificateModal(true)}
+                  className="w-full mt-2 bg-green-600 hover:bg-green-700 text-white"
+                  size="sm"
+                >
+                  <Award className="w-3.5 h-3.5 mr-1.5" />
+                  View Certificate
+                </Button>
+              )}
             </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {(() => {
+                const combinedItems = [];
+                let itemIndex = 0;
+
+                lessons.forEach((courseLesson) => {
+                  combinedItems.push({ type: 'lesson', data: courseLesson, index: itemIndex++ });
+                  if (Array.isArray(quizzesByLesson[courseLesson.id]) && quizzesByLesson[courseLesson.id].length > 0) {
+                    quizzesByLesson[courseLesson.id].forEach((qz) => {
+                      combinedItems.push({ type: 'quiz', data: qz, lessonId: courseLesson.id, index: itemIndex++ });
+                    });
+                  }
+                });
+
+                if (courseFinalAssessment) {
+                  combinedItems.push({ type: 'finalAssessment', data: courseFinalAssessment, index: itemIndex++ });
+                }
+
+                return combinedItems.map((item) => {
+                  if (item.type === 'lesson') {
+                    const courseLesson = item.data;
+                    const isCurrentLesson = courseLesson.id === lessonId;
+                    const isLessonCompleted = courseProgress[courseId]?.[courseLesson.id]?.completed;
+                    const targetIdx = lessons.findIndex(l => l.id === courseLesson.id);
+                    const currentIdx = lessons.findIndex(l => l.id === lessonId);
+                    const isLocked = !isCourseCompleted && targetIdx > currentIdx && !timeRequirementMet;
+
+                    return (
+                      <button
+                        key={courseLesson.id}
+                        onClick={() => {
+                          if (isLocked) {
+                            if (timeRemainingInfo) {
+                              showError(`Please review the current lesson for at least ${timeRemainingInfo.totalMinutesRequired} minute${timeRemainingInfo.totalMinutesRequired !== 1 ? 's' : ''} before proceeding.`);
+                            } else {
+                              showError('Please complete the current lesson before proceeding.');
+                            }
+                            return;
+                          }
+                          navigate(`/app/courses/${courseId}/lesson/${courseLesson.id}`);
+                        }}
+                        disabled={isLocked}
+                        className={`w-full text-left px-4 py-3 flex items-start gap-3 border-l-[3px] transition-colors ${
+                          isCurrentLesson
+                            ? 'border-l-primary-default bg-primary-superlight'
+                            : 'border-l-transparent hover:bg-background-light'
+                        } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <div className="flex-shrink-0 mt-0.5">
+                          {isLessonCompleted ? (
+                            <CheckCircle className="w-5 h-5 text-success-default" />
+                          ) : isCurrentLesson ? (
+                            <Play className="w-5 h-5 text-primary-default" />
+                          ) : (
+                            <div className="w-5 h-5 rounded-full border-2 border-background-dark flex items-center justify-center">
+                              <span className="text-[10px] text-text-light">{item.index + 1}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className={`text-sm leading-tight ${isCurrentLesson ? 'font-semibold text-primary-default' : 'font-medium text-text-dark'}`}>
+                            {courseLesson.title}
+                          </h4>
+                          <p className="text-xs text-text-light mt-0.5">
+                            {getContentTypeLabel(courseLesson.content_type)}
+                            {courseLesson.duration_minutes ? ` \u2022 ${courseLesson.duration_minutes} min` : ''}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  }
+
+                  if (item.type === 'quiz') {
+                    const qz = item.data;
+                    const isKnowledgeCheck = qz.quiz_type === 'non_graded';
+                    const isQzCompleted = quizCompletionStatus[qz.id] || false;
+                    const isCurrentQuiz = !isKnowledgeCheck && location.pathname.includes(`/quiz/${qz.id}`);
+                    const isActiveKC = isKnowledgeCheck && lessonId === item.lessonId && activeKnowledgeCheckId === qz.id;
+
+                    const handleQuizClick = () => {
+                      if (isKnowledgeCheck) {
+                        if (item.lessonId !== lessonId) {
+                          navigate(`/app/courses/${courseId}/lesson/${item.lessonId}?knowledgeCheck=${qz.id}`);
+                          return;
+                        }
+                        const nextParams = new URLSearchParams(searchParams);
+                        nextParams.set('knowledgeCheck', qz.id);
+                        setSearchParams(nextParams, { replace: true });
+                        setActiveKnowledgeCheckId(qz.id);
+                        return;
+                      }
+                      navigate(`/app/courses/${courseId}/quiz/${qz.id}`);
+                    };
+
+                    return (
+                      <button
+                        key={`quiz-${qz.id}`}
+                        onClick={handleQuizClick}
+                        className={`w-full text-left px-4 py-3 flex items-start gap-3 border-l-[3px] transition-colors ${
+                          isActiveKC || isCurrentQuiz
+                            ? 'border-l-primary-default bg-primary-superlight'
+                            : 'border-l-transparent hover:bg-background-light'
+                        }`}
+                      >
+                        <div className="flex-shrink-0 mt-0.5">
+                          {isQzCompleted ? (
+                            <CheckCircle className="w-5 h-5 text-success-default" />
+                          ) : (isActiveKC || isCurrentQuiz) ? (
+                            <Play className="w-5 h-5 text-primary-default" />
+                          ) : (
+                            <div className="w-5 h-5 rounded-full border-2 border-background-dark flex items-center justify-center">
+                              <span className="text-[10px] text-text-light">{item.index + 1}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-medium leading-tight">
+                            <span className="text-primary-default">{isKnowledgeCheck ? 'Knowledge Check:' : 'Quiz:'}</span>{' '}
+                            {qz.title}
+                          </h4>
+                          <p className="text-xs text-text-light mt-0.5">
+                            {isKnowledgeCheck
+                              ? `${qz.question_count || 0} question${(qz.question_count || 0) !== 1 ? 's' : ''}`
+                              : `${qz.time_limit_minutes ? `${qz.time_limit_minutes} min` : 'No time limit'} \u2022 ${qz.question_count || 0} questions`}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  }
+
+                  if (item.type === 'finalAssessment') {
+                    const finalAssessment = item.data;
+                    const isFACompleted = finalAssessmentCompleted || false;
+                    const isCurrentFA = location.pathname.includes(`/quiz/${finalAssessment.id}`);
+
+                    return (
+                      <button
+                        key={`final-${finalAssessment.id}`}
+                        onClick={() => navigate(`/app/courses/${courseId}/quiz/${finalAssessment.id}`)}
+                        className={`w-full text-left px-4 py-3 flex items-start gap-3 border-l-[3px] border-t border-background-dark mt-1 transition-colors ${
+                          isCurrentFA ? 'border-l-primary-default bg-primary-superlight' : 'border-l-transparent hover:bg-background-light'
+                        }`}
+                      >
+                        <div className="flex-shrink-0 mt-0.5">
+                          {isFACompleted ? (
+                            <CheckCircle className="w-5 h-5 text-success-default" />
+                          ) : isCurrentFA ? (
+                            <Play className="w-5 h-5 text-primary-default" />
+                          ) : (
+                            <div className="w-5 h-5 rounded-full border-2 border-primary-default flex items-center justify-center">
+                              <span className="text-[10px] font-bold">{item.index + 1}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-semibold leading-tight">
+                            <span className="text-primary-default">Final Assessment:</span>{' '}
+                            {finalAssessment.title}
+                          </h4>
+                          <p className="text-xs text-text-light mt-0.5">
+                            {finalAssessment.time_limit_minutes ? `${finalAssessment.time_limit_minutes} min` : 'No time limit'} &bull; {finalAssessment.question_count || 0} questions
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  }
+
+                  return null;
+                });
+              })()}
+            </div>
+          </aside>
+        )}
+
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto">
+          <div className={`w-full ${currentLesson.content_type === 'video' ? 'bg-[#1c1d1f]' : 'bg-background-light'}`}>
+            <div className="max-w-5xl mx-auto">
+              {currentLesson.content_type === 'scorm' ? (
+                <div className="w-full min-h-[400px]">
+                  <ScormPlayer
+                    scormUrl={currentLesson.content_url}
+                    lessonId={currentLesson.id}
+                    courseId={courseId}
+                    onProgress={() => {}}
+                    onComplete={() => setIsCompleted(true)}
+                    onError={() => showError('Failed to load SCORM content')}
+                  />
+                </div>
+              ) : (
+                <VideoPlayer lesson={currentLesson} />
+              )}
             </div>
           </div>
 
-      {/* Main Content Area - Two Column Layout */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className={`grid grid-cols-1 gap-6 transition-all duration-300 ${
-          sidebarCollapsed ? 'lg:grid-cols-1' : 'lg:grid-cols-12'
-        }`}>
-          {/* Left Sidebar */}
-          {!sidebarCollapsed && (
-            <div className="lg:col-span-4 space-y-6">
-              {/* Toggle Buttons */}
-              <div className="flex gap-2 border-b border-background-dark pb-2">
-              <button
-                  onClick={() => setSidebarView('courseOutline')}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                    sidebarView === 'courseOutline'
-                      ? 'bg-primary-light text-primary-default font-medium'
-                      : 'text-text-light hover:text-text-dark hover:bg-background-light'
-                  }`}
-                >
-                  <FileText className="w-4 h-4" />
-                  <span className="text-sm">Course Outline</span>
-                </button>
-                   <button
-                  onClick={() => setSidebarView('lessonInfo')}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                    sidebarView === 'lessonInfo'
-                      ? 'bg-primary-light text-primary-default font-medium'
-                      : 'text-text-light hover:text-text-dark hover:bg-background-light'
-                  }`}
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span className="text-sm">Lesson Info</span>
-                </button>
-             
-          </div>
-
-              {/* Lesson Info View */}
-              {sidebarView === 'lessonInfo' && (
-                <>
-                  {/* Lesson Description */}
-            <div>
-                    <h2 className="text-xl font-bold text-text-dark mb-3">{currentLesson.title}</h2>
-                    <div className="text-sm text-text-medium leading-relaxed">
-                      {lessonDescriptionHtml || (
-                        <p>{currentLesson.description || currentLesson.content_text || 'No description available.'}</p>
-                      )}
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex items-start justify-between gap-4 mb-1">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs uppercase tracking-wider text-text-light mb-1">
+                  {currentLesson?.module?.title || currentCourse.title}
+                </p>
+                <h1 className="text-2xl font-bold text-text-dark">{currentLesson.title}</h1>
+              </div>
+              <div className="flex-shrink-0 mt-1">
+                {!isCompleted ? (
+                  <Button onClick={markAsCompleted} disabled={isCompleting} size="sm">
+                    {isCompleting ? 'Completing...' : 'Mark Complete'}
+                  </Button>
+                ) : (
+                  <div className="inline-flex items-center gap-1.5 text-success-default bg-success-light px-3 py-1.5 rounded-lg text-sm font-medium">
+                    <CheckCircle className="w-4 h-4" />
+                    Completed
+                  </div>
+                )}
               </div>
             </div>
-            
-                  {/* Feedback Buttons */}
+
+            {timeRemainingInfo && !timeRequirementMet && (
+              <div className="flex items-center gap-2 text-warning-default bg-warning-light px-3 py-2 rounded-lg mt-3">
+                <Clock className="w-4 h-4 flex-shrink-0" />
+                <span className="text-sm">
+                  {timeRemainingInfo.minutesRemaining} minute{timeRemainingInfo.minutesRemaining !== 1 ? 's' : ''} remaining to meet minimum time
+                </span>
+              </div>
+            )}
+
+            <div className="border-b border-background-dark mt-6">
+              <nav className="flex gap-8" aria-label="Lesson tabs">
+                {[
+                  { id: 'description', label: 'Description' },
+                  { id: 'notes', label: 'Notes' },
+                  { id: 'downloads', label: 'Downloads' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`pb-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                      activeTab === tab.id
+                        ? 'border-text-dark text-text-dark'
+                        : 'border-transparent text-text-light hover:text-text-dark hover:border-background-dark'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </nav>
+            </div>
+
+            <div className="py-6">
+              {activeTab === 'description' && (
+                <div className="space-y-6">
+                  <div className="prose max-w-none text-text-medium leading-relaxed">
+                    {lessonDescriptionHtml}
+                  </div>
+
+                  {currentLesson.audio_attachment_url && (
+                    <Card className="p-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-blue-600 text-lg">🎵</span>
+                        </div>
+                        <h3 className="text-sm font-semibold text-text-dark">Audio Narration</h3>
+                      </div>
+                      <AudioPlayer audioUrl={currentLesson.audio_attachment_url} />
+                    </Card>
+                  )}
+
+                  <VideoErrorDisplay />
+
                   <div className="flex items-center gap-4 pt-4 border-t border-background-dark">
+                    <span className="text-sm text-text-light">Was this helpful?</span>
                     <button
                       onClick={() => setLessonFeedback(lessonFeedback === 'up' ? null : 'up')}
-                      className={`p-2 rounded-lg transition-colors ${
+                      className={`p-1.5 rounded-lg transition-colors ${
                         lessonFeedback === 'up'
                           ? 'bg-green-100 text-green-700'
                           : 'text-text-light hover:text-text-dark hover:bg-background-light'
                       }`}
                     >
-                      <ThumbsUp className="w-5 h-5" />
+                      <ThumbsUp className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setLessonFeedback(lessonFeedback === 'down' ? null : 'down')}
-                      className={`p-2 rounded-lg transition-colors ${
+                      className={`p-1.5 rounded-lg transition-colors ${
                         lessonFeedback === 'down'
                           ? 'bg-red-100 text-red-700'
                           : 'text-text-light hover:text-text-dark hover:bg-background-light'
                       }`}
                     >
-                      <ThumbsDown className="w-5 h-5" />
+                      <ThumbsDown className="w-4 h-4" />
                     </button>
-                        </div>
-
-                  {/* Action Buttons */}
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => {
-                        setShowNotes(true);
-                        setTimeout(() => {
-                          const notesSection = document.getElementById('lesson-notes');
-                          if (notesSection) {
-                            notesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                          }
-                        }, 100);
-                      }}
-                      className="w-full flex items-center gap-3 p-3 rounded-lg border border-background-dark hover:bg-background-light transition-colors text-left"
-                    >
-                      <Lightbulb className="w-5 h-5 text-primary-default" />
-                      <span className="text-sm font-medium text-text-dark">My Notes</span>
-                    </button>
-                    {(lesson.resources && Array.isArray(lesson.resources) && lesson.resources.length > 0) || lesson.content_url ? (
-                      <button
-                        onClick={() => {
-                          const resourcesSection = document.getElementById('lesson-resources');
-                          if (resourcesSection) {
-                            resourcesSection.scrollIntoView({ behavior: 'smooth' });
-                          }
-                        }}
-                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-background-dark hover:bg-background-light transition-colors text-left"
-                      >
-                        <FileText className="w-5 h-5 text-primary-default" />
-                        <span className="text-sm font-medium text-text-dark">Resources</span>
-                      </button>
-              ) : null}
-            </div>
-
-                  {/* Question Input */}
-                  <div className="pt-4 border-t border-background-dark">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={questionInput}
-                        onChange={(e) => setQuestionInput(e.target.value)}
-                        placeholder="Ask or write anything here..."
-                        className="w-full px-4 py-3 pr-12 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default outline-none text-sm"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter' && questionInput.trim()) {
-                            // Handle question submission
-                            setQuestionInput('');
-                            success('Question submitted!');
-                          }
-                        }}
-                      />
-                      <button
-                        onClick={() => {
-                          if (questionInput.trim()) {
-                            // Handle question submission
-                            setQuestionInput('');
-                            success('Question submitted!');
-                          }
-                        }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-primary-default hover:bg-primary-light rounded-lg transition-colors"
-                      >
-                        <Send className="w-4 h-4" />
-                      </button>
-          </div>
                   </div>
-              </>
-            )}
-
-              {/* Course Outline View */}
-              {sidebarView === 'courseOutline' && (
-                <div className="space-y-6 max-h-[calc(100vh-300px)] overflow-y-auto">
-        {/* Course Progress */}
-        <Card className="p-6">
-          <h3 className="font-semibold text-text-dark mb-4">Course Progress</h3>
-          <div className="mb-4">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-text-medium">Overall Progress</span>
-              <span className="font-medium">{courseProgressData.percentage}%</span>
-            </div>
-            <div className="w-full bg-background-medium rounded-full h-2">
-              <div 
-                          className="bg-primary-default h-2 rounded-full transition-all" 
-                style={{ width: `${courseProgressData.percentage}%` }}
-              ></div>
-            </div>
-          </div>
-          <p className="text-sm text-text-light">
-            {courseProgressData.completedCount} of {courseProgressData.totalCount} lessons completed
-          </p>
-          {courseProgressData.percentage === 100 && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <Button
-                onClick={() => setShowCertificateModal(true)}
-                className="w-full bg-green-600 hover:bg-green-700 text-white"
-                size="sm"
-              >
-                <Award className="w-4 h-4 mr-2" />
-                View Certificate
-              </Button>
-            </div>
-          )}
-        </Card>
-
-        {/* Lesson List */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-text-dark">Course Content</h3>
-            <div className="text-sm text-text-light">
-              {(() => {
-                const completedLessons = lessons.filter(lesson => courseProgress[courseId]?.[lesson.id]?.completed).length;
-                const completedQuizzes = Object.values(quizzesByLesson).flat().filter(qz => quizCompletionStatus[qz.id]).length;
-                const totalQuizzes = Object.values(quizzesByLesson).flat().length;
-                const totalItems = lessons.length + totalQuizzes;
-                const completedItems = completedLessons + completedQuizzes;
-                return `${completedItems} / ${totalItems} completed`;
-              })()}
-            </div>
-          </div>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {(() => {
-              const combinedItems = [];
-              let itemIndex = 0;
-              
-              lessons.forEach((courseLesson) => {
-                combinedItems.push({
-                  type: 'lesson',
-                  data: courseLesson,
-                  index: itemIndex++
-                });
-                
-                if (Array.isArray(quizzesByLesson[courseLesson.id]) && quizzesByLesson[courseLesson.id].length > 0) {
-                            quizzesByLesson[courseLesson.id].forEach((qz) => {
-                    combinedItems.push({
-                      type: 'quiz',
-                      data: qz,
-                      lessonId: courseLesson.id,
-                      index: itemIndex++
-                    });
-                  });
-                }
-              });
-              
-              if (courseFinalAssessment) {
-                combinedItems.push({
-                  type: 'finalAssessment',
-                  data: courseFinalAssessment,
-                  index: itemIndex++
-                });
-              }
-              
-              return combinedItems.map((item) => {
-                if (item.type === 'lesson') {
-                  const courseLesson = item.data;
-                  const isCurrentLesson = courseLesson.id === lessonId;
-                  return (
-                    <button
-                      key={courseLesson.id}
-                      onClick={() => {
-                        const currentLessonIndex = lessons.findIndex(l => l.id === lessonId);
-                        const targetLessonIndex = lessons.findIndex(l => l.id === courseLesson.id);
-                        
-                        if (!isCourseCompleted && targetLessonIndex > currentLessonIndex && !timeRequirementMet) {
-                          if (timeRemainingInfo) {
-                            showError(`Please review the current lesson for at least ${timeRemainingInfo.totalMinutesRequired} minute${timeRemainingInfo.totalMinutesRequired !== 1 ? 's' : ''} before proceeding. You need ${timeRemainingInfo.minutesRemaining} more minute${timeRemainingInfo.minutesRemaining !== 1 ? 's' : ''}.`);
-                          } else {
-                            showError('Please complete the current lesson before proceeding to the next one.');
-                          }
-                          return;
-                        }
-                        navigate(`/app/courses/${courseId}/lesson/${courseLesson.id}`);
-                      }}
-                      disabled={!isCourseCompleted && lessons.findIndex(l => l.id === courseLesson.id) > lessons.findIndex(l => l.id === lessonId) && !timeRequirementMet}
-                      className={`w-full text-left p-3 rounded-lg transition-colors ${
-                        isCurrentLesson
-                          ? 'bg-primary-light text-primary-default'
-                          : !isCourseCompleted && lessons.findIndex(l => l.id === courseLesson.id) > lessons.findIndex(l => l.id === lessonId) && !timeRequirementMet
-                          ? 'opacity-50 cursor-not-allowed'
-                          : 'hover:bg-background-light'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0">
-                          {courseProgress[courseId]?.[courseLesson.id]?.completed ? (
-                            <CheckCircle className="w-5 h-5 text-success-default" />
-                          ) : isCurrentLesson ? (
-                            <Play className="w-5 h-5 text-primary-default" />
-                          ) : (
-                            <div className="w-5 h-5 rounded-full border border-background-dark flex items-center justify-center">
-                              <span className="text-xs">{item.index + 1}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm truncate">{courseLesson.title}</h4>
-                          <p className="text-xs text-text-light">{formatTime(courseLesson.duration_minutes * 60 || 0)}</p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                } else if (item.type === 'quiz') {
-                  const qz = item.data;
-                  const isKnowledgeCheck = qz.quiz_type === 'non_graded';
-                  const isCompleted = quizCompletionStatus[qz.id] || false;
-                            const isCurrentQuiz = !isKnowledgeCheck && location.pathname.includes(`/quiz/${qz.id}`);
-                            const isActiveKnowledgeCheck = isKnowledgeCheck && lessonId === item.lessonId && activeKnowledgeCheckId === qz.id;
-
-                  const handleQuizClick = () => {
-                    if (isKnowledgeCheck) {
-                      if (item.lessonId !== lessonId) {
-                        navigate(`/app/courses/${courseId}/lesson/${item.lessonId}?knowledgeCheck=${qz.id}`);
-                        return;
-                      }
-                      const nextParams = new URLSearchParams(searchParams);
-                      nextParams.set('knowledgeCheck', qz.id);
-                      setSearchParams(nextParams, { replace: true });
-                      setActiveKnowledgeCheckId(qz.id);
-                      return;
-                    }
-                    navigate(`/app/courses/${courseId}/quiz/${qz.id}`);
-                  };
-
-                  return (
-                    <button
-                      key={`quiz-${qz.id}`}
-                      onClick={handleQuizClick}
-                      className={`w-full text-left p-3 rounded-lg transition-colors ${
-                        isKnowledgeCheck
-                          ? isActiveKnowledgeCheck
-                            ? 'bg-primary-light text-primary-default'
-                            : 'hover:bg-background-light'
-                          : isCurrentQuiz
-                            ? 'bg-primary-light text-primary-default'
-                            : 'hover:bg-background-light'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0">
-                          {isCompleted ? (
-                            <CheckCircle className="w-5 h-5 text-success-default" />
-                          ) : (isKnowledgeCheck && isActiveKnowledgeCheck) || (!isKnowledgeCheck && isCurrentQuiz) ? (
-                            <Play className="w-5 h-5 text-primary-default" />
-                          ) : (
-                            <div className="w-5 h-5 rounded-full border border-background-dark flex items-center justify-center">
-                              <span className="text-xs">{item.index + 1}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm truncate">
-                            <span className="text-primary-default">
-                              {isKnowledgeCheck ? 'Knowledge Check:' : 'Quiz:'}
-                            </span>{' '}
-                            {qz.title}
-                          </h4>
-                          <p className="text-xs text-text-light">
-                            {isKnowledgeCheck
-                              ? `${qz.question_count || 0} question${(qz.question_count || 0) !== 1 ? 's' : ''}`
-                              : `${qz.time_limit_minutes ? `${qz.time_limit_minutes} min` : 'No time limit'} • ${qz.question_count || 0} questions`}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                } else if (item.type === 'finalAssessment') {
-                  const finalAssessment = item.data;
-                  const isCompleted = finalAssessmentCompleted || false;
-                  const isCurrentQuiz = location.pathname.includes(`/quiz/${finalAssessment.id}`);
-
-                  return (
-                    <button
-                      key={`final-assessment-${finalAssessment.id}`}
-                      onClick={() => navigate(`/app/courses/${courseId}/quiz/${finalAssessment.id}`)}
-                      className={`w-full text-left p-3 rounded-lg transition-colors border-t-2 border-primary-default mt-2 ${
-                        isCurrentQuiz
-                          ? 'bg-primary-light text-primary-default'
-                          : 'hover:bg-background-light'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0">
-                          {isCompleted ? (
-                            <CheckCircle className="w-5 h-5 text-success-default" />
-                          ) : isCurrentQuiz ? (
-                            <Play className="w-5 h-5 text-primary-default" />
-                          ) : (
-                            <div className="w-5 h-5 rounded-full border-2 border-primary-default flex items-center justify-center">
-                              <span className="text-xs font-bold">{item.index + 1}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-sm truncate">
-                            <span className="text-primary-default">Final Assessment:</span>{' '}
-                            {finalAssessment.title}
-                          </h4>
-                          <p className="text-xs text-text-light">
-                            {finalAssessment.time_limit_minutes ? `${finalAssessment.time_limit_minutes} min` : 'No time limit'} • {finalAssessment.question_count || 0} questions
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                }
-                return null;
-              });
-            })()}
-          </div>
-        </Card>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* Right Content Area */}
-          <div className={`${sidebarCollapsed ? 'lg:col-span-12' : 'lg:col-span-8'}`}>
-            <div className="flex flex-col h-full">
-              {/* Title Section */}
-              <div className="mb-6">
-                <div className="text-xs uppercase tracking-wider text-text-light mb-2">
-                  {currentCourse.title?.toUpperCase() || 'COURSE'}
+              {activeTab === 'notes' && (
+                <div className="space-y-4">
+                  <textarea
+                    className="w-full h-64 p-4 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default outline-none text-sm resize-y"
+                    placeholder="Take notes about this lesson..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      variant="secondary"
+                      onClick={saveNotes}
+                      disabled={isSavingNotes}
+                      size="sm"
+                    >
+                      {isSavingNotes ? 'Saving...' : 'Save Notes'}
+                    </Button>
+                  </div>
                 </div>
-                <h1 className="text-3xl font-bold text-text-dark">{currentLesson.title}</h1>
-              </div>
-
-              {/* Content Player */}
-              <div className="flex-1 flex flex-col items-center justify-center bg-background-light rounded-lg p-8 mb-6 relative min-h-[500px]">
-                {currentLesson.content_type === 'scorm' ? (
-                  <div className="w-full h-full">
-                    <ScormPlayer
-                      scormUrl={currentLesson.content_url}
-                      lessonId={currentLesson.id}
-                      courseId={courseId}
-                      onProgress={() => {}}
-                      onComplete={() => {
-                        setIsCompleted(true);
-                      }}
-                      onError={() => {
-                        showError('Failed to load SCORM content');
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <div className="w-full max-w-4xl">
-                    <VideoPlayer lesson={currentLesson} />
-                  </div>
-                )}
-                
-                {/* Icon/Visual Element - Only show for video content */}
-                {currentLesson.content_type === 'video' && (
-                  <div className="absolute bottom-8 left-8 opacity-20">
-                    <Brain className="w-24 h-24 text-primary-default" />
-                  </div>
-                )}
-              </div>
-
-              {/* Complete button - below the lesson display */}
-              <div className="mb-6">
-                {!isCompleted ? (
-                  <Button 
-                    onClick={markAsCompleted} 
-                    disabled={isCompleting}
-                    title="Mark this lesson as complete"
-                    className="bg-primary-default hover:bg-primary-dark text-white px-6 py-3 rounded-lg font-medium shadow-lg transition-colors"
-                  >
-                    {isCompleting ? 'Completing...' : 'Complete'}
-                  </Button>
-                ) : (
-                  <div className="inline-flex items-center gap-2 text-success-default bg-success-light px-6 py-3 rounded-lg font-medium">
-                    <CheckCircle className="w-5 h-5" />
-                    <span>Completed</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Progress Bar */}
-              <div className="w-full bg-background-medium rounded-full h-1 mb-4">
-                <div 
-                  className="bg-primary-default h-1 rounded-full transition-all" 
-                  style={{ width: `${courseProgressData.percentage}%` }}
-                ></div>
-              </div>
-              <div className="flex justify-between text-xs text-text-light mb-6">
-                <span>Lesson {currentLesson.order_index || 1} of {lessons.length}</span>
-                <span>{formatTime(currentLesson.duration_minutes * 60 || 0)}</span>
-              </div>
-
-              {/* Audio Attachment Display */}
-              {currentLesson.audio_attachment_url && (
-                <Card className="p-6 mb-6">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 text-lg">🎵</span>
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900">Audio Narration</h3>
-                      <p className="text-sm text-gray-600">Listen to the audio explanation or narration</p>
-                    </div>
-                  </div>
-                  <AudioPlayer audioUrl={currentLesson.audio_attachment_url} />
-                </Card>
               )}
 
-              {/* Video Error Display */}
-              <VideoErrorDisplay />
-
-              {/* Resources Section */}
-              <div id="lesson-resources">
-                {(currentLesson.resources && Array.isArray(currentLesson.resources) && currentLesson.resources.length > 0) || currentLesson.content_url ? (
-                  <Card className="p-6 mb-6">
-                    <h3 className="text-lg font-semibold text-text-dark mb-4">Lesson Resources</h3>
-                    <div className="space-y-3">
+              {activeTab === 'downloads' && (
+                <div className="space-y-3">
+                  {(currentLesson.resources && Array.isArray(currentLesson.resources) && currentLesson.resources.length > 0) || currentLesson.content_url ? (
+                    <>
                       {currentLesson.resources && Array.isArray(currentLesson.resources) && currentLesson.resources.length > 0 ? (
-                        currentLesson.resources.map((resource) => (
-                resource.type === 'link' ? (
-                  <a
-                    key={resource.id}
-                    href={normalizeUrl(resource.url)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                              className="flex items-center justify-start p-3 border border-background-dark rounded-lg hover:bg-background-light cursor-pointer no-underline"
-                  >
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <ExternalLink className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                                  <h4 className="font-medium text-text-dark truncate">{resource.title}</h4>
-                        {resource.description && (
-                                    <p className="text-sm text-text-light truncate">{resource.description}</p>
-                        )}
-                      </div>
-                    </div>
-                  </a>
-                ) : (
-                  <div
-                    key={resource.id}
-                    onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
+                        currentLesson.resources.map((resource) =>
+                          resource.type === 'link' ? (
+                            <a
+                              key={resource.id}
+                              href={normalizeUrl(resource.url)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-3 p-3 border border-background-dark rounded-lg hover:bg-background-light no-underline"
+                            >
+                              <ExternalLink className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-medium text-sm text-text-dark truncate">{resource.title}</h4>
+                                {resource.description && <p className="text-xs text-text-light truncate">{resource.description}</p>}
+                              </div>
+                            </a>
+                          ) : (
+                            <div
+                              key={resource.id}
+                              onClick={() => window.open(resource.url, '_blank', 'noopener,noreferrer')}
                               className="flex items-center justify-between p-3 border border-background-dark rounded-lg hover:bg-background-light cursor-pointer"
-                  >
+                            >
                               <div className="flex items-center gap-3 flex-1 min-w-0">
                                 <File className="w-5 h-5 text-text-muted flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                                  <h4 className="font-medium text-text-dark truncate">{resource.title}</h4>
-                        {resource.description && (
-                                    <p className="text-sm text-text-light truncate">{resource.description}</p>
-                                  )}
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-medium text-sm text-text-dark truncate">{resource.title}</h4>
+                                  {resource.description && <p className="text-xs text-text-light truncate">{resource.description}</p>}
                                   {resource.file_size && (
                                     <p className="text-xs text-text-muted">
-                                      {resource.file_size < 1024 
+                                      {resource.file_size < 1024
                                         ? `${resource.file_size} B`
                                         : resource.file_size < 1024 * 1024
                                         ? `${(resource.file_size / 1024).toFixed(2)} KB`
                                         : `${(resource.file_size / (1024 * 1024)).toFixed(2)} MB`}
                                     </p>
-                        )}
-                      </div>
-                    </div>
-                              <Button 
-                                variant="ghost" 
+                                  )}
+                                </div>
+                              </div>
+                              <Button
+                                variant="ghost"
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -3629,23 +3424,23 @@ export default function LessonView() {
                               >
                                 <Download className="w-4 h-4" />
                               </Button>
-                  </div>
-                )
-                        ))
+                            </div>
+                          )
+                        )
                       ) : currentLesson.content_url ? (
-                        <div 
+                        <div
                           onClick={() => window.open(currentLesson.content_url, '_blank', 'noopener,noreferrer')}
                           className="flex items-center justify-between p-3 border border-background-dark rounded-lg hover:bg-background-light cursor-pointer"
                         >
                           <div className="flex items-center gap-3">
                             <FileText className="w-5 h-5 text-text-muted" />
                             <div>
-                              <h4 className="font-medium text-text-dark">Additional Content</h4>
-                              <p className="text-sm text-text-light">External resource</p>
+                              <h4 className="font-medium text-sm text-text-dark">Additional Content</h4>
+                              <p className="text-xs text-text-light">External resource</p>
                             </div>
                           </div>
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -3656,78 +3451,76 @@ export default function LessonView() {
                           </Button>
                         </div>
                       ) : null}
-                    </div>
-                  </Card>
-                ) : null}
-              </div>
-
-              {/* Notes Section (if showNotes is true) */}
-              {showNotes && (
-                <Card id="lesson-notes" className="p-6 mb-6">
-                  <h3 className="text-lg font-semibold text-text-dark mb-4">My Notes</h3>
-                  <textarea
-                    className="w-full h-64 p-4 border border-background-dark rounded-lg focus:ring-2 focus:ring-primary-default focus:border-primary-default"
-                    placeholder="Take notes about this lesson..."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                  />
-                  <div className="mt-4 flex justify-between items-center">
-                   
-                    <Button 
-                      variant="secondary" 
-                      onClick={saveNotes}
-                      disabled={isSavingNotes}
-                    >
-                      {isSavingNotes ? 'Saving...' : 'Save Notes'}
-                    </Button>
-            </div>
-          </Card>
-        )}
-
-              {/* Settings Button (for course managers) */}
-              {canManageCourse && (
-                <div className="mb-6">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigate(`/app/courses/${courseId}/lesson/${currentLesson.id}/presentation`)}
-                    className="text-primary-default hover:text-primary-dark"
-                    title="Manage Presentation Content"
-                  >
-                    <Settings className="w-4 h-4 mr-2" />
-                    Lesson Settings
-          </Button>
+                    </>
+                  ) : (
+                    <p className="text-sm text-text-light py-4">No downloads available for this lesson.</p>
+                  )}
                 </div>
               )}
+            </div>
 
-              {/* Time Requirement Warning */}
-            {timeRemainingInfo && !timeRequirementMet && (
-                <Card className="p-4 mb-6 bg-warning-light border-warning-default">
-              <div className="flex items-center gap-2 text-warning-default">
-                <Clock className="w-4 h-4" />
-                    <span className="text-sm">
-                      {timeRemainingInfo.minutesRemaining} minute{timeRemainingInfo.minutesRemaining !== 1 ? 's' : ''} remaining to meet the minimum time requirement
-                </span>
-        </div>
-                </Card>
-      )}
+            {canManageCourse && (
+              <div className="mb-6">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate(`/app/courses/${courseId}/lesson/${currentLesson.id}/presentation`)}
+                  className="text-primary-default hover:text-primary-dark"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Lesson Settings
+                </Button>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-6 border-t border-background-dark">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={goToPreviousLesson}
+                disabled={lessons.findIndex(l => l.id === lessonId) === 0}
+                className="flex items-center gap-2"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Previous
+              </Button>
+
+              {isLastLesson ? (
+                <Button
+                  onClick={async () => {
+                    const allLessonsCompleted = lessons.every(lessonEntry => (
+                      courseProgress[courseId]?.[lessonEntry.id]?.completed
+                    ));
+                    if (!allLessonsCompleted) {
+                      showError('Keep going! Mark every lesson as completed to finish the course.');
+                      return;
+                    }
+                    if (courseFinalAssessment && !finalAssessmentCompleted) {
+                      navigate(`/app/courses/${courseId}/quiz/${courseFinalAssessment.id}`);
+                    } else {
+                      navigate(`/app/courses/${courseId}/completion`);
+                    }
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  {courseFinalAssessment && !finalAssessmentCompleted
+                    ? 'Take Final Assessment'
+                    : 'Complete Course'}
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => goToNextLesson(false)}
+                  className="flex items-center gap-2"
+                >
+                  Go to next item
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
           </div>
-          </div>
-        </div>
+        </main>
       </div>
-      
-      {/* Floating Sidebar Toggle (when collapsed) */}
-      {sidebarCollapsed && (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setSidebarCollapsed(false)}
-          className="fixed bottom-6 right-6 z-50 shadow-lg flex items-center gap-2"
-          >
-            <PanelLeftOpen className="w-4 h-4" />
-            <span className="text-sm">Show Sidebar</span>
-          </Button>
-      )}
 
       <Modal
          isOpen={Boolean(activeKnowledgeCheck)}
