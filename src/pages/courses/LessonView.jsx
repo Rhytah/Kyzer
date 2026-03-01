@@ -1295,20 +1295,18 @@ export default function LessonView() {
   }, [user?.id, lesson?.id, course?.id, notesLoaded, loadNotes])
 
   const saveProgress = useCallback(async (additionalTime = 0, completedOverride = null) => {
-    // Validate all required IDs before making any database calls
     if (!user?.id || !lesson?.id || !course?.id) {
-      return; // Silently skip if data not ready
+      return;
     }
     
-    // Additional validation to ensure IDs are not the string "undefined"
     if (user.id === 'undefined' || lesson.id === 'undefined' || course.id === 'undefined') {
       return;
     }
     
     try {
       const completedFlag = completedOverride !== null ? completedOverride : isCompleted;
-      // Get current review status before update
-      const currentProgress = courseProgress[course.id]?.[lesson.id];
+      const currentCourseProgress = useCourseStore.getState().courseProgress;
+      const currentProgress = currentCourseProgress[course.id]?.[lesson.id];
       const wasReviewCompleted = currentProgress?.review_completed || false;
       
       const result = await actions.updateLessonProgress(
@@ -1322,15 +1320,13 @@ export default function LessonView() {
         }
       )
       
-      // If review_completed just transitioned from false to true, refresh progress to ensure UI updates
       if (result?.reviewCompleted && !wasReviewCompleted) {
-        // Refresh progress to ensure UI reflects the change
         await actions.fetchCourseProgress(user.id, course.id)
       }
     } catch (_) {
-      // Handle error silently or set error state if needed
+      // Handle error silently
     }
-  }, [user?.id, lesson?.id, course?.id, isCompleted, actions, courseProgress, courseId])
+  }, [user?.id, lesson?.id, course?.id, isCompleted, actions])
 
   // Save notes for the current lesson
   const saveNotes = useCallback(async () => {
@@ -1429,47 +1425,44 @@ export default function LessonView() {
     }
   }, [user?.id, lesson?.id, course?.id, notes, success, showError])
 
+  // Ref to hold the latest saveProgress without triggering effect re-runs
+  const saveProgressRef = useRef(saveProgress);
+  useEffect(() => {
+    saveProgressRef.current = saveProgress;
+  }, [saveProgress]);
+
   // Track time for all content types (videos, PDFs, text, etc.)
   useEffect(() => {
-    if (!lesson || !course || !user?.id) return
+    if (!lesson?.id || !course?.id || !user?.id) return
     
     let intervalId = null
     let lastSaveTime = Date.now()
-    let sessionStart = Date.now()
     
-    // For videos, track based on video playback position
-    // For other content (PDF, text, etc.), track based on page visibility
     const trackTime = () => {
       if (document.visibilityState === 'visible') {
         const now = Date.now()
         const timeSinceLastSave = Math.floor((now - lastSaveTime) / 1000)
         
-        // Save every 30 seconds
         if (timeSinceLastSave >= 30) {
-          saveProgress(timeSinceLastSave)
+          saveProgressRef.current(timeSinceLastSave)
           lastSaveTime = now
         }
       }
     }
     
-    // Start tracking immediately
-    sessionStart = Date.now()
     lastSaveTime = Date.now()
-    
-    // Check every 30 seconds
     intervalId = setInterval(trackTime, 30000)
     
     return () => {
       if (intervalId) clearInterval(intervalId)
-      // Save any remaining time on unmount
       if (document.visibilityState === 'visible') {
         const finalTime = Math.floor((Date.now() - lastSaveTime) / 1000)
         if (finalTime > 0) {
-          saveProgress(finalTime)
+          saveProgressRef.current(finalTime)
         }
       }
     }
-  }, [lesson, course, user?.id, saveProgress])
+  }, [lesson?.id, course?.id, user?.id])
 
   const markAsCompleted = async () => {
     if (user?.id && lesson && course) {
