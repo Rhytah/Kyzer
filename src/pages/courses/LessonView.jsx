@@ -559,7 +559,8 @@ const AudioPlayer = memo(({ audioUrl }) => {
 });
 AudioPlayer.displayName = 'AudioPlayer';
 
-// PresentationWrapper - defined at module level to avoid re-creation on parent re-renders
+const presentationFetchCache = new Map();
+
 const PresentationWrapper = memo(({
   lessonId,
   lesson,
@@ -572,12 +573,15 @@ const PresentationWrapper = memo(({
   hasPreviousLesson,
   hasNextLesson
 }) => {
-  const [presentation, setPresentation] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const cached = presentationFetchCache.get(lessonId);
+  const [presentation, setPresentation] = useState(cached?.data || null);
+  const [loading, setLoading] = useState(!cached);
+  const [error, setError] = useState(cached?.error || null);
   const fetchPresentationByLesson = useCourseStore(state => state.actions.fetchPresentationByLesson);
 
   useEffect(() => {
+    if (presentationFetchCache.has(lessonId)) return;
+
     let cancelled = false;
     const loadPresentation = async () => {
       try {
@@ -585,12 +589,17 @@ const PresentationWrapper = memo(({
         const result = await fetchPresentationByLesson(lessonId);
         if (cancelled) return;
         if (result.error) {
+          presentationFetchCache.set(lessonId, { error: result.error });
           setError(result.error);
         } else {
+          presentationFetchCache.set(lessonId, { data: result.data });
           setPresentation(result.data);
         }
       } catch (err) {
-        if (!cancelled) setError(err.message);
+        if (!cancelled) {
+          presentationFetchCache.set(lessonId, { error: err.message });
+          setError(err.message);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
