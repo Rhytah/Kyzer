@@ -1226,7 +1226,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                 <option value="video">Video</option>
                 <option value="text">Text</option>
                 <option value="presentation">Presentation (Multi-format)</option>
-                <option value="scorm">SCORM Package</option>
+                {/* <option value="scorm">SCORM Package</option> */}
                 <option value="pdf">PDF</option>
                 <option value="ppt">PowerPoint</option>
                 <option value="image">Image</option>
@@ -1699,7 +1699,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
               </div>
             )}
 
-            {formData.content_type === 'scorm' && (
+            {/* {formData.content_type === 'scorm' && (
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1760,7 +1760,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                   </div>
                 </div>
               </div>
-            )}
+            )} */}
 
             {formData.content_type === 'image' && (
               <div className="space-y-4">
@@ -2211,7 +2211,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                   )}
 
                   {/* SCORM Preview */}
-                  {formData.content_type === 'scorm' && existingContent.scormUrl && (
+                  {/* {formData.content_type === 'scorm' && existingContent.scormUrl && (
                     <div className="border border-gray-200 rounded-lg p-4">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">Current SCORM Package</h4>
                       <div className="flex items-center space-x-3">
@@ -2231,7 +2231,7 @@ export default function LessonForm({ lesson = null, courseId, onSuccess, onCance
                         </div>
                       </div>
                     </div>
-                  )}
+                  )} */}
 
                   {/* Audio Attachment Preview */}
                   {existingContent.audioUrl && (
