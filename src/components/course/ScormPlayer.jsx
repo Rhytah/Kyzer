@@ -1422,6 +1422,18 @@ const processScormPackage = useCallback(async () => {
     return map[status] || map['not_attempted'];
   }, [status]);
 
+  // Track elapsed time while loading — must be before any early returns
+  useEffect(() => {
+    if (!isLoading || !loadingStartTime) return;
+    
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - loadingStartTime) / 1000);
+      setElapsedTime(elapsed);
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [isLoading, loadingStartTime]);
+
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-[400px] bg-red-50 border border-red-200 rounded-lg p-8">
@@ -1456,18 +1468,6 @@ const processScormPackage = useCallback(async () => {
       </div>
     );
   }
-
-  // Update elapsed time while loading
-  useEffect(() => {
-    if (!isLoading || !loadingStartTime) return;
-    
-    const interval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - loadingStartTime) / 1000);
-      setElapsedTime(elapsed);
-    }, 1000);
-    
-    return () => clearInterval(interval);
-  }, [isLoading, loadingStartTime]);
 
   if (isLoading) {
     const minutes = Math.floor(elapsedTime / 60);
