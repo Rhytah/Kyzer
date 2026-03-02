@@ -2992,7 +2992,7 @@ export default function LessonView() {
       )}
 
       {/* Top Navigation Bar */}
-      <div className="flex-shrink-0 z-40">
+      <div className="flex-shrink-0">
         <div className="flex items-center justify-between h-14 px-4 sm:px-6 bg-white border-b border-background-dark">
           <div className="flex items-center gap-3 min-w-0">
             <button
