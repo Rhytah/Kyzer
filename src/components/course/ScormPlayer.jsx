@@ -587,10 +587,12 @@ const processScormPackage = useCallback(async () => {
   // Store timeout ID for cleanup only on success
   const timeoutIdRef = { id: timeoutId };
 
+  const processStartTime = Date.now();
+
   try {
     setIsLoading(true);
     setError(null);
-    setLoadingStartTime(Date.now());
+    setLoadingStartTime(processStartTime);
     setElapsedTime(0);
     setLoadingStep('Preparing download...');
 
@@ -602,135 +604,114 @@ const processScormPackage = useCallback(async () => {
       throw new Error('Could not generate valid URL from path');
     }
 
-    // Extract the exact storage path for direct download
+    // Extract the storage path (path within the bucket, without bucket name)
     let storagePath = scormUrl;
-    
-    // Handle public URLs: /storage/v1/object/public/course-content/path/to/file
-    if (scormUrl.includes('supabase.co/storage/v1/object/public/')) {
-      const fullPath = scormUrl.split('/object/public/')[1];
-      const parts = fullPath.split('/');
-      // Remove the bucket name to get just the file path
-      storagePath = parts.slice(1).join('/');
-    } 
-    // Handle authenticated URLs: /storage/v1/object/course-content/path/to/file
-    else if (scormUrl.includes('supabase.co/storage/v1/object/')) {
-      const fullPath = scormUrl.split('/object/')[1];
-      const parts = fullPath.split('/');
-      // If first part is the bucket name, remove it
-      if (parts[0] === 'course-content') {
-        storagePath = parts.slice(1).join('/');
+
+    if (scormUrl.includes('/storage/v1/object/')) {
+      // Handles both /object/public/course-content/... and /object/course-content/...
+      const afterObject = scormUrl.split('/object/')[1];
+      // Strip optional "public/" prefix, then strip bucket name
+      const withoutPublic = afterObject.replace(/^public\//, '');
+      const segments = withoutPublic.split('/');
+      if (segments[0] === 'course-content') {
+        storagePath = segments.slice(1).join('/');
       } else {
-        // If no bucket name, use the full path
-        storagePath = fullPath;
-      }
-    }
-    // Fallback: try regex extraction for any Supabase URL format
-    else if (scormUrl.startsWith('http://') || scormUrl.startsWith('https://')) {
-      const urlMatch = scormUrl.match(/\/storage\/v1\/object\/(?:public\/)?([^?#]+)/);
-      if (urlMatch) {
-        const extractedPath = urlMatch[1];
-        const pathParts = extractedPath.split('/');
-        // If first part is the bucket name, remove it
-        if (pathParts[0] === 'course-content') {
-          storagePath = pathParts.slice(1).join('/');
-        } else {
-          storagePath = extractedPath;
-        }
+        storagePath = withoutPublic;
       }
     }
 
-    // Try direct Supabase download first with exact path
+    // Decode any URL-encoded characters so the path matches the actual filename in storage
+    storagePath = decodeURIComponent(storagePath);
+
+    const pathSegments = storagePath.split('/');
+    const directory = pathSegments.slice(0, -1).join('/');
+    const expectedFileName = pathSegments[pathSegments.length - 1];
+
+    // Step 1: Verify the file actually exists by listing the directory
+    setLoadingStep('Verifying file in storage...');
+    currentStep = 'Verifying file existence';
+
+    let fileExists = false;
+    let directoryFiles = [];
+    try {
+      const { data: files, error: listError } = await supabase.storage
+        .from('course-content')
+        .list(directory, { limit: 100 });
+
+      if (!listError && files) {
+        directoryFiles = files.filter(f => !f.id || f.name).map(f => f.name);
+        fileExists = directoryFiles.some(name => name === expectedFileName);
+      }
+    } catch (_) {
+      // Listing failed -- proceed to download anyway and let it report its own error
+    }
+
+    if (!fileExists && directoryFiles.length > 0) {
+      if (!timeoutFired) clearTimeout(timeoutIdRef.id);
+      throw new Error(
+        `File "${expectedFileName}" was NOT found in storage directory "${directory}". ` +
+        `Files that DO exist in that directory: [${directoryFiles.join(', ')}]. ` +
+        `The stored content_url in the database does not match any file in storage. ` +
+        `Re-uploading the SCORM package from the lesson editor should fix this.`
+      );
+    }
+
+    if (!fileExists && directoryFiles.length === 0) {
+      if (!timeoutFired) clearTimeout(timeoutIdRef.id);
+      throw new Error(
+        `Directory "${directory}" is empty or does not exist in the course-content bucket. ` +
+        `Expected to find: "${expectedFileName}". ` +
+        `The SCORM package may not have been uploaded successfully, or the bucket permissions prevent listing. ` +
+        `Try re-uploading the SCORM package from the lesson editor.`
+      );
+    }
+
+    // Step 2: File verified — download it
     setLoadingStep('Downloading SCORM package...');
-    
+    currentStep = 'Downloading';
+
     let zipBlob;
     try {
-      const downloadPromise = supabase.storage
-        .from('course-content')
-        .download(storagePath);
-
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Download timeout after 60 seconds')), 60000)
-      );
-
-      const { data, error } = await Promise.race([downloadPromise, timeoutPromise]);
+      const { data, error } = await Promise.race([
+        supabase.storage.from('course-content').download(storagePath),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Download timeout after 60 seconds')), 60000)
+        ),
+      ]);
 
       if (error) {
-        // Provide more specific error messages for common errors
-        const errorMessage = error.message || error.toString();
-        const statusCode = error.statusCode || error.status || (errorMessage.includes('400') ? 400 : null);
-        
-        if (statusCode === 400 || errorMessage.includes('400') || errorMessage.includes('Bad Request')) {
-          // Try to list files in the directory to help diagnose the issue
-          const pathParts = storagePath.split('/');
-          const directory = pathParts.slice(0, -1).join('/');
-          const fileName = pathParts[pathParts.length - 1];
-          
-          let directoryInfo = '';
-          try {
-            const { data: files, error: listError } = await supabase.storage
-              .from('course-content')
-              .list(directory, { limit: 10 });
-            
-            if (!listError && files && files.length > 0) {
-              const fileNames = files.map(f => f.name).join(', ');
-              directoryInfo = ` Files found in directory: ${fileNames}.`;
-            }
-          } catch (listErr) {
-            // Ignore listing errors, just use the main error
-          }
-          
-          throw new Error(
-            `SCORM package file not found at path: ${storagePath}. ` +
-            `The file "${fileName}" may have been moved, deleted, or the path is incorrect.${directoryInfo} ` +
-            `Please verify the file exists in Supabase storage bucket "course-content" at path "${storagePath}". ` +
-            `If the file was recently uploaded, it may have a timestamp suffix in the filename.`
-          );
-        }
-        
-        if (statusCode === 404 || errorMessage.includes('404') || errorMessage.includes('Not Found')) {
-          throw new Error(
-            `SCORM package file not found at path: ${storagePath}. ` +
-            `Please verify the file exists in Supabase storage.`
-          );
-        }
-        
-        throw new Error(`Failed to download SCORM package: ${errorMessage}`);
+        throw new Error(error.message || error.toString());
       }
-
       if (!data) {
         throw new Error('No data received from Supabase storage');
       }
-      
+
       zipBlob = data;
-      zipBlobSize = zipBlob.size;
-      currentStep = 'Download complete';
-      setLoadingStep(`Downloaded ${(zipBlob.size / 1024 / 1024).toFixed(2)} MB`);
-    } catch (supabaseError) {
-      // If Supabase download fails, try public URL fetch
-      currentStep = 'Trying alternative download method...';
-      setLoadingStep('Trying alternative download method...');
-      
+    } catch (sdkError) {
+      // Fallback: fetch via public URL
+      currentStep = 'Trying public URL download...';
+      setLoadingStep('Trying public URL download...');
+
       try {
-        const downloadPromise = downloadScormPackage(publicUrl);
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Download timeout after 60 seconds')), 60000)
-        );
-        zipBlob = await Promise.race([downloadPromise, timeoutPromise]);
-        zipBlobSize = zipBlob.size;
-        currentStep = 'Download complete';
-        setLoadingStep(`Downloaded ${(zipBlob.size / 1024 / 1024).toFixed(2)} MB`);
+        zipBlob = await Promise.race([
+          downloadScormPackage(publicUrl),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Public URL download timeout after 60 seconds')), 60000)
+          ),
+        ]);
       } catch (fetchError) {
-        // Both methods failed - provide comprehensive error message
-        const errorMessage = supabaseError.message || supabaseError.toString();
-        const fetchErrorMessage = fetchError.message || fetchError.toString();
         throw new Error(
-          `Failed to download SCORM package. ` +
-          `Storage error: ${errorMessage}. ` +
-          `Public URL error: ${fetchErrorMessage}. ` +
-          `Please verify the file exists at: ${storagePath}`
+          `Both download methods failed.\n` +
+          `SDK error: ${sdkError.message}\n` +
+          `Public URL error: ${fetchError.message}\n` +
+          `Attempted path: ${storagePath}`
         );
       }
     }
+
+    zipBlobSize = zipBlob.size;
+    currentStep = 'Download complete';
+    setLoadingStep(`Downloaded ${(zipBlob.size / 1024 / 1024).toFixed(2)} MB`);
 
     if (!mountedRef.current || timeoutFired) {
       if (!timeoutFired) clearTimeout(timeoutIdRef.id);
@@ -757,8 +738,7 @@ const processScormPackage = useCallback(async () => {
       return;
     }
     
-    // Check if we've exceeded reasonable time
-    if (Date.now() - loadingStartTime > 300000) {
+    if (Date.now() - processStartTime > 300000) {
       throw new Error('Processing is taking too long. The SCORM package may be too large or complex.');
     }
     
@@ -827,8 +807,7 @@ const processScormPackage = useCallback(async () => {
       return;
     }
     
-    // Check if we've exceeded reasonable time
-    if (Date.now() - loadingStartTime > 300000) {
+    if (Date.now() - processStartTime > 300000) {
       if (!timeoutFired) clearTimeout(timeoutIdRef.id);
       throw new Error('Processing is taking too long. The SCORM package may be too large or complex.');
     }
@@ -976,8 +955,7 @@ const processScormPackage = useCallback(async () => {
         currentStep = `Extracting files... (${completedCount}/${totalFiles})`;
         setLoadingStep(`Extracting files... (${completedCount}/${totalFiles})`);
         
-        // Check if we've exceeded reasonable time
-        const elapsed = Date.now() - loadingStartTime;
+        const elapsed = Date.now() - processStartTime;
         if (elapsed > 300000) {
           clearInterval(progressInterval);
           if (!timeoutFired) {
@@ -1435,6 +1413,15 @@ const processScormPackage = useCallback(async () => {
   }, [isLoading, loadingStartTime]);
 
   if (error) {
+    const extractedPath = (() => {
+      if (!scormUrl) return 'No URL provided';
+      if (scormUrl.includes('/object/public/')) {
+        const parts = scormUrl.split('/object/public/')[1]?.split('/');
+        return parts?.slice(1).join('/') || scormUrl;
+      }
+      return scormUrl;
+    })();
+
     return (
       <div className="flex items-center justify-center min-h-[400px] bg-red-50 border border-red-200 rounded-lg p-8">
         <div className="text-center max-w-2xl">
@@ -1443,17 +1430,21 @@ const processScormPackage = useCallback(async () => {
           <p className="text-red-600 mb-4 text-sm">{error}</p>
           
           <div className="bg-red-100 border border-red-300 rounded-lg p-4 mb-6 text-left">
-            <p className="text-xs font-semibold text-red-800 mb-2">🔍 Troubleshooting Steps:</p>
-            <ol className="text-xs text-red-700 space-y-1 list-decimal list-inside">
-              <li>Check if the file exists in Supabase Storage: <code className="bg-red-200 px-1 rounded">course-content</code> bucket</li>
-              <li>Verify the file path matches exactly (case-sensitive)</li>
-              <li>Ensure file path starts with <code className="bg-red-200 px-1 rounded">lessons/scorm/</code></li>
-              <li>Check browser console for detailed error logs</li>
-              <li>Try re-uploading the SCORM package</li>
+            <div className="mb-3 p-2 bg-red-200/60 rounded text-xs break-all">
+              <strong>Attempted path:</strong>{' '}
+              <code className="bg-red-200 px-1 rounded">{extractedPath}</code>
+            </div>
+            <p className="text-xs font-semibold text-red-800 mb-2">Troubleshooting Steps:</p>
+            <ol className="text-xs text-red-700 space-y-1.5 list-decimal list-inside">
+              <li>Open Supabase Dashboard &rarr; Storage &rarr; <code className="bg-red-200 px-1 rounded">course-content</code> bucket</li>
+              <li>Navigate to <code className="bg-red-200 px-1 rounded">lessons/scorm/</code> and verify the file exists at the exact path shown above</li>
+              <li>Confirm the bucket is set to <strong>Public</strong> (Settings &rarr; Policies)</li>
+              <li>If the filename has a timestamp suffix (e.g. <code className="bg-red-200 px-1 rounded">_1741300000000</code>), ensure the database <code className="bg-red-200 px-1 rounded">content_url</code> matches the actual filename</li>
+              <li>Try re-uploading the SCORM package from the lesson editor</li>
             </ol>
             <div className="mt-3 p-2 bg-red-200 rounded text-xs">
               <strong>Expected path format:</strong><br/>
-              <code>lessons/scorm/[uuid]/filename.zip</code>
+              <code>lessons/scorm/[courseId]/filename_[timestamp].zip</code>
             </div>
           </div>
           

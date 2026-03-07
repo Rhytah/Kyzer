@@ -1,7 +1,6 @@
 // src/store/courseStore.js
 import { create } from 'zustand';
 import { supabase, TABLES, safeQuery, getUserProfile } from '@/lib/supabase';
-import { DEFAULT_CERTIFICATE_SVG } from '@/utils/certificateUtils';
 
 // Helper function to check if error is a table not found error
 const isTableNotFoundError = (error) => {
@@ -1172,12 +1171,16 @@ const useCourseStore = create((set, get) => ({
 
     updateCertificateTemplate: async (templateId, updates) => {
       try {
+        const allowedColumns = ['name', 'description', 'template_url', 'placeholders', 'is_default'];
+        const filtered = {};
+        for (const key of allowedColumns) {
+          if (key in updates) filtered[key] = updates[key];
+        }
+        filtered.updated_at = new Date().toISOString();
+
         const { data, error } = await supabase
           .from(TABLES.CERTIFICATE_TEMPLATES)
-          .update({
-            ...updates,
-            updated_at: new Date().toISOString(),
-          })
+          .update(filtered)
           .eq('id', templateId)
           .select()
           .single();
@@ -1337,13 +1340,14 @@ const useCourseStore = create((set, get) => ({
             drawWatermark(ctx, canvas.width, canvas.height);
 
             // Add logo if present
-            if (certificate.template?.logo_url) {
+            const sanitizedLogoUrl = certificate.template?.logo_url ? sanitizeTemplateUrl(certificate.template.logo_url) : null;
+            if (sanitizedLogoUrl) {
               const logoImg = new Image();
               logoImg.crossOrigin = 'anonymous';
               logoImg.onload = () => {
                 drawLogo(ctx, logoImg, certificate.template.logo_position || 'top-left', canvas.width, canvas.height);
               };
-              logoImg.src = sanitizeTemplateUrl(certificate.template.logo_url);
+              logoImg.src = sanitizedLogoUrl;
             }
 
             const placeholderData = certificate.certificate_data;

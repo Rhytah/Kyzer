@@ -6,14 +6,14 @@
  * @param {Object} templateData - The template data to validate
  * @returns {Object} - Validation result with isValid and errors
  */
-export const validateCertificateTemplate = (templateData) => {
+export const validateCertificateTemplate = (templateData, { hasUploadedFile = false } = {}) => {
   const errors = [];
 
   if (!templateData.name?.trim()) {
     errors.push('Template name is required');
   }
 
-  if (!templateData.template_url?.trim()) {
+  if (!templateData.template_url?.trim() && !hasUploadedFile) {
     errors.push('Template image is required');
   }
 
@@ -503,10 +503,10 @@ export const createCertificateFilename = (courseName, userName) => {
 };
 
 /**
- * Default certificate template as a self-contained SVG data URL
- * This prevents DNS resolution issues with external placeholder services
+ * Sentinel value returned by sanitizeTemplateUrl when no valid image URL exists.
+ * Components should check for this and render a placeholder UI instead of an <img>.
  */
-export const DEFAULT_CERTIFICATE_SVG = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjYwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjhmOWZhIiBzdHJva2U9IiNkZWUyZTYiIHN0cm9rZS13aWR0aD0iMiIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iMzAlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMzYiIGZvbnQtd2VpZ2h0PSJib2xkIiBmaWxsPSIjMzc0MTUxIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5DZXJ0aWZpY2F0ZSBvZiBDb21wbGV0aW9uPC90ZXh0PgogIDx0ZXh0IHg9IjUwJSIgeT0iNDUlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGZpbGw9IiM2Yjc0ODAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPnt7dXNlcl9uYW1lfX08L3RleHQ+CiAgPHRleHQgeD0iNTAlIiB5PSI1NSUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzZiNzQ4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+e3tjb3Vyc2VfdGl0bGV9fTwvdGV4dD4KICA8dGV4dCB4PSI4MCUiIHk9Ijc1JSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOWNhM2FmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj57e2NvbXBsZXRpb25fZGF0ZX19PC90ZXh0PgogIDx0ZXh0IHg9IjIwJSIgeT0iNzUlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPnt7Y2VydGlmaWNhdGVfaWR9fTwvdGV4dD4KPC9zdmc+';
+export const DEFAULT_CERTIFICATE_SVG = null;
 
 /**
  * Checks if a URL is a problematic external placeholder and provides fallback
@@ -528,7 +528,6 @@ export const sanitizeTemplateUrl = (url) => {
   );
 
   if (isDomainProblematic) {
-    console.warn('Replacing problematic placeholder URL with default SVG:', url);
     return DEFAULT_CERTIFICATE_SVG;
   }
 

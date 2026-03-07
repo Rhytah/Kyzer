@@ -38,7 +38,7 @@ export default function CertificateTemplateForm({
 
   const [uploadedFile, setUploadedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(
-    template?.template_url ? sanitizeTemplateUrl(template.template_url) : ''
+    template?.template_url ? (sanitizeTemplateUrl(template.template_url) || '') : ''
   );
   const [isUploading, setIsUploading] = useState(false);
   const [selectedPlaceholders, setSelectedPlaceholders] = useState(
@@ -49,7 +49,7 @@ export default function CertificateTemplateForm({
   // Logo upload state
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreviewUrl, setLogoPreviewUrl] = useState(
-    template?.logo_url ? sanitizeTemplateUrl(template.logo_url) : ''
+    template?.logo_url ? (sanitizeTemplateUrl(template.logo_url) || '') : ''
   );
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const logoInputRef = useRef(null);
@@ -145,8 +145,7 @@ export default function CertificateTemplateForm({
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate form data using utility function
-    const validation = validateCertificateTemplate(formData);
+    const validation = validateCertificateTemplate(formData, { hasUploadedFile: !!uploadedFile });
     if (!validation.isValid) {
       showError(validation.errors[0]);
       return;

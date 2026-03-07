@@ -249,13 +249,17 @@ export default function CertificateTemplates() {
               )}
 
               {/* Template Preview */}
-              {template.template_url && (
+              {sanitizeTemplateUrl(template.template_url) ? (
                 <div className="mb-4">
                   <img
                     src={sanitizeTemplateUrl(template.template_url)}
                     alt={template.name}
                     className="w-full h-32 object-cover border border-gray-200 rounded"
                   />
+                </div>
+              ) : (
+                <div className="mb-4 w-full h-32 bg-gray-100 border border-gray-200 rounded flex items-center justify-center">
+                  <span className="text-sm text-gray-400">No preview available</span>
                 </div>
               )}
 
@@ -351,12 +355,16 @@ export default function CertificateTemplates() {
                   ×
                 </Button>
               </div>
-              {previewTemplate.template_url && (
+              {sanitizeTemplateUrl(previewTemplate.template_url) ? (
                 <img
                   src={sanitizeTemplateUrl(previewTemplate.template_url)}
                   alt={previewTemplate.name}
                   className="w-full border border-gray-200 rounded"
                 />
+              ) : (
+                <div className="w-full h-64 bg-gray-100 border border-gray-200 rounded flex items-center justify-center">
+                  <span className="text-gray-400">No preview available</span>
+                </div>
               )}
             </div>
           </div>

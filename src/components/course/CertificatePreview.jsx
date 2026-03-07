@@ -52,8 +52,7 @@ export default function CertificatePreview({
         calculateTextLayout,
         drawCertificateBorder,
         drawWatermark,
-        drawLogo,
-        DEFAULT_CERTIFICATE_SVG
+        drawLogo
       } = await import('@/utils/certificateUtils');
 
       // Create a white background for the certificate
