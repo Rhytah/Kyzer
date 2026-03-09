@@ -13,8 +13,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Settings,
-  PanelLeftClose,
-  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Award,
   ExternalLink,
   File,
@@ -3017,7 +3017,7 @@ export default function LessonView() {
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
               title={sidebarCollapsed ? 'Show course outline' : 'Hide course outline'}
             >
-              {sidebarCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+              {sidebarCollapsed ? <PanelRightOpen className="w-4 h-4" /> : <PanelRightClose className="w-4 h-4" />}
             </Button>
           </div>
         </div>
@@ -3036,9 +3036,9 @@ export default function LessonView() {
           <div className="lg:hidden fixed inset-0 bg-black/20 z-20" onClick={() => setSidebarCollapsed(true)} />
         )}
 
-        {/* Left Sidebar - Course Navigation */}
+        {/* Right Sidebar - Course Navigation */}
         {!sidebarCollapsed && (
-          <aside className="absolute top-0 bottom-0 left-0 z-30 lg:relative lg:z-auto flex flex-col w-80 flex-shrink-0 border-r border-background-dark bg-white overflow-hidden shadow-lg lg:shadow-none">
+          <aside className="absolute top-0 bottom-0 right-0 z-30 lg:relative lg:z-auto lg:order-last flex flex-col w-80 flex-shrink-0 border-l border-background-dark bg-white overflow-hidden shadow-lg lg:shadow-none">
             <div className="p-4 border-b border-background-dark flex-shrink-0">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold uppercase tracking-wider text-text-light">Course Content</span>
