@@ -138,7 +138,7 @@ export default function Contact() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary-dark to-primary-default text-white py-20">
+      <section className="marketing-hero-bg text-white py-20">
         <div className="max-w-8xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <PageTitle
             size="hero"
@@ -146,7 +146,7 @@ export default function Contact() {
             title="Get in Touch"
             titleClassName="!text-white"
             subtitle="Have questions about Leadwise Academy? We're here to help you succeed with your learning initiatives."
-            subtitleWrapperClassName="text-xl text-gray-200 mb-8 max-w-3xl mx-auto"
+            subtitleWrapperClassName="text-xl text-white/90 mb-8 max-w-3xl mx-auto"
           />
         </div>
       </section>

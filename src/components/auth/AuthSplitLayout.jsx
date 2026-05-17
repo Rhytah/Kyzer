@@ -28,11 +28,11 @@ export default function AuthSplitLayout({ children }) {
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute -top-40 left-1/2 -z-10 h-[32rem] w-[min(100vw,56rem)] -translate-x-1/2 rounded-[50%] bg-gradient-to-b from-primary-dark/25 to-transparent blur-3xl"
+        className="pointer-events-none absolute -top-40 left-1/2 -z-10 h-[32rem] w-[min(100vw,56rem)] -translate-x-1/2 rounded-[50%] bg-gradient-to-b from-slate-900/35 to-transparent blur-3xl"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute -bottom-24 right-[8%] -z-10 h-80 w-80 rounded-full bg-primary/12 blur-3xl"
+        className="pointer-events-none absolute -bottom-24 right-[8%] -z-10 h-80 w-80 rounded-full bg-slate-500/14 blur-3xl"
         aria-hidden
       />
       <div
@@ -62,7 +62,7 @@ export default function AuthSplitLayout({ children }) {
             <div className="relative z-10">
               <Link
                 to="/"
-                className="inline-flex outline-none ring-offset-2 ring-offset-primary-dark focus-visible:ring-2 focus-visible:ring-white/60"
+                className="inline-flex outline-none ring-offset-2 ring-offset-transparent focus-visible:ring-2 focus-visible:ring-white/60"
               >
                 <img
                   src={leadwiseLogo}

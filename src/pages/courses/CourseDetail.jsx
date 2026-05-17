@@ -557,7 +557,7 @@ export default function CourseDetail() {
             <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/30" />
           </>
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-r from-primary-dark to-primary-default" />
+          <div className="absolute inset-0 marketing-hero-bg-horizontal" />
         )}
         <div className="relative p-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -140,7 +140,7 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary-dark via-primary-default to-text-dark text-white py-10 lg:py-22">
+      <section className="marketing-hero-bg text-white py-10 lg:py-22">
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
@@ -150,7 +150,7 @@ export default function Home() {
                 title={
                   <>
                     Transform Learning Into{" "}
-                    <span className="bg-gradient-to-r from-blue-200 to-green-200 bg-clip-text text-transparent">
+                    <span className="bg-gradient-to-r from-amber-200 via-orange-200 to-amber-100 bg-clip-text text-transparent">
                       Growth
                     </span>
                   </>
@@ -158,7 +158,7 @@ export default function Home() {
                 titleClassName="!text-white !leading-tight opacity-0 motion-safe:animate-home-fade-up motion-reduce:animate-none motion-reduce:opacity-100"
                 accentClassName="scale-x-0 motion-safe:animate-home-accent motion-safe:[animation-delay:320ms] motion-reduce:scale-x-100 motion-reduce:animate-none"
                 subtitle="Empower your team with the most comprehensive learning management system. From individual skill building to enterprise-wide training programs."
-                subtitleWrapperClassName="text-xl text-gray-200 mb-8 leading-relaxed opacity-0 motion-safe:animate-home-fade-up motion-safe:delay-200 motion-reduce:animate-none motion-reduce:opacity-100"
+                subtitleWrapperClassName="text-xl text-white/90 mb-8 leading-relaxed opacity-0 motion-safe:animate-home-fade-up motion-safe:delay-200 motion-reduce:animate-none motion-reduce:opacity-100"
                 className="mb-0"
               />
 
@@ -183,7 +183,7 @@ export default function Home() {
                 </Link>
               </div>
 
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-300 opacity-0 motion-safe:animate-home-fade-up motion-safe:delay-500 motion-reduce:animate-none motion-reduce:opacity-100">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-white/80 opacity-0 motion-safe:animate-home-fade-up motion-safe:delay-500 motion-reduce:animate-none motion-reduce:opacity-100">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 shrink-0 text-green-400" />
                   <span>Free 14-day trial</span>
@@ -395,9 +395,7 @@ export default function Home() {
 
       {/* CTA Section */}
       <section
-        className="
-      bg-gradient-to-br from-primary-dark via-primary-default to-text-dark text-white py-10 lg:py-22
-      "
+        className="marketing-hero-bg py-10 text-white lg:py-22"
       >
         <div className="w-full text-center px-4 sm:px-6 lg:px-8">
           <ScrollReveal>
@@ -406,7 +404,7 @@ export default function Home() {
             </h2>
           </ScrollReveal>
           <ScrollReveal delayMs={90}>
-            <p className="text-xl text-gray-200 mb-8 max-w-2xl mx-auto">
+            <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
               Join thousands of professionals and organizations who are already
               growing with Leadwise Academy
             </p>

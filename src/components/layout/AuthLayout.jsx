@@ -40,7 +40,7 @@ export default function AuthLayout({ children }) {
       </div>
 
       {/* Right Side - Hero Section */}
-      <div className="hidden lg:block lg:w-1/2 bg-gradient-to-br from-primary-dark to-primary relative">
+      <div className="hidden lg:block lg:w-1/2 marketing-hero-bg relative">
         <div className="absolute inset-0 bg-black bg-opacity-20"></div>
         <div className="relative h-full flex flex-col justify-center px-12 text-white">
           <div className="max-w-lg">

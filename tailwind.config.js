@@ -7,11 +7,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Light theme (default)
+        // Hyphen token (not nested `DEFAULT`) — restores `text-primary-default`, `via-primary-default`,
+        // `border-primary-default`, etc., which Tailwind skipped before this alias existed.
+        'primary-default': 'rgb(var(--color-primary-rgb) / <alpha-value>)',
+        // Same nested hues (static hex — matches success / warning / error objects below).
+        'success-default': '#059669',
+        'warning-default': '#D97706',
+        'error-default': '#DC2626',
+
         primary: {
-          DEFAULT: '#374151',
-          dark: '#0D1821',
-          light: '#F3F4F6'
+          DEFAULT: 'rgb(var(--color-primary-rgb) / <alpha-value>)',
+          dark: 'rgb(var(--color-primary-dark-rgb) / <alpha-value>)',
+          light: 'rgb(var(--color-primary-light-rgb) / <alpha-value>)',
         },
         text: {
           dark: '#111827',

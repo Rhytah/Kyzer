@@ -52,9 +52,9 @@ export function buildCertificateShareLink(shareToken) {
   return `${base}/c/${clean}`;
 }
 
-/** Leadwise wordmark (`leadwise.svg`): `.st0` navy, `.st1` orange */
+/** Leadwise wordmark (`leadwise.svg`): `.st0` navy, `.st1` orange (matches themes.css logo accent). */
 export const LEADWISE_BRAND_NAVY = '#002654';
-export const LEADWISE_BRAND_ORANGE = '#F7841C';
+export const LEADWISE_BRAND_ORANGE = '#f7841b';
 
 /** Gallery certificate: logo-navy frame, white panel, brand-orange accent bar */
 export const GALLERY_CERT_COLORS = {

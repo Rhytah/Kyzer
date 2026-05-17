@@ -72,6 +72,8 @@ export default function Pricing() {
   const [billingCycle, setBillingCycle] = useState('monthly')
   const [audience, setAudience] = useState('individual')
   const [loadingPlan, setLoadingPlan] = useState(null)
+  /** Last plan card clicked; keys are `${audience}-…` so toggling Individuals/Companies resets naturally. */
+  const [activePlanCardKey, setActivePlanCardKey] = useState(null)
   const [searchParams, setSearchParams] = useSearchParams()
   const { refreshUser } = useAuth()
 
@@ -96,6 +98,10 @@ export default function Pricing() {
       setSearchParams({}, { replace: true })
     }
   }, [searchParams, refreshUser, setSearchParams])
+
+  useEffect(() => {
+    setActivePlanCardKey(null)
+  }, [audience, billingCycle])
 
   const resolvePlanInfo = (stripePriceKey) => {
     const parts = stripePriceKey.split('_')
@@ -162,6 +168,7 @@ export default function Pricing() {
       : requestedQuantity
 
     setLoadingPlan(stripePriceKey)
+    setActivePlanCardKey(`${audience}-${stripePriceKey}`)
     try {
       await redirectToCheckout(priceId, planName, planType, quantity, { planTier })
     } catch (error) {
@@ -210,7 +217,7 @@ export default function Pricing() {
         "Priority email support"
       ],
       limitations: [],
-      cta: "Start Pro Trial",
+      cta: "Get Pro Plan",
       popular: true,
       icon: Zap
     },
@@ -259,7 +266,7 @@ export default function Pricing() {
         "Standard roles only — no custom RBAC",
         "No mandatory-training workflows"
       ],
-      cta: "Start Team Trial",
+      cta: "Get Team Plan",
       popular: false,
       icon: Users
     },
@@ -283,7 +290,7 @@ export default function Pricing() {
         "Priority email support"
       ],
       limitations: [],
-      cta: "Start Business Trial",
+      cta: "Get Business Plan",
       popular: true,
       icon: Building2
     },
@@ -307,9 +314,13 @@ export default function Pricing() {
     }
   ]
 
-  const PlanCard = ({ plan, type = 'individual' }) => {
+  const PlanCard = ({ plan, type = 'individual', audienceKey }) => {
     const Icon = plan.icon
     const isEnterprise = plan.price === 'Custom'
+    const planInteractionKey = isEnterprise
+      ? `${audienceKey}-enterprise`
+      : `${audienceKey}-${plan.stripePriceKey}`
+    const isActivePlan = activePlanCardKey === planInteractionKey
     const isLoading = loadingPlan === plan.stripePriceKey
     const priceState = isEnterprise ? 'ok' : stripePriceConfigState(plan.stripePriceKey)
     const hasStripePriceId = priceState === 'ok'
@@ -326,6 +337,10 @@ export default function Pricing() {
       })
     }
 
+    const handleCardActivate = () => {
+      setActivePlanCardKey(planInteractionKey)
+    }
+
     const handleSeatChange = (nextValue) => {
       if (!showSeatPicker) return
       updateSeats(plan.planKey, nextValue)
@@ -333,10 +348,16 @@ export default function Pricing() {
     
     return (
       <Card
-        className={`relative overflow-hidden p-6 sm:p-8 ${
+        role="group"
+        aria-current={isActivePlan ? 'true' : undefined}
+        onClick={handleCardActivate}
+        hover
+        className={`relative flex h-full cursor-pointer flex-col overflow-hidden p-6 sm:p-8 transition-shadow duration-200 ${
           plan.popular
-            ? 'ring-2 ring-primary shadow-xl shadow-primary/20 md:scale-105 bg-gradient-to-br from-primary-light/40 via-background-white to-primary/10'
-            : ''
+            ? `pricing-plan-card--popular ring-2 ring-primary shadow-xl shadow-primary/20 md:scale-105 ${isActivePlan ? 'shadow-2xl ring-[3px] ring-primary brightness-[1.02]' : ''}`
+            : isActivePlan
+              ? 'ring-[3px] ring-primary shadow-lg bg-primary-light/25'
+              : ''
         }`}
       >
         {plan.popular && (
@@ -436,12 +457,12 @@ export default function Pricing() {
             </div>
             <p className="mt-2 text-xs text-text-light leading-snug">
               {plan.name} pricing applies between {plan.seatBounds.min} and {plan.seatBounds.max} seats.
-              Final amount is confirmed on Stripe Checkout.
+              Final amount is confirmed at Checkout.
             </p>
           </div>
         )}
 
-        <ul className="space-y-3 mb-8">
+        <ul className="mb-8 flex flex-1 flex-col space-y-3">
           {plan.features.map((feature, index) => (
             <li key={index} className="flex items-start gap-3">
               <Check className="w-5 h-5 text-success-default flex-shrink-0 mt-0.5" />
@@ -456,47 +477,49 @@ export default function Pricing() {
           ))}
         </ul>
 
-        {isEnterprise ? (
-          <Link to="/contact" className="block">
-            <Button
-              className="w-full"
-              variant="outline"
-              size="lg"
-            >
-              {plan.cta}
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </Link>
-        ) : (
-          <Button
-            className="w-full"
-            variant={plan.popular ? 'primary' : 'outline'}
-            size="lg"
-            onClick={handleClick}
-            disabled={isLoading || !!loadingPlan || !hasStripePriceId}
-            title={
-              !hasStripePriceId && plan.stripePriceKey
-                ? priceState === 'invalid'
-                  ? `Use price_... not prod_... — ${stripePriceEnvVarName(plan.stripePriceKey)}`
-                  : `Set ${stripePriceEnvVarName(plan.stripePriceKey)} in Vercel project env and redeploy`
-                : undefined
-            }
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Redirecting...
-              </>
-            ) : !hasStripePriceId ? (
-              priceState === 'invalid' ? 'Invalid Price ID (use price_…)' : 'Billing not configured'
-            ) : (
-              <>
+        <div className="mt-auto w-full shrink-0">
+          {isEnterprise ? (
+            <Link to="/contact" className="block">
+              <Button
+                className="w-full"
+                variant="outline"
+                size="lg"
+              >
                 {plan.cta}
                 <ArrowRight className="w-4 h-4 ml-2" />
-              </>
-            )}
-          </Button>
-        )}
+              </Button>
+            </Link>
+          ) : (
+            <Button
+              className="w-full"
+              variant={plan.popular ? 'primary' : 'outline'}
+              size="lg"
+              onClick={handleClick}
+              disabled={isLoading || !!loadingPlan || !hasStripePriceId}
+              title={
+                !hasStripePriceId && plan.stripePriceKey
+                  ? priceState === 'invalid'
+                    ? `Use price_... not prod_... — ${stripePriceEnvVarName(plan.stripePriceKey)}`
+                    : `Set ${stripePriceEnvVarName(plan.stripePriceKey)} in Vercel project env and redeploy`
+                  : undefined
+              }
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Redirecting...
+                </>
+              ) : !hasStripePriceId ? (
+                priceState === 'invalid' ? 'Invalid Price ID (use price_…)' : 'Billing not configured'
+              ) : (
+                <>
+                  {plan.cta}
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </>
+              )}
+            </Button>
+          )}
+        </div>
       </Card>
     )
   }
@@ -564,7 +587,7 @@ export default function Pricing() {
   return (
     <div className="min-h-screen overflow-x-hidden">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary-dark to-primary text-white py-12 sm:py-16 md:py-20">
+      <section className="marketing-hero-bg text-white py-12 sm:py-16 md:py-20">
         <div className="max-w-8xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <PageTitle
             size="hero"
@@ -572,7 +595,7 @@ export default function Pricing() {
             title="Simple, Transparent Pricing"
             titleClassName="!text-white"
             subtitle="Choose the perfect plan for your learning journey. No hidden fees, cancel anytime, and scale as you grow."
-            subtitleWrapperClassName="text-base sm:text-lg md:text-xl text-gray-200 max-w-3xl mx-auto"
+            subtitleWrapperClassName="text-base sm:text-lg md:text-xl text-white/90 max-w-3xl mx-auto"
           />
         </div>
       </section>
@@ -710,7 +733,12 @@ export default function Pricing() {
             className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 pt-4 md:pt-6"
           >
             {activePlans.map((plan, index) => (
-              <PlanCard key={`${audience}-${index}`} plan={plan} type={audience} />
+              <PlanCard
+                key={`${audience}-${index}`}
+                plan={plan}
+                type={audience}
+                audienceKey={audience}
+              />
             ))}
           </div>
         </div>
@@ -807,17 +835,20 @@ export default function Pricing() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-12 sm:py-16 md:py-20 bg-primary text-white">
+      <section className="marketing-hero-bg py-12 sm:py-16 md:py-20 text-white">
         <div className="max-w-8xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Ready to Get Started?</h2>
-          <p className="text-base sm:text-lg md:text-xl text-gray-200 mb-6 sm:mb-8 max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg md:text-xl text-white/90 mb-6 sm:mb-8 max-w-2xl mx-auto">
             Join thousands of learners and organizations who trust Leadwise Academy for their development needs.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
             <Button
               size="lg"
               className="w-full sm:w-auto bg-white text-primary hover:bg-gray-100"
-              onClick={() => handleSubscribe('starter_monthly')}
+              onClick={() => {
+                setActivePlanCardKey('individual-starter_monthly')
+                handleSubscribe('starter_monthly')
+              }}
               disabled={!!loadingPlan || starterPriceState !== 'ok'}
               title={
                 starterPriceState === 'missing'
@@ -845,7 +876,7 @@ export default function Pricing() {
             </Link>
           </div>
 
-          <div className="mt-6 sm:mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 sm:gap-x-8 text-sm text-gray-300">
+          <div className="mt-6 sm:mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 sm:gap-x-8 text-sm text-white/80">
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4" />
               <span>Secure Stripe checkout</span>
