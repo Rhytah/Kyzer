@@ -70,6 +70,7 @@ serve(async (req) => {
     const userId = session.metadata?.userId
     const planName = session.metadata?.planName
     const planType = session.metadata?.planType
+    const planTierMeta = session.metadata?.planTier
 
     if (!userId) {
       console.error("No userId in session metadata")
@@ -102,8 +103,12 @@ serve(async (req) => {
       })
     }
 
+    // Buyer-clicked tier wins over price-derived plan, since Team and Business
+    // share a graduated Stripe Price and the price map can only ever map to
+    // one of them.
+    const resolvedTier = planTierMeta || resolvedPlan
+
     if (resolvedType === "corporate") {
-      // Corporate plan: update the organization's subscription_status
       const { data: profile } = await supabase
         .from("profiles")
         .select("organization_id")
@@ -111,9 +116,13 @@ serve(async (req) => {
         .single()
 
       if (profile?.organization_id) {
+        const orgUpdate: Record<string, unknown> = { subscription_status: "active" }
+        if (resolvedTier) {
+          orgUpdate.subscription_tier = resolvedTier
+        }
         const { error: orgError } = await supabase
           .from("organizations")
-          .update({ subscription_status: "active" })
+          .update(orgUpdate)
           .eq("id", profile.organization_id)
 
         if (orgError) {
@@ -121,7 +130,6 @@ serve(async (req) => {
         }
       }
     } else {
-      // Individual plan: update the profile's subscription_plan
       const { error: profileError } = await supabase
         .from("profiles")
         .update({ subscription_plan: resolvedPlan })

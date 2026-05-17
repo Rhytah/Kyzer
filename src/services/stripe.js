@@ -89,15 +89,24 @@ const parseInvokeError = async (error, unreachableMessage) => {
  * @param {string} planName - Plan name (starter, pro, premium, team, business)
  * @param {string} planType - Plan type (individual or corporate)
  * @param {number} quantity - Checkout quantity (used for tiered seat pricing)
+ * @param {object} [options]
+ * @param {string} [options.planTier] - Buyer-facing tier label ('team' / 'business').
+ *   Required when Team and Business share a single graduated Stripe Price so the
+ *   server can record which tier the buyer clicked, independent of the seat count
+ *   that ends up driving the actual Stripe tier.
  */
 export const redirectToCheckout = async (
   priceId,
   planName = '',
   planType = 'individual',
-  quantity = 1
+  quantity = 1,
+  options = {}
 ) => {
   const { data: { session } } = await supabase.auth.getSession()
   const safeQuantity = Number.isFinite(Number(quantity)) ? Math.max(1, Math.floor(Number(quantity))) : 1
+  const planTier = typeof options.planTier === 'string' && options.planTier.trim()
+    ? options.planTier.trim()
+    : planName
 
   const { data, error } = await supabase.functions.invoke('create-checkout-session', {
     body: {
@@ -107,6 +116,7 @@ export const redirectToCheckout = async (
       userId: session?.user?.id,
       planName,
       planType,
+      planTier,
       successUrl: `${window.location.origin}/pricing?session_id={CHECKOUT_SESSION_ID}&status=success`,
       cancelUrl: `${window.location.origin}/pricing?status=cancelled`
     }

@@ -40,6 +40,7 @@ serve(async (req) => {
 
     const userId = session.metadata?.userId
     const planName = session.metadata?.planName
+    const planTier = session.metadata?.planTier || planName
     const planType = session.metadata?.planType || 'individual'
 
     if (!userId || !planName) {
@@ -57,9 +58,16 @@ serve(async (req) => {
         .single()
 
       if (profile?.organization_id) {
+        const orgUpdate: Record<string, unknown> = { subscription_status: 'active' }
+        // planTier disambiguates Team vs Business when they share a graduated
+        // Stripe Price. Persist it on the organization so the app can route on
+        // the buyer-clicked tier without re-reading Stripe.
+        if (planTier) {
+          orgUpdate.subscription_tier = planTier
+        }
         await supabase
           .from('organizations')
-          .update({ subscription_status: 'active' })
+          .update(orgUpdate)
           .eq('id', profile.organization_id)
       }
     } else {
@@ -72,7 +80,9 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        plan: planName,
+        plan: planTier,
+        planName,
+        planTier,
         planType,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

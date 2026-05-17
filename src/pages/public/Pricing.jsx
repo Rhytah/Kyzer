@@ -12,7 +12,9 @@ import {
   Shield,
   Zap,
   HeadphonesIcon,
-  Loader2
+  Loader2,
+  Minus,
+  Plus
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Button from '@/components/ui/Button'
@@ -20,6 +22,15 @@ import Card from '@/components/ui/Card'
 import PageTitle from '@/components/layout/PageTitle'
 import { redirectToCheckout, verifyCheckoutSession } from '@/services/stripe'
 import { useAuth } from '@/hooks/auth/useAuth'
+
+// Team and Business share a single Stripe Price configured with graduated/volume
+// tiers in the Stripe Dashboard. The buyer's seat count drives which tier Stripe
+// actually charges, so the picker bounds below MUST match the Stripe tier table.
+// Adjust these if your tier breakpoints change in Stripe.
+const CORPORATE_SEAT_BOUNDS = {
+  team: { min: 1, max: 50, default: 5 },
+  business: { min: 51, max: 200, default: 51 },
+}
 
 const STRIPE_PRICES = {
   starter_monthly: import.meta.env.VITE_STRIPE_PRICE_STARTER_MONTHLY,
@@ -91,7 +102,27 @@ export default function Pricing() {
     const planName = parts[0]
     const corporatePlans = ['team', 'business']
     const planType = corporatePlans.includes(planName) ? 'corporate' : 'individual'
-    return { planName, planType }
+    return { planName, planType, planTier: planName }
+  }
+
+  const clampSeats = (planName, value) => {
+    const bounds = CORPORATE_SEAT_BOUNDS[planName]
+    if (!bounds) return Math.max(1, Math.floor(Number(value) || 1))
+    const numeric = Math.floor(Number(value))
+    if (!Number.isFinite(numeric)) return bounds.default
+    return Math.min(bounds.max, Math.max(bounds.min, numeric))
+  }
+
+  const [corporateSeats, setCorporateSeats] = useState(() => ({
+    team: CORPORATE_SEAT_BOUNDS.team.default,
+    business: CORPORATE_SEAT_BOUNDS.business.default,
+  }))
+
+  const updateSeats = (planName, nextValue) => {
+    setCorporateSeats((prev) => ({
+      ...prev,
+      [planName]: clampSeats(planName, nextValue),
+    }))
   }
 
   const priceConfigSummary = (() => {
@@ -121,14 +152,18 @@ export default function Pricing() {
       return
     }
 
-    const { planName, planType } = resolvePlanInfo(stripePriceKey)
-    const quantity = Number.isFinite(Number(options.quantity))
+    const { planName, planType, planTier } = resolvePlanInfo(stripePriceKey)
+    const isCorporate = planType === 'corporate'
+    const requestedQuantity = Number.isFinite(Number(options.quantity))
       ? Math.max(1, Math.floor(Number(options.quantity)))
       : 1
+    const quantity = isCorporate
+      ? clampSeats(planName, requestedQuantity)
+      : requestedQuantity
 
     setLoadingPlan(stripePriceKey)
     try {
-      await redirectToCheckout(priceId, planName, planType, quantity)
+      await redirectToCheckout(priceId, planName, planType, quantity, { planTier })
     } catch (error) {
       toast.error(error.message || 'Something went wrong. Please try again.')
     } finally {
@@ -202,11 +237,13 @@ export default function Pricing() {
   const corporatePlans = [
     {
       name: "Team",
+      planKey: 'team',
       price: billingCycle === 'monthly' ? 15 : 150,
       originalPrice: billingCycle === 'annual' ? 180 : null,
       description: "Run training for a small, focused team.",
       userRange: "Up to 50 users",
-      checkoutQuantity: 5,
+      seatBounds: CORPORATE_SEAT_BOUNDS.team,
+      checkoutQuantity: corporateSeats.team,
       stripePriceKey: billingCycle === 'monthly' ? 'team_monthly' : 'team_annual',
       features: [
         "Everything in Pro for every team member",
@@ -228,11 +265,13 @@ export default function Pricing() {
     },
     {
       name: "Business",
+      planKey: 'business',
       price: billingCycle === 'monthly' ? 25 : 250,
       originalPrice: billingCycle === 'annual' ? 300 : null,
       description: "Scale training across departments and roles.",
       userRange: "Up to 200 users",
-      checkoutQuantity: 50,
+      seatBounds: CORPORATE_SEAT_BOUNDS.business,
+      checkoutQuantity: corporateSeats.business,
       stripePriceKey: billingCycle === 'monthly' ? 'business_monthly' : 'business_annual',
       features: [
         "Everything in Team",
@@ -274,12 +313,22 @@ export default function Pricing() {
     const isLoading = loadingPlan === plan.stripePriceKey
     const priceState = isEnterprise ? 'ok' : stripePriceConfigState(plan.stripePriceKey)
     const hasStripePriceId = priceState === 'ok'
+    const showSeatPicker =
+      type === 'corporate' && !isEnterprise && !!plan.seatBounds && !!plan.planKey
+    const seatCount = showSeatPicker
+      ? corporateSeats[plan.planKey] ?? plan.seatBounds.default
+      : plan.checkoutQuantity || 1
 
     const handleClick = () => {
       if (isEnterprise) return
       handleSubscribe(plan.stripePriceKey, {
-        quantity: type === 'corporate' ? (plan.checkoutQuantity || 1) : 1
+        quantity: type === 'corporate' ? seatCount : 1
       })
+    }
+
+    const handleSeatChange = (nextValue) => {
+      if (!showSeatPicker) return
+      updateSeats(plan.planKey, nextValue)
     }
     
     return (
@@ -343,6 +392,54 @@ export default function Pricing() {
             )}
           </div>
         </div>
+
+        {showSeatPicker && (
+          <div className="mb-6 rounded-lg border border-background-dark bg-background-light/60 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-semibold text-text-dark">
+                Seats
+                <span className="ml-1 font-normal text-text-medium">
+                  ({plan.seatBounds.min}–{plan.seatBounds.max})
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  aria-label={`Decrease ${plan.name} seats`}
+                  onClick={() => handleSeatChange(seatCount - 1)}
+                  disabled={seatCount <= plan.seatBounds.min || isLoading}
+                  className="w-8 h-8 inline-flex items-center justify-center rounded-md border border-background-dark bg-white text-text-dark disabled:opacity-40 disabled:cursor-not-allowed hover:bg-background-light"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={plan.seatBounds.min}
+                  max={plan.seatBounds.max}
+                  value={seatCount}
+                  onChange={(event) => handleSeatChange(event.target.value)}
+                  onBlur={(event) => handleSeatChange(event.target.value)}
+                  aria-label={`${plan.name} seat count`}
+                  className="w-16 h-8 rounded-md border border-background-dark bg-white text-center text-sm font-semibold text-text-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                <button
+                  type="button"
+                  aria-label={`Increase ${plan.name} seats`}
+                  onClick={() => handleSeatChange(seatCount + 1)}
+                  disabled={seatCount >= plan.seatBounds.max || isLoading}
+                  className="w-8 h-8 inline-flex items-center justify-center rounded-md border border-background-dark bg-white text-text-dark disabled:opacity-40 disabled:cursor-not-allowed hover:bg-background-light"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-text-light leading-snug">
+              {plan.name} pricing applies between {plan.seatBounds.min} and {plan.seatBounds.max} seats.
+              Final amount is confirmed on Stripe Checkout.
+            </p>
+          </div>
+        )}
 
         <ul className="space-y-3 mb-8">
           {plan.features.map((feature, index) => (

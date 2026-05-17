@@ -32,7 +32,17 @@ serve(async (req) => {
 
     const requestBody = await req.json()
     bodyForErrorContext = requestBody || {}
-    const { priceId, quantity, customerEmail, userId, planName, planType, successUrl, cancelUrl } = requestBody
+    const {
+      priceId,
+      quantity,
+      customerEmail,
+      userId,
+      planName,
+      planType,
+      planTier,
+      successUrl,
+      cancelUrl,
+    } = requestBody
 
     if (!priceId) {
       return new Response(
@@ -46,17 +56,54 @@ serve(async (req) => {
       ? Math.max(1, Math.floor(parsedQuantity))
       : 1
 
+    const safePlanName = typeof planName === 'string' ? planName : ''
+    const safePlanType = typeof planType === 'string' && planType ? planType : 'individual'
+    // planTier records which buyer-facing tier was clicked (e.g. team vs business)
+    // when multiple tiers share a single graduated Stripe Price. Falls back to the
+    // plan name so downstream consumers always have a value to read.
+    const safePlanTier =
+      typeof planTier === 'string' && planTier.trim() ? planTier.trim() : safePlanName
+
+    const subscriptionMetadata = {
+      userId: userId || '',
+      planName: safePlanName,
+      planType: safePlanType,
+      planTier: safePlanTier,
+      quantity: String(safeQuantity),
+    }
+
+    const subscriptionDescription = safePlanName
+      ? `Kyzer ${safePlanName.charAt(0).toUpperCase()}${safePlanName.slice(1)} — ${safeQuantity} seat${
+          safeQuantity === 1 ? '' : 's'
+        }`
+      : undefined
+
+    // Corporate plans expose an adjustable seat count on Stripe Checkout so
+    // buyers can fine-tune across the full graduated tier range. Bounds are
+    // intentionally wide (1–200) — Stripe's tier table charges the right rate
+    // wherever they land, and the buyer-clicked tier is preserved in metadata.
+    const lineItem: Stripe.Checkout.SessionCreateParams.LineItem = {
+      price: priceId,
+      quantity: safeQuantity,
+    }
+    if (safePlanType === 'corporate') {
+      lineItem.adjustable_quantity = {
+        enabled: true,
+        minimum: 1,
+        maximum: 200,
+      }
+    }
+
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: safeQuantity }],
+      line_items: [lineItem],
       success_url: successUrl || `${Deno.env.get('VITE_APP_URL') || 'http://localhost:5173'}/pricing?session_id={CHECKOUT_SESSION_ID}&status=success`,
       cancel_url: cancelUrl || `${Deno.env.get('VITE_APP_URL') || 'http://localhost:5173'}/pricing?status=cancelled`,
-      metadata: {
-        userId: userId || '',
-        planName: planName || '',
-        planType: planType || 'individual',
-        quantity: String(safeQuantity),
+      metadata: subscriptionMetadata,
+      subscription_data: {
+        description: subscriptionDescription,
+        metadata: subscriptionMetadata,
       },
     }
 
