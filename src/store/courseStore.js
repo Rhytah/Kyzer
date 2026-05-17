@@ -51,19 +51,53 @@ function buildCertificateTemplateUpdatePayload(updates, includeExtended) {
 // Helper function to check if error is a table not found error
 const isTableNotFoundError = (error) => {
   if (!error) return false;
-  // Check for PostgREST error code
-  if (error.code === 'PGRST116') return true;
   // Check for PostgreSQL error code (relation does not exist)
   if (error.code === '42P01') return true;
-  // Check for HTTP 404 status
+  // Check for HTTP 404 status (missing REST route / unknown table exposure)
   if (error.status === 404) return true;
-  // Check error message for table not found indicators
-  if (error.message && (
-    error.message.includes('does not exist') ||
-    (error.message.includes('relation') && error.message.includes('not found')) ||
-    error.message.includes('404')
-  )) return true;
+  const errorText =
+    `${error.message ?? ''}${error.details ?? ''}${error.hint ?? ''}`.toLowerCase();
+  // PostgREST: missing relation, schema cache, invalid REST path — not PGRST116 (zero rows for .single()).
+  if (
+    errorText.includes('could not find the table') ||
+    errorText.includes('schema cache') ||
+    errorText.includes('requested resource was not found')
+  ) {
+    return true;
+  }
+  if (
+    errorText.includes('relation') &&
+    errorText.includes('does not exist')
+  ) {
+    return true;
+  }
+  if (
+    errorText.includes('requested') &&
+    errorText.includes('does not exist')
+  ) {
+    return true;
+  }
+  if (errorText.includes('invalid') && errorText.includes('path')) return true;
+  if (errorText.includes('"404"') || /\b404\b/.test(errorText)) return true;
   return false;
+};
+
+const missingCourseWishlistInfrastructureError = () =>
+  new Error(
+    'Wishlist is not configured on your Supabase project. Open Dashboard → SQL, run supabase/migrations/20260421_course_wishlist.sql, then try again.'
+  );
+
+/** Canonical string for UUID course ids across URL params and Postgres. */
+const normalizeWishlistCourseId = (courseId) => {
+  if (!courseId) return '';
+  return String(courseId).trim().toLowerCase();
+};
+
+const isWishlistDuplicateError = (error) => {
+  if (!error) return false;
+  if (error.code === '23505') return true;
+  const msg = typeof error.message === 'string' ? error.message.toLowerCase() : '';
+  return msg.includes('duplicate') || msg.includes('unique constraint');
 };
 
 const useCourseStore = create((set, get) => ({
@@ -71,6 +105,7 @@ const useCourseStore = create((set, get) => ({
   courses: [],
   enrolledCourses: [],
   wishlistCourses: [],
+  wishlistCourseIds: [],
   currentCourse: null,
   currentLesson: null,
   courseProgress: {},
@@ -562,47 +597,83 @@ const useCourseStore = create((set, get) => ({
 
     // Fetch user's wishlist courses
     fetchWishlistCourses: async (userId) => {
-      if (!userId) return { data: [], error: null };
+      if (!userId) {
+        set((state) => ({
+          wishlistCourses: [],
+          wishlistCourseIds: [],
+          loading: { ...state.loading, wishlist: false },
+        }));
+        return { data: [], error: null };
+      }
       set((state) => ({
         loading: { ...state.loading, wishlist: true },
         error: null,
       }));
       try {
-        const { data, error } = await supabase
+        // Two-step fetch avoids nested PostgREST embeds that often return 400 when FK hints
+        // or column mismatches differ from `fetchCourses` (e.g. profiles.email visibility).
+        const { data: rows, error: rowsError } = await supabase
           .from(TABLES.COURSE_WISHLIST)
-          .select(`
-            id,
-            created_at,
-            course:${TABLES.COURSES} (
-              *,
-              category:${TABLES.COURSE_CATEGORIES}(id, name, color),
-              creator:${TABLES.PROFILES}(id, first_name, last_name, email)
-            )
-          `)
+          .select('id, course_id, created_at')
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (rowsError) throw rowsError;
 
-        const wishlistCourses = (data || [])
-          .filter((row) => row.course)
-          .map((row) => ({
-            ...row.course,
+        const seenIds = new Set();
+        const wishlistCourseIds = [];
+        for (const row of rows || []) {
+          const cid = normalizeWishlistCourseId(row.course_id);
+          if (!cid || seenIds.has(cid)) continue;
+          seenIds.add(cid);
+          wishlistCourseIds.push(cid);
+        }
+
+        const coursesById = new Map();
+        if (wishlistCourseIds.length > 0) {
+          const { data: courseRows, error: coursesError } = await supabase
+            .from(TABLES.COURSES)
+            .select(
+              'id, title, description, thumbnail_url, duration_minutes, difficulty_level, category_id, is_published'
+            )
+            .in('id', wishlistCourseIds);
+          if (coursesError) throw coursesError;
+          for (const c of courseRows || []) {
+            coursesById.set(normalizeWishlistCourseId(c.id), c);
+          }
+        }
+
+        const wishlistCourses = [];
+        for (const row of rows || []) {
+          const cid = normalizeWishlistCourseId(row.course_id);
+          const courseRow = cid ? coursesById.get(cid) : undefined;
+          if (!courseRow) continue;
+          wishlistCourses.push({
+            ...courseRow,
             wishlist_item_id: row.id,
             wishlisted_at: row.created_at,
-          }));
+          });
+        }
 
         set((state) => ({
           wishlistCourses,
+          wishlistCourseIds,
           loading: { ...state.loading, wishlist: false },
         }));
 
         return { data: wishlistCourses, error: null };
       } catch (error) {
+        const readable =
+          isTableNotFoundError(error)
+            ? missingCourseWishlistInfrastructureError().message
+            : typeof error.message === 'string'
+              ? error.message
+              : 'Could not load wishlist.';
         set((state) => ({
           wishlistCourses: [],
+          wishlistCourseIds: [],
           loading: { ...state.loading, wishlist: false },
-          error: error.message,
+          error: readable,
         }));
         return { data: [], error };
       }
@@ -616,23 +687,44 @@ const useCourseStore = create((set, get) => ({
           .insert({
             user_id: userId,
             course_id: courseId,
-            created_at: new Date().toISOString(),
           })
           .select('id')
           .single();
 
-        if (error) throw error;
+        if (error) {
+          if (isWishlistDuplicateError(error)) {
+            await get().actions.fetchWishlistCourses(userId);
+            return { data: null, error: null };
+          }
+          if (isTableNotFoundError(error)) {
+            return {
+              data: null,
+              error: missingCourseWishlistInfrastructureError(),
+            };
+          }
+          throw error;
+        }
 
-        // Refresh wishlist to keep course data consistent
         await get().actions.fetchWishlistCourses(userId);
         return { data, error: null };
       } catch (error) {
+        if (isWishlistDuplicateError(error)) {
+          await get().actions.fetchWishlistCourses(userId);
+          return { data: null, error: null };
+        }
+        if (isTableNotFoundError(error)) {
+          return {
+            data: null,
+            error: missingCourseWishlistInfrastructureError(),
+          };
+        }
         return { data: null, error };
       }
     },
 
     // Remove course from wishlist
     removeFromWishlist: async (userId, courseId) => {
+      const normalizedCourseId = normalizeWishlistCourseId(courseId);
       try {
         const { error } = await supabase
           .from(TABLES.COURSE_WISHLIST)
@@ -640,13 +732,24 @@ const useCourseStore = create((set, get) => ({
           .eq('user_id', userId)
           .eq('course_id', courseId);
 
-        if (error) throw error;
+        if (error) {
+          if (isTableNotFoundError(error)) {
+            return { data: null, error: missingCourseWishlistInfrastructureError() };
+          }
+          throw error;
+        }
 
         set((state) => ({
-          wishlistCourses: state.wishlistCourses.filter((c) => c.id !== courseId),
+          wishlistCourses: state.wishlistCourses.filter(
+            (c) => normalizeWishlistCourseId(c.id) !== normalizedCourseId
+          ),
+          wishlistCourseIds: state.wishlistCourseIds.filter((id) => id !== normalizedCourseId),
         }));
         return { data: true, error: null };
       } catch (error) {
+        if (isTableNotFoundError(error)) {
+          return { data: null, error: missingCourseWishlistInfrastructureError() };
+        }
         return { data: null, error };
       }
     },
@@ -3231,11 +3334,11 @@ const useCourseStore = create((set, get) => ({
           .select('*')
           .eq('course_id', courseId)
           .eq('user_id', userId)
-          .single();
+          .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') throw error;
+        if (error) throw error;
 
-        return { data: data || null, error: null };
+        return { data: data ?? null, error: null };
       } catch (error) {
         return { data: null, error: error.message };
       }
@@ -3249,12 +3352,14 @@ const useCourseStore = create((set, get) => ({
         }
 
         // Check if review already exists
-        const { data: existing } = await supabase
+        const { data: existing, error: existingError } = await supabase
           .from(TABLES.COURSE_REVIEWS)
           .select('id')
           .eq('course_id', courseId)
           .eq('user_id', userId)
-          .single();
+          .maybeSingle();
+
+        if (existingError) throw existingError;
 
         let result;
         if (existing) {

@@ -106,8 +106,8 @@ export default function CourseDetail() {
   const fetchCourseModules = useCourseStore(state => state.actions.fetchCourseModules);
   const fetchCourseProgress = useCourseStore(state => state.actions.fetchCourseProgress);
   const fetchEnrolledCourses = useCourseStore(state => state.actions.fetchEnrolledCourses);
-  const wishlistCourses = useCourseStore(state => state.wishlistCourses);
   const fetchWishlistCourses = useCourseStore(state => state.actions.fetchWishlistCourses);
+  const wishlistCourseIds = useCourseStore(state => state.wishlistCourseIds);
   const addToWishlist = useCourseStore(state => state.actions.addToWishlist);
   const removeFromWishlist = useCourseStore(state => state.actions.removeFromWishlist);
   const fetchCourseReviews = useCourseStore(state => state.actions.fetchCourseReviews);
@@ -323,7 +323,14 @@ export default function CourseDetail() {
   )
 
   const isLocked = isFreeTrial && !canAccessCourse(course)
-  const isWishlisted = Boolean(wishlistCourses?.some((wishlistCourse) => wishlistCourse.id === courseId))
+  const normalizedWishlistCourseId =
+    typeof courseId === 'string'
+      ? courseId.trim().toLowerCase()
+      : courseId != null
+        ? String(courseId).trim().toLowerCase()
+        : ''
+  const isWishlisted =
+    normalizedWishlistCourseId !== '' && wishlistCourseIds.includes(normalizedWishlistCourseId)
   const isOwnOrgCourse =
     Boolean(profile?.organization_id) &&
     Boolean(course?.restricted_organization_id) &&
@@ -476,13 +483,27 @@ export default function CourseDetail() {
 
     if (!courseId) return
 
+    const explainWishlistFailure = (err) =>
+      typeof err?.message === 'string' && err.message.trim()
+        ? err.message.trim()
+        : 'Could not update your wishlist.'
+
     if (isWishlisted) {
-      await removeFromWishlist(user.id, courseId)
+      const result = await removeFromWishlist(user.id, courseId)
+      if (result.error) {
+        showError(explainWishlistFailure(result.error))
+        return
+      }
       success('Removed from wishlist.')
-    } else {
-      await addToWishlist(user.id, courseId)
-      success('Added to wishlist.')
+      return
     }
+
+    const result = await addToWishlist(user.id, courseId)
+    if (result.error) {
+      showError(explainWishlistFailure(result.error))
+      return
+    }
+    success('Added to wishlist.')
   }
 
   const toggleModule = (moduleId) => {
