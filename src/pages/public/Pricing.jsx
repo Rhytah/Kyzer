@@ -352,9 +352,9 @@ export default function Pricing() {
         aria-current={isActivePlan ? 'true' : undefined}
         onClick={handleCardActivate}
         hover
-        className={`relative flex h-full cursor-pointer flex-col overflow-hidden p-6 sm:p-8 transition-shadow duration-200 ${
+        className={`relative flex h-full min-w-0 cursor-pointer flex-col overflow-hidden p-6 sm:p-8 transition-shadow duration-200 ${
           plan.popular
-            ? `pricing-plan-card--popular ring-2 ring-primary shadow-xl shadow-primary/20 md:scale-105 ${isActivePlan ? 'shadow-2xl ring-[3px] ring-primary brightness-[1.02]' : ''}`
+            ? `pricing-plan-card--popular ring-2 ring-primary shadow-xl shadow-primary/20 md:-translate-y-2 md:shadow-2xl ${isActivePlan ? 'shadow-2xl ring-[3px] ring-primary brightness-[1.02]' : ''}`
             : isActivePlan
               ? 'ring-[3px] ring-primary shadow-lg bg-primary-light/25'
               : ''
@@ -585,7 +585,7 @@ export default function Pricing() {
       ]
 
   return (
-    <div className="min-h-screen overflow-x-hidden">
+    <div className="min-h-screen min-w-0 max-w-full overflow-x-hidden">
       {/* Hero Section */}
       <section className="marketing-hero-bg text-white py-12 sm:py-16 md:py-20">
         <div className="max-w-8xl mx-auto text-center px-4 sm:px-6 lg:px-8">
@@ -628,9 +628,9 @@ export default function Pricing() {
 
       {/* Plans for active audience */}
       <section className="py-12 sm:py-16 md:py-20 bg-background-light">
-        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-8xl min-w-0 px-4 sm:px-6 lg:px-8">
           {/* Inline controls row: audience tabs (center) + billing toggle (right) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 items-center gap-6 mb-10 sm:mb-14">
+          <div className="grid min-w-0 grid-cols-1 lg:grid-cols-3 items-center gap-6 mb-10 sm:mb-14">
             <div className="hidden lg:block" aria-hidden="true" />
 
             {/* Audience tabs — sliding pill, light theme */}
@@ -638,7 +638,7 @@ export default function Pricing() {
               <div
                 role="tablist"
                 aria-label="Pricing audience"
-                className="relative inline-flex items-center bg-white border border-background-dark rounded-full p-1 shadow-sm max-w-full"
+                className="relative inline-flex min-w-0 max-w-full items-center bg-white border border-background-dark rounded-full p-1 shadow-sm"
               >
                 <span
                   aria-hidden="true"
@@ -651,7 +651,7 @@ export default function Pricing() {
                   role="tab"
                   aria-selected={audience === 'individual'}
                   onClick={() => setAudience('individual')}
-                  className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 sm:gap-2 sm:min-w-[140px] md:min-w-[160px] px-3 sm:px-6 py-2.5 rounded-full text-sm font-semibold transition-colors duration-200 ${
+                  className={`relative z-10 flex min-w-0 flex-1 items-center justify-center gap-1.5 sm:gap-2 md:min-w-[128px] lg:min-w-[140px] px-3 sm:px-6 py-2.5 rounded-full text-sm font-semibold transition-colors duration-200 ${
                     audience === 'individual'
                       ? 'text-white'
                       : 'text-text-medium hover:text-text-dark'
@@ -665,7 +665,7 @@ export default function Pricing() {
                   role="tab"
                   aria-selected={audience === 'corporate'}
                   onClick={() => setAudience('corporate')}
-                  className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 sm:gap-2 sm:min-w-[140px] md:min-w-[160px] px-3 sm:px-6 py-2.5 rounded-full text-sm font-semibold transition-colors duration-200 ${
+                  className={`relative z-10 flex min-w-0 flex-1 items-center justify-center gap-1.5 sm:gap-2 md:min-w-[128px] lg:min-w-[140px] px-3 sm:px-6 py-2.5 rounded-full text-sm font-semibold transition-colors duration-200 ${
                     audience === 'corporate'
                       ? 'text-white'
                       : 'text-text-medium hover:text-text-dark'
@@ -730,7 +730,7 @@ export default function Pricing() {
           <div
             role="tabpanel"
             aria-label={audienceCopy.heading}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 pt-4 md:pt-6"
+            className="grid min-w-0 grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 pt-4 md:pt-6"
           >
             {activePlans.map((plan, index) => (
               <PlanCard
@@ -745,8 +745,8 @@ export default function Pricing() {
       </section>
 
       {/* Features Comparison */}
-      <section className="py-12 sm:py-16 md:py-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="min-w-0 py-12 sm:py-16 md:py-20">
+        <div className="mx-auto max-w-6xl min-w-0 px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10 sm:mb-16">
             <h2 className="text-xl sm:text-2xl font-bold text-text-dark mb-3 sm:mb-4">Feature Comparison</h2>
             <p className="text-base sm:text-lg md:text-xl text-text-medium">
